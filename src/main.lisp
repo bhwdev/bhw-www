@@ -3,6 +3,7 @@
 
 (uiop:define-package #:project-isidore/main
   (:use #:common-lisp)
+  (:import-from #:alexandria)
   (:import-from #:bordeaux-threads)
   (:import-from #:cffi)
   (:import-from #:cl+ssl)
@@ -103,6 +104,95 @@ signature."
                '(413 (:content-type "text/plain") ("Payload Too Large")))
               (t (funcall app env)))))))
 
+;;; Static files
+
+(defvar *file-etags* (make-hash-table :test #'equal)
+  "FILE-ETAG's cache: entity tags by (truename write-date length).")
+
+(defvar *file-etags-lock* (bordeaux-threads:make-lock "file-etags"))
+
+(defun file-etag (pathname)
+  "The strong entity tag of the file PATHNAME, quoted: the first 128 bits of
+the SHA-256 of its contents, in hex.  Cached for as long as the file keeps
+its write date and length, which in the store is for good."
+  (let ((key (with-open-file (in pathname :element-type '(unsigned-byte 8))
+               (list (namestring (truename in)) (file-write-date in) (file-length in)))))
+    (or (bordeaux-threads:with-lock-held (*file-etags-lock*)
+          (gethash key *file-etags*))
+        (let ((etag (format nil "\"~A\""
+                            (ironclad:byte-array-to-hex-string
+                             (ironclad:digest-file :sha256 pathname) :end 16))))
+          (bordeaux-threads:with-lock-held (*file-etags-lock*)
+            (setf (gethash key *file-etags*) etag))))))
+
+(defun etag-matches-p (if-none-match etag)
+  "True when IF-NONE-MATCH, the value of an If-None-Match header, is * or
+lists ETAG.  The comparison is the weak one RFC 9110 (section 13.1.2) has
+If-None-Match use: a W/ in front of either tag is ignored."
+  (flet ((opaque (tag)
+           (if (and (> (length tag) 2) (string= "W/" tag :end2 2))
+               (subseq tag 2)
+               tag)))
+    (and (or (string= "*" (string-trim " " if-none-match))
+             (member (opaque etag)
+                     (cl-ppcre:all-matches-as-strings "(?:W/)?\"[^\"]*\"" if-none-match)
+                     :key #'opaque :test #'string=))
+         t)))
+
+(defun stream-file (status headers pathname)
+  "A Lack response of STATUS and HEADERS whose body is the contents of the
+file PATHNAME, sent 64 KiB at a time.  A pathname body would not do: Clack's
+Hunchentoot handler gives it to HUNCHENTOOT:HANDLE-STATIC-FILE, which adds
+the file's write date as Last-Modified and answers an If-Modified-Since that
+names it with 304."
+  (lambda (responder)
+    (let ((writer (funcall responder (list status headers)))
+          (buffer (make-array 65536 :element-type '(unsigned-byte 8))))
+      (with-open-file (in pathname :element-type '(unsigned-byte 8))
+        (loop for end = (read-sequence buffer in)
+              while (plusp end)
+              do (funcall writer buffer :end end)))
+      (funcall writer nil :close t))))
+
+(defun make-file-validator ()
+  "Return a Lack middleware, to run after every other, that has a browser
+revalidate each file the static server sends, every time it uses its copy,
+by an entity tag of the file's contents.
+
+The files are in the Guix store, where every write date is 1970-01-01
+00:00:01 UTC.  Lack's file server and Hunchentoot each send that as
+Last-Modified and answer 304 to an If-Modified-Since naming it, so a browser
+kept its copy of a file through every deploy: with no Cache-Control, a
+Last-Modified that old leaves a copy fresh for over five years (a tenth of
+its age, RFC 9111 section 4.2.2), and asking again only got the 304.
+
+So this middleware hides If-Modified-Since from the file server, and sends
+each file the server answers with (a 200 whose body is a pathname) itself,
+with an ETag (FILE-ETAG) and Cache-Control: no-cache in place of
+Last-Modified.  An If-None-Match that names the ETag gets a 304 with the
+same Content-Type, lest Hunchentoot's default text/html replace the cached
+copy's."
+  (lambda (app)
+    (lambda (env)
+      (let ((headers (getf env :headers)))
+        (when headers
+          (remhash "if-modified-since" headers))
+        (let ((response (funcall app env)))
+          (if (not (and (consp response)
+                        (eql 200 (first response))
+                        (pathnamep (third response))))
+              response
+              (let* ((pathname (third response))
+                     (etag (file-etag pathname))
+                     (validated (list* :etag etag :cache-control "no-cache"
+                                       (alexandria:remove-from-plist
+                                        (second response)
+                                        :last-modified :etag :cache-control)))
+                     (if-none-match (and headers (gethash "if-none-match" headers))))
+                (if (and if-none-match (etag-matches-p if-none-match etag))
+                    (list 304 (alexandria:remove-from-plist validated :content-length) '())
+                    (stream-file 200 validated pathname)))))))))
+
 (defun wait-for-port-ready (port &key (host "127.0.0.1") (timeout 5.0) (interval 0.05))
   "Block until the web server on HOST:PORT has fully started, or TIMEOUT
 seconds elapse.  Returns T on success, NIL on timeout.
@@ -153,9 +243,11 @@ site, the bible reader and the bot's endpoints on PORT, on localhost."
               :host "127.0.0.1"
               :port port
               :extended-routing t
-              ;; The first is outermost: the guard sees every request first.
+              ;; The first is outermost: the guard sees every request first,
+              ;; and the file validator, last, sees what CLOG answers.
               :lack-middleware-list (list (make-request-guard)
-                                          (bot:make-slack-middleware))
+                                          (bot:make-slack-middleware)
+                                          (make-file-validator))
               :static-root (namestring
                             (asdf:system-relative-pathname :project-isidore "./")))
   (pages:register-routes)

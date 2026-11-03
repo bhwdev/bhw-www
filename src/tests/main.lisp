@@ -3,7 +3,8 @@
 
 (uiop:define-package #:project-isidore/tests/main
   (:use #:common-lisp)
-  (:import-from #:rove #:deftest #:ok #:ng)
+  (:import-from #:cl-ppcre)
+  (:import-from #:rove #:deftest #:ok #:ng #:testing)
   (:import-from #:usocket)
   (:import-from #:project-isidore/tests/test-utils #:with-temp-data-root)
   (:local-nicknames (#:main #:project-isidore/main)
@@ -26,6 +27,39 @@ that a path reaches the server exactly as written."
                    crlf)
            (finish-output stream)
            (parse-integer (read-line stream) :start 9 :end 12))
+      (usocket:socket-close socket))))
+
+(defun http-get (port path &rest header-lines)
+  "GET PATH from localhost:PORT over HTTP/1.1 with HEADER-LINES and
+Connection: close, and return the reply's status code, its headers as an
+alist of lowercase names to values, and its body's length in octets: every
+octet after the headers, so that a 304 which ends with an empty chunk shows
+it."
+  (let ((socket (usocket:socket-connect "127.0.0.1" port
+                                        :element-type '(unsigned-byte 8))))
+    (unwind-protect
+         (let* ((stream (usocket:socket-stream socket))
+                (crlf (coerce '(#\Return #\Linefeed) 'string))
+                (request (format nil "GET ~A HTTP/1.1~A~{~A~A~}~A" path crlf
+                                 (loop for line in (list* "Host: localhost"
+                                                          "Connection: close"
+                                                          header-lines)
+                                       collect line collect crlf)
+                                 crlf))
+                (reply (make-array 0 :element-type '(unsigned-byte 8)
+                                     :adjustable t :fill-pointer 0)))
+           (write-sequence (map '(vector (unsigned-byte 8)) #'char-code request) stream)
+           (finish-output stream)
+           (loop for octet = (read-byte stream nil)
+                 while octet do (vector-push-extend octet reply))
+           (let* ((end (search #(13 10 13 10) reply))
+                  (lines (cl-ppcre:split "\\r\\n" (map 'string #'code-char (subseq reply 0 end)))))
+             (values (parse-integer (first lines) :start 9 :end 12)
+                     (loop for line in (rest lines)
+                           for colon = (position #\: line)
+                           collect (cons (string-downcase (subseq line 0 colon))
+                                         (string-trim " " (subseq line (1+ colon)))))
+                     (- (length reply) end 4))))
       (usocket:socket-close socket))))
 
 (deftest safe-paths
@@ -58,6 +92,32 @@ that a path reaches the server exactly as written."
         (setf (gethash "transfer-encoding" headers) "chunked")
         (ok (= 411 (status :path-info "/slack/events" :headers headers)))))))
 
+;; If-None-Match is compared weakly, and may list several tags.
+(deftest etag-matching
+  (let ((etag "\"0123abcd\""))
+    (ok (main::etag-matches-p "\"0123abcd\"" etag))
+    (ok (main::etag-matches-p "W/\"0123abcd\"" etag))
+    (ok (main::etag-matches-p "\"x\", W/\"0123abcd\"" etag))
+    (ok (main::etag-matches-p " * " etag))
+    (ng (main::etag-matches-p "\"0123abce\"" etag))
+    (ng (main::etag-matches-p "0123abcd" etag))
+    (ng (main::etag-matches-p "" etag))))
+
+;; A file's tag follows its contents, not its name.
+(deftest file-etags
+  (uiop:with-temporary-file (:pathname a :stream out :direction :output)
+    (write-string "body { color: red; }" out)
+    (finish-output out)
+    (uiop:with-temporary-file (:pathname b :stream out :direction :output)
+      (write-string "body { color: red; }" out)
+      (finish-output out)
+      (let ((tag (main::file-etag a)))
+        (ok (cl-ppcre:scan "^\"[0-9a-f]{32}\"$" tag))
+        (ok (string= tag (main::file-etag b)))
+        (with-open-file (out b :direction :output :if-exists :supersede)
+          (write-string "body { color: blue; }" out))
+        (ng (string= tag (main::file-etag b)))))))
+
 ;; The application starts and stops cleanly, under a data root of its own,
 ;; and serves nothing outside its static root.  Port 8293, as 8080 is the
 ;; production server's.
@@ -82,5 +142,37 @@ that a path reaches the server exactly as written."
              (ok (= 413 (http-status 8293 "POST /about HTTP/1.0"
                                      "Content-Type: application/x-www-form-urlencoded"
                                      "Content-Length: 1000000000000")))
-             (ok (= 200 (http-status 8293 "GET /assets/global.css HTTP/1.0"))))
+             (ok (= 200 (http-status 8293 "GET /assets/global.css HTTP/1.0")))
+             (testing "a file is revalidated by its ETag, never by its 1970 write date"
+               (let ((length (with-open-file (in (asdf:system-relative-pathname
+                                                  :project-isidore "assets/global.css")
+                                                 :element-type '(unsigned-byte 8))
+                               (file-length in))))
+                 (multiple-value-bind (status headers body)
+                     (http-get 8293 "/assets/global.css"
+                               "If-Modified-Since: Thu, 01 Jan 1970 00:00:01 GMT")
+                   (ok (= 200 status))
+                   (ok (= length body))
+                   (ok (equal "no-cache" (cdr (assoc "cache-control" headers :test #'string=))))
+                   (ng (assoc "last-modified" headers :test #'string=))
+                   (ok (cl-ppcre:scan "^text/css" (cdr (assoc "content-type" headers
+                                                              :test #'string=))))
+                   (let ((etag (cdr (assoc "etag" headers :test #'string=))))
+                     (ok (stringp etag))
+                     (dolist (tag (list etag (format nil "W/~A" etag)))
+                       (multiple-value-bind (status headers body)
+                           (http-get 8293 "/assets/global.css"
+                                     (format nil "If-None-Match: ~A" tag)
+                                     "If-Modified-Since: Thu, 01 Jan 1970 00:00:01 GMT")
+                         (ok (= 304 status) tag)
+                         (ok (= 0 body) tag)
+                         (ok (equal etag (cdr (assoc "etag" headers :test #'string=))))
+                         (ok (cl-ppcre:scan "^text/css" (cdr (assoc "content-type" headers
+                                                                    :test #'string=))))
+                         (ng (assoc "transfer-encoding" headers :test #'string=))))
+                     (multiple-value-bind (status headers body)
+                         (http-get 8293 "/assets/global.css" "If-None-Match: \"stale\"")
+                       (declare (ignore headers))
+                       (ok (= 200 status))
+                       (ok (= length body))))))))
         (ok (main:terminate-application)))))
