@@ -25,9 +25,21 @@
      slashed or dotted zero. */
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo,
                "DejaVu Sans Mono", "Liberation Mono", monospace;
-  /* Not a colour either: BODY's width from 910px, which the margins below
-     are measured from. */
+  /* Not a colour either: BODY's width from 910px -- the page, which holds
+     the header and the code, and which the margins below are measured
+     from. */
   --column: 900px;
+  /* The running text's measure: 36em at the full 20px, about 80 characters
+     of Palatino Linotype (measured in Edge).  In rem, not em, so that the
+     margins below, set in smaller type, read the same length. */
+  --measure: 45rem;
+  /* BODY's width as an element inside it can see it: 95vw - 1rem is BODY's
+     95% of a viewport that counts a classic scrollbar.  Without one it
+     comes up at most 16px short. */
+  --page-width: min(var(--column), 95vw - 1rem);
+  /* How far a page-wide block reaches past the text on either side, as a
+     margin: 0 where the text is the page. */
+  --bleed: min(0px, (var(--measure) - var(--page-width)) / 2);
 
   --page-bg: #FDF6E3;
   --text: #333;
@@ -209,33 +221,53 @@
 :root[data-theme-pref="dark"] .theme-toggle::before  { content:  "\263E\FE0E"; }
 :root[data-theme-pref="auto"] .theme-toggle::before  { content:  "\25D0\FE0E"; }
 html { background-color:  var(--page-bg); }
-body  { width:  95%; margin:  2% auto; font-size:  18px; line-height:
+/* gwern.net's body sizes, 18px on phones (14px was below every guideline)
+   and 20px on the desktop, but fluid between 400px and 800px rather than
+   a step at 650px.  In rem, so a reader's default size scales them. */
+body  { width:  95%; margin:  2% auto;
+     font-size:  clamp(1.125rem, 1rem + 0.5vw, 1.25rem); line-height:
      1.4em; font-family: Palatino, "Palatino Linotype", "Palatino LT STD", "Book Antiqua", Georgia, serif; font-weight:  400; color:  var(--text); }
-/* gwern.net's body sizes: 18px on phones, where 14px was below every
-   guideline, and 20px from 650px, which also brings the 900px column
-   closer to a readable measure (about 100 characters of Palatino). */
-@media screen and (min-width: 650px)  { body  { font-size:  20px; } }
 @media screen and (min-width: 910px)  { body  { width:  var(--column); } }
 /* ---------------------------------------------------------------------------
    Running text in Org pages, after gwern.net's head.css.
 
-   Justified with hyphenation where the column is wide; flush left on
-   phones, where a greedy line breaker would open rivers.  Hyphenation
-   needs the page's language, which Org declares (<html lang="en">) and
-   CLOG's boot page does not, so this stays inside #content.  Blocks that
-   are centred or right-aligned say so through --text-align.
+   The text is a column of at most --measure, about 80 characters, centred
+   in the page; on a phone it is the page.  Code, example blocks and
+   tables keep the page's width, through --bleed: dotemacs alone has some
+   3,000 code lines between 75 and 93 characters, which a page-wide block
+   shows whole and a block the text's width would scroll.  Code in a list
+   item keeps the item's indent and reaches the page's right edge, as it
+   did; a table in one stays in it.
 
-   Leading grows with the measure: gwern.net's brackets, cut at 910px,
-   where this column stops widening.
+   Flush left throughout: justification spaces each line differently, and
+   a greedy line breaker opens rivers.  Hyphenation stays, to even out the
+   rag on a phone's 40-odd characters.  It needs the page's language,
+   which Org declares (<html lang="en">) and CLOG's boot page does not, so
+   this stays inside #content.  Blocks that are centred or right-aligned
+   say so through --text-align.
+
+   Leading grows with the measure: gwern.net's brackets, the last from
+   780px, where the text reaches its full measure.
 
    Old-style figures sit in the text like lower-case letters.  Places where
    figures are read as data -- links, whose underline they would cross,
    headings and the table of contents, tables, code -- keep lining ones.
    --------------------------------------------------------------------------- */
-#content  { --text-align:  justify; --line-height:  1.5; width:  100%;
+#content  { --text-align:  start; --line-height:  1.5;
+     max-width:  var(--measure); margin-inline:  auto;
      overflow-wrap:  break-word; font-variant-numeric:  oldstyle-nums; }
-@media screen and (max-width: 649px)  { #content  { --text-align:  start; --line-height:  1.45; } }
-@media screen and (min-width: 910px)  { #content  { --line-height:  1.55; } }
+@media screen and (max-width: 649px)  { #content  { --line-height:  1.45; } }
+@media screen and (min-width: 780px)  { #content  { --line-height:  1.55; } }
+#content :is(.org-src-container, pre.example):not(li *)  { margin-inline:  var(--bleed); }
+#content li :is(.org-src-container, pre.example)  { margin-right:  var(--bleed); }
+/* A table is only as wide as its content, so the same margins merely let
+   it grow to the page; it is centred by moving it, and one wider than the
+   page starts at the page's left edge and overflows to the right, as
+   before.  Phones keep the auto margins, the text there being the page. */
+@media screen and (min-width: 780px)  {
+  #content table:not(li *)  { margin-inline:  var(--bleed); position:  relative;
+       left:  calc(50% - var(--bleed));
+       translate:  max(-50%, var(--page-width) / -2); } }
 #content p  { text-align:  var(--text-align); line-height:  var(--line-height);
      -webkit-hyphens:  auto; hyphens:  auto; text-wrap:  pretty; }
 #content li  { -webkit-hyphens:  auto; hyphens:  auto; text-wrap:  pretty; }
@@ -538,7 +570,9 @@ button:disabled {
    clear:right stacks a note under the one before rather than over it, and
    since its margin box has no width the text keeps the whole column -- the
    way Tufte CSS and karthinks.com do it, with no script measuring the
-   page.  A float's percentages are of its paragraph, so the notes' width
+   page.  The margin also crosses the --bleed between the text and the
+   page's edge, so the notes, like the contents, stay clear of page-wide
+   code.  A float's percentages are of its paragraph, so the notes' width
    is in vw, which counts a classic scrollbar; the 1rem at the edge takes
    up the difference.  theme.js marks #content .has-sidenotes once every
    note has a copy, and only then is the list at the end hidden.
@@ -570,7 +604,7 @@ button:disabled {
   .sidenote  { --note-width:  min(20rem, calc(50vw - var(--column) / 2 - 3rem));
        display:  block; float:  right; clear:  right;
        width:  var(--note-width);
-       margin:  0 calc(-1 * var(--note-width) - 2rem) 1em 0;
+       margin:  0 calc(var(--bleed) - var(--note-width) - 2rem) 1em 0;
        font-size:  80%; font-style:  normal; font-weight:  normal;
        --text-align:  start; --line-height:  1.4; text-align:  start;
        line-height:  var(--line-height); }
