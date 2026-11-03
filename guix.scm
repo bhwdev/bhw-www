@@ -28,11 +28,11 @@
       (const #t)))
 
 (define-public sbcl-graph-db
-  (let ((commit "4d6bf30a9318fdc5a0c14a0cb5af6f192aa3dea7") ; v4.0.1
+  (let ((commit "7bc038f589ef6512486e30e99b6c3d4581fc8419") ; v4.1.0
         (revision "0"))
     (package
       (name "sbcl-graph-db")
-      (version (git-version "4.0.1" revision commit))
+      (version (git-version "4.1.0" revision commit))
       (source
        (origin
          (method git-fetch)
@@ -41,7 +41,7 @@
                (commit commit)))
          (file-name (git-file-name "cl-graph-db" version))
          (sha256
-          (base32 "0qvbwmrhn1x4kcj03djnb70c5dl3iisn18khz9dpbnps2mqm3yfi"))))
+          (base32 "0r3325z0aw64dg4cbbxd0659k0956pyg3r3q7xaqkp5zaiihwksk"))))
       (build-system asdf-build-system/sbcl)
       (arguments
        ;; The engine and its replication transport only.  The full
@@ -75,42 +75,44 @@ Prolog-like query language.")
       (license license:expat))))
 
 ;; Guix's sbcl-clog is 1.2, whose INITIALIZE has no :LACK-MIDDLEWARE-LIST
-;; (src/main.lisp mounts the Slack endpoints with it).  This is the v2.4
-;; release, whose clog.asd still says 2.2.
+;; (src/main.lisp mounts the Slack endpoints with it).  This is v2.4 plus
+;; the commits after it on main.
 (define-public sbcl-clog-2
-  (package
-    (inherit sbcl-clog)
-    (version "2.4")
-    (source
-     (origin
-       (method git-fetch)
-       (uri (git-reference
-             (url "https://github.com/rabbibotton/clog")
-             (commit (string-append "v" version))))
-       (file-name (git-file-name "cl-clog" version))
-       (sha256
-        (base32 "1z91j1yb156m12pxk7xiwr4fqgf58xi5fm23rxzv8p6w6x9snvcm"))))
-    (arguments
-     (list #:asd-systems ''("clog")))
-    (inputs
-     (list sbcl-alexandria
-           sbcl-atomics
-           sbcl-bordeaux-threads
-           sbcl-cl-isaac
-           sbcl-cl-pass
-           sbcl-cl-ppcre
-           sbcl-cl-sqlite
-           sbcl-cl-template
-           sbcl-clack
-           sbcl-closer-mop
-           sbcl-dbi
-           sbcl-hunchentoot
-           sbcl-lack
-           sbcl-mgl-pax
-           sbcl-parse-float
-           sbcl-quri
-           sbcl-trivial-gray-streams
-           sbcl-websocket-driver))))
+  (let ((commit "86d0f190902f3d77132d094d2c4c3e3cc5d241ef")
+        (revision "0"))
+    (package
+      (inherit sbcl-clog)
+      (version (git-version "2.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/rabbibotton/clog")
+               (commit commit)))
+         (file-name (git-file-name "cl-clog" version))
+         (sha256
+          (base32 "1s4qcyajwd88haxinsrp7ksb62p359h4y8j88c4h109paghh9p18"))))
+      (arguments
+       (list #:asd-systems ''("clog")))
+      (inputs
+       (list sbcl-alexandria
+             sbcl-atomics
+             sbcl-bordeaux-threads
+             sbcl-cl-isaac
+             sbcl-cl-pass
+             sbcl-cl-ppcre
+             sbcl-cl-sqlite
+             sbcl-cl-template
+             sbcl-clack
+             sbcl-closer-mop
+             sbcl-dbi
+             sbcl-hunchentoot
+             sbcl-lack
+             sbcl-mgl-pax
+             sbcl-parse-float
+             sbcl-quri
+             sbcl-trivial-gray-streams
+             sbcl-websocket-driver)))))
 
 (define-public project-isidore
   (package
