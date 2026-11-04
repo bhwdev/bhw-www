@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2026-11-02 Mon 19:53 -->
+<!-- 2026-11-03 Tue 23:49 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BHW Emacs Configuration</title>
@@ -64,10 +64,10 @@
                                     </div>
                                     <h1 class="title">BHW Emacs Configuration</h1>
                                     <p class="subtitle">My literate Emacs config dotfile</p> <br/>
-                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-11-01 Sun 15:28</p>
+                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-11-03 Tue 12:09</p>
 </div>
 <div id="content" class="content">
-<div class="abstract" id="org0ce4e8a">
+<div class="abstract" id="org88a82d5">
 <p>
 
 </p>
@@ -86,88 +86,86 @@ updated to reflect my current usage patterns.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
-<li><a href="#ID-20240211T171952.064053">1. Emacs</a>
+<li><a href="#ID-20260901T134925.933588">1. Emacs Initialization</a>
 <ul>
-<li><a href="#ID-20260901T134925.933588">1.1. Emacs Initialization</a>
-<ul>
-<li><a href="#ID-20261012T194636.071092">1.1.1. Early init</a></li>
-<li><a href="#ID-20261012T194636.074281">1.1.2. Bootstrap</a></li>
-<li><a href="#ID-20261012T194636.077097">1.1.3. Environment</a></li>
-<li><a href="#ID-20261012T194636.079889">1.1.4. Library</a></li>
+<li><a href="#ID-20261012T194636.071092">1.1. Early init</a></li>
+<li><a href="#ID-20261012T194636.074281">1.2. Bootstrap</a></li>
+<li><a href="#ID-20261012T194636.077097">1.3. Environment</a></li>
+<li><a href="#ID-20261012T194636.079889">1.4. Library</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134925.945686">1.2. Package Configuration</a></li>
-<li><a href="#ID-dc555de1-613d-47ec-bde5-e83db71ca472">1.3. Emacs Configuration</a>
+<li><a href="#ID-20260901T134925.945686">2. Package Configuration</a></li>
+<li><a href="#ID-dc555de1-613d-47ec-bde5-e83db71ca472">3. Emacs Configuration</a>
 <ul>
-<li><a href="#ID-20261012T194636.086763">1.3.1. Core defaults</a></li>
-<li><a href="#ID-20260901T134925.956524">1.3.2. Config Test Harness</a></li>
-<li><a href="#ID-20261012T194636.092137">1.3.3. Evil</a>
+<li><a href="#ID-20261012T194636.086763">3.1. Core defaults</a></li>
+<li><a href="#ID-20260901T134925.956524">3.2. Config Test Harness</a></li>
+<li><a href="#ID-20261012T194636.092137">3.3. Evil</a>
 <ul>
-<li><a href="#ID-20261012T194636.095200">Settings and load</a></li>
-<li><a href="#ID-20261012T194636.098278">Commands</a></li>
-<li><a href="#ID-20261012T194636.101252">Text objects</a></li>
-<li><a href="#ID-20261012T194636.104510">Advice</a></li>
-<li><a href="#ID-20261012T212922.841843">Indentation of what is yanked and pasted</a></li>
-<li><a href="#ID-20261012T194636.108012">Ex commands</a></li>
-<li><a href="#ID-20261012T194636.110946">Companions</a></li>
-<li><a href="#ID-20261012T194636.114060">Keys</a></li>
+<li><a href="#ID-20261012T194636.095200">3.3.1. Settings and load</a></li>
+<li><a href="#ID-20261012T194636.098278">3.3.2. Commands</a></li>
+<li><a href="#ID-20261012T194636.101252">3.3.3. Text objects</a></li>
+<li><a href="#ID-20261012T194636.104510">3.3.4. Advice</a></li>
+<li><a href="#ID-20261012T212922.841843">3.3.5. Indentation of what is yanked and pasted</a></li>
+<li><a href="#ID-20261012T194636.108012">3.3.6. Ex commands</a></li>
+<li><a href="#ID-20261012T194636.110946">3.3.7. Companions</a></li>
+<li><a href="#ID-20261012T194636.114060">3.3.8. Keys</a></li>
 </ul>
 </li>
-<li><a href="#ID-20261012T194636.117148">1.3.4. Leader</a>
+<li><a href="#ID-20261012T194636.117148">3.4. Leader</a>
 <ul>
-<li><a href="#ID-20261012T194636.120267">Commands</a></li>
-<li><a href="#ID-20261012T194636.123716">Help</a></li>
-<li><a href="#ID-20261012T194636.126521">The tree</a></li>
+<li><a href="#ID-20261012T194636.120267">3.4.1. Commands</a></li>
+<li><a href="#ID-20261012T194636.123716">3.4.2. Help</a></li>
+<li><a href="#ID-20261012T194636.126521">3.4.3. The tree</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134925.964317">1.3.5. Completion Module Config</a>
+<li><a href="#ID-20260901T134925.964317">3.5. Completion Module Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.129955">Vertico, Orderless and Marginalia</a></li>
-<li><a href="#ID-20261012T194636.132911">Consult and Embark</a></li>
-<li><a href="#ID-20260901T134925.976638">Consult Config</a></li>
-<li><a href="#ID-20261012T194636.136589">Corfu and Cape</a></li>
-<li><a href="#ID-20261012T194636.139488">Minibuffer keys</a></li>
+<li><a href="#ID-20261012T194636.129955">3.5.1. Vertico, Orderless and Marginalia</a></li>
+<li><a href="#ID-20261012T194636.132911">3.5.2. Consult and Embark</a></li>
+<li><a href="#ID-20260901T134925.976638">3.5.3. Consult Config</a></li>
+<li><a href="#ID-20261012T194636.136589">3.5.4. Corfu and Cape</a></li>
+<li><a href="#ID-20261012T194636.139488">3.5.5. Minibuffer keys</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134925.989335">1.3.6. User Interface Config</a>
+<li><a href="#ID-20260901T134925.989335">3.6. User Interface Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.142132">Font</a></li>
-<li><a href="#ID-20261012T194636.144806">Theme</a></li>
-<li><a href="#ID-20261012T194636.147420">Current line and TODO keywords</a></li>
+<li><a href="#ID-20261012T194636.142132">3.6.1. Font</a></li>
+<li><a href="#ID-20261012T194636.144806">3.6.2. Theme</a></li>
+<li><a href="#ID-20261012T194636.147420">3.6.3. Current line and TODO keywords</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134925.995450">1.3.7. Smooth Scrolling Config</a></li>
-<li><a href="#ID-20261012T194636.150108">1.3.8. Modeline</a></li>
-<li><a href="#ID-20261012T194636.152789">1.3.9. Windows</a>
+<li><a href="#ID-20260901T134925.995450">3.7. Smooth Scrolling Config</a></li>
+<li><a href="#ID-20261012T194636.150108">3.8. Modeline</a></li>
+<li><a href="#ID-20261012T194636.152789">3.9. Windows</a>
 <ul>
-<li><a href="#ID-20261012T194636.156200">Popups</a></li>
+<li><a href="#ID-20261012T194636.156200">3.9.1. Popups</a></li>
 </ul>
 </li>
-<li><a href="#ID-20261012T194636.159306">1.3.10. Workspaces</a></li>
-<li><a href="#ID-f227b2cc-f752-435d-a7ed-88c47b001674">1.3.11. Editor Config</a>
+<li><a href="#ID-20261012T194636.159306">3.10. Workspaces</a></li>
+<li><a href="#ID-f227b2cc-f752-435d-a7ed-88c47b001674">3.11. Editor Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.162030">Undo</a></li>
-<li><a href="#ID-20261012T194636.164571">Whitespace and indentation</a></li>
-<li><a href="#ID-20261012T194636.168131">Word wrap</a></li>
-<li><a href="#ID-20261012T194636.171743">Pairs</a></li>
-<li><a href="#ID-20261012T194636.174644">Growing the selection</a></li>
-<li><a href="#ID-20261012T194636.177179">Jump list</a></li>
-<li><a href="#ID-20261012T194636.179627">Folding</a></li>
-<li><a href="#ID-20261012T194636.182273">Formatting</a></li>
-<li><a href="#ID-20261012T194636.185320">Templates</a></li>
-<li><a href="#ID-20261012T194636.188264">Multiple cursors</a></li>
-<li><a href="#ID-20261012T194636.190846">TAB</a></li>
-<li><a href="#ID-20260901T134926.004984">Savehist Config (unused)</a></li>
+<li><a href="#ID-20261012T194636.162030">3.11.1. Undo</a></li>
+<li><a href="#ID-20261012T194636.164571">3.11.2. Whitespace and indentation</a></li>
+<li><a href="#ID-20261012T194636.168131">3.11.3. Word wrap</a></li>
+<li><a href="#ID-20261012T194636.171743">3.11.4. Pairs</a></li>
+<li><a href="#ID-20261012T194636.174644">3.11.5. Growing the selection</a></li>
+<li><a href="#ID-20261012T194636.177179">3.11.6. Jump list</a></li>
+<li><a href="#ID-20261012T194636.179627">3.11.7. Folding</a></li>
+<li><a href="#ID-20261012T194636.182273">3.11.8. Formatting</a></li>
+<li><a href="#ID-20261012T194636.185320">3.11.9. Templates</a></li>
+<li><a href="#ID-20261012T194636.188264">3.11.10. Multiple cursors</a></li>
+<li><a href="#ID-20261012T194636.190846">3.11.11. TAB</a></li>
+<li><a href="#ID-20260901T134926.004984">3.11.12. Savehist Config (unused)</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.010550">1.3.12. Emacs Config</a></li>
-<li><a href="#ID-20260901T134926.018954">1.3.13. Dired Config</a></li>
-<li><a href="#ID-20260901T134926.027037">1.3.14. EWW Config</a></li>
-<li><a href="#ID-20260901T134926.033731">1.3.15. Term Config</a></li>
-<li><a href="#ID-20260901T134926.039934">1.3.16. Checkers Config</a></li>
-<li><a href="#ID-20260901T134926.046383">1.3.17. Tools Config</a>
+<li><a href="#ID-20260901T134926.010550">3.12. Emacs Config</a></li>
+<li><a href="#ID-20260901T134926.018954">3.13. Dired Config</a></li>
+<li><a href="#ID-20260901T134926.027037">3.14. EWW Config</a></li>
+<li><a href="#ID-20260901T134926.033731">3.15. Term Config</a></li>
+<li><a href="#ID-20260901T134926.039934">3.16. Checkers Config</a></li>
+<li><a href="#ID-20260901T134926.046383">3.17. Tools Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.193472">Code</a>
+<li><a href="#ID-20261012T194636.193472">3.17.1. Code</a>
 <ul>
 <li><a href="#ID-20261012T194636.195988">Lookup</a></li>
 <li><a href="#ID-20261012T194636.199754">Evaluating</a></li>
@@ -175,9 +173,9 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-20261012T194636.205666">Tree-sitter</a></li>
 </ul>
 </li>
-<li><a href="#ID-88e3726e-0317-4bf6-846c-0630da77d0ad">Project Config</a></li>
-<li><a href="#ID-e50476d7-33f3-4961-8438-3c8d7156598a">Pdf-Tools Config</a></li>
-<li><a href="#ID-20260901T134926.054322">Magit Config</a>
+<li><a href="#ID-88e3726e-0317-4bf6-846c-0630da77d0ad">3.17.2. Project Config</a></li>
+<li><a href="#ID-e50476d7-33f3-4961-8438-3c8d7156598a">3.17.3. Pdf-Tools Config</a></li>
+<li><a href="#ID-20260901T134926.054322">3.17.4. Magit Config</a>
 <ul>
 <li><a href="#ID-20261012T194636.208229">Version control</a></li>
 <li><a href="#ID-20261012T194636.210866">Magit</a></li>
@@ -194,8 +192,8 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-20260901T134926.071555">Magit Forged</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.076318">Claude Code IDE Config</a></li>
-<li><a href="#ID-20260901T134926.084686">Lexic Config</a>
+<li><a href="#ID-20260901T134926.076318">3.17.5. Claude Code IDE Config</a></li>
+<li><a href="#ID-20260901T134926.084686">3.17.6. Lexic Config</a>
 <ul>
 <li><a href="#ID-20260914T142200.000001">Latin Lookup &amp; the Inflected-Form Index</a>
 <ul>
@@ -208,12 +206,12 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-20260901T134926.097248">Lexic Order of Dictionaries</a></li>
 </ul>
 </li>
-<li><a href="#ID-23b4e9e1-7828-47e5-a39a-8612662b95bf">Biblio Config</a></li>
+<li><a href="#ID-23b4e9e1-7828-47e5-a39a-8612662b95bf">3.17.7. Biblio Config</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.102649">1.3.18. Languages Config</a>
+<li><a href="#ID-20260901T134926.102649">3.18. Languages Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.221176">Language Modes</a>
+<li><a href="#ID-20261012T194636.221176">3.18.1. Language Modes</a>
 <ul>
 <li><a href="#ID-20261012T194636.223760">Emacs Lisp</a></li>
 <li><a href="#ID-20261012T194636.226513">Shell scripts</a></li>
@@ -223,9 +221,9 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-20261012T194636.237474">Ledger</a></li>
 </ul>
 </li>
-<li><a href="#ID-20240306T235804.739944">Ledger Config</a></li>
-<li><a href="#ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c">Common Lisp Config</a></li>
-<li><a href="#ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b">Org Mode Config</a>
+<li><a href="#ID-20240306T235804.739944">3.18.2. Ledger Config</a></li>
+<li><a href="#ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c">3.18.3. Common Lisp Config</a></li>
+<li><a href="#ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b">3.18.4. Org Mode Config</a>
 <ul>
 <li><a href="#ID-20261012T194636.239818">Defaults</a></li>
 <li><a href="#ID-20261019T185734.196810">LaTeX Previews</a></li>
@@ -236,7 +234,11 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e">Org Agenda Config</a>
 <ul>
 <li><a href="#ID-20260929T101558.878289">Clocking</a></li>
-<li><a href="#ID-20260901T134926.112814">Conflict detection</a></li>
+<li><a href="#ID-20260901T134926.112814">Conflict detection</a>
+<ul>
+<li><a href="#ID-20260929T101558.887330">Scheduling into free time</a></li>
+</ul>
+</li>
 <li><a href="#ID-20260901T134926.120596">Organizational Buckets i.e. inbox dumps</a></li>
 </ul>
 </li>
@@ -258,99 +260,94 @@ updated to reflect my current usage patterns.
 <li><a href="#ID-20260901T134926.170026">Org Re Reveal Config</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.173539">Cdlatex Config</a></li>
-<li><a href="#ID-90492a6c-28d8-49cc-936e-16f598c592d1">Plantuml Config</a></li>
-<li><a href="#ID-36fa755a-d77f-4959-a503-cc1a4803659e">Python Config</a></li>
+<li><a href="#ID-20260901T134926.173539">3.18.5. Cdlatex Config</a></li>
+<li><a href="#ID-90492a6c-28d8-49cc-936e-16f598c592d1">3.18.6. Plantuml Config</a></li>
+<li><a href="#ID-36fa755a-d77f-4959-a503-cc1a4803659e">3.18.7. Python Config</a></li>
 </ul>
 </li>
-<li><a href="#ID-20220829T170149.630909">1.3.19. Email Config</a>
+<li><a href="#ID-20220829T170149.630909">3.19. Email Config</a>
 <ul>
-<li><a href="#ID-20261012T194636.251916">Mu4e Defaults</a></li>
-<li><a href="#ID-20260901T134926.177520">Gmail Configuration Tips</a></li>
-<li><a href="#ID-20260901T134926.181741">Mu4e Config</a>
+<li><a href="#ID-20261012T194636.251916">3.19.1. Mu4e Defaults</a></li>
+<li><a href="#ID-20260901T134926.177520">3.19.2. Gmail Configuration Tips</a></li>
+<li><a href="#ID-20260901T134926.181741">3.19.3. Mu4e Config</a>
 <ul>
 <li><a href="#ID-20261027T205251.552106">OpenPGP</a></li>
 <li><a href="#ID-20260929T173340.091537">Scheduled Sending</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.186015">Consult-Mu Config</a></li>
-<li><a href="#ID-20260704T165939.380852">bhw.name email config</a></li>
+<li><a href="#ID-20260901T134926.186015">3.19.4. Consult-Mu Config</a></li>
+<li><a href="#ID-20260704T165939.380852">3.19.5. bhw.name email config</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.189601">1.3.20. Application Config</a>
+<li><a href="#ID-20260901T134926.189601">3.20. Application Config</a>
 <ul>
-<li><a href="#ID-20220829T170201.833199">Elfeed Config</a></li>
-<li><a href="#ID-20220829T170131.891099">Ement Config</a></li>
-<li><a href="#ID-20260731T202534.411560">Transmission Config</a></li>
-<li><a href="#ID-20260901T134926.197514">Calendar Config</a></li>
-<li><a href="#ID-20260901T134926.201988">Anki Editor Config</a></li>
-<li><a href="#ID-20260901T134926.205113">Biome Config</a></li>
-<li><a href="#ID-20261022T120813.468246">KeePassXC Config</a></li>
-<li><a href="#ID-ee59a5dc-2d13-4417-8996-860711c1119e">Casual Emacs Calc Config</a></li>
-<li><a href="#ID-20260901T134926.207924">Emacs Reader Config</a></li>
+<li><a href="#ID-20220829T170201.833199">3.20.1. Elfeed Config</a></li>
+<li><a href="#ID-20220829T170131.891099">3.20.2. Ement Config</a></li>
+<li><a href="#ID-20260731T202534.411560">3.20.3. Transmission Config</a></li>
+<li><a href="#ID-20260901T134926.197514">3.20.4. Calendar Config</a></li>
+<li><a href="#ID-20260901T134926.201988">3.20.5. Anki Editor Config</a></li>
+<li><a href="#ID-20260901T134926.205113">3.20.6. Biome Config</a></li>
+<li><a href="#ID-20261022T120813.468246">3.20.7. KeePassXC Config</a></li>
+<li><a href="#ID-ee59a5dc-2d13-4417-8996-860711c1119e">3.20.8. Casual Emacs Calc Config</a></li>
+<li><a href="#ID-20260901T134926.207924">3.20.9. Emacs Reader Config</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.211024">1.3.21. Config Load Sentinel</a></li>
+<li><a href="#ID-20260901T134926.211024">3.21. Config Load Sentinel</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.215135">1.4. Config Test Suite</a></li>
-<li><a href="#ID-585facc9-22e3-4705-bb67-0e32727cab9a">1.5. Emacs Navigation &amp; Searching</a>
+<li><a href="#ID-20260901T134926.215135">4. Config Test Suite</a></li>
+<li><a href="#ID-585facc9-22e3-4705-bb67-0e32727cab9a">5. Emacs Navigation &amp; Searching</a>
 <ul>
-<li><a href="#ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e">1.5.1. Searching - File Content</a></li>
-<li><a href="#ID-dc39bae8-349f-46b2-a1d8-267972c69642">1.5.2. Searching - File Name</a></li>
-<li><a href="#ID-20260901T134926.220377">1.5.3. Searching - Directory</a></li>
-<li><a href="#ID-ef93fb7f-3af3-4194-8811-127ab3495844">1.5.4. Searching - World Wide Web</a>
+<li><a href="#ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e">5.1. Searching - File Content</a></li>
+<li><a href="#ID-dc39bae8-349f-46b2-a1d8-267972c69642">5.2. Searching - File Name</a></li>
+<li><a href="#ID-20260901T134926.220377">5.3. Searching - Directory</a></li>
+<li><a href="#ID-ef93fb7f-3af3-4194-8811-127ab3495844">5.4. Searching - World Wide Web</a>
 <ul>
-<li><a href="#ID-20c4bc2f-e467-48d7-9dd6-928c36457d26">Web Scraping</a></li>
+<li><a href="#ID-20c4bc2f-e467-48d7-9dd6-928c36457d26">5.4.1. Web Scraping</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.223862">1.5.5. Searching - Handling Directories with Dired</a></li>
-<li><a href="#ID-20260901T134926.226552">1.5.6. Navigation - Project Manipulation</a></li>
-<li><a href="#ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2">1.5.7. Search and Replace</a>
+<li><a href="#ID-20260901T134926.223862">5.5. Searching - Handling Directories with Dired</a></li>
+<li><a href="#ID-20260901T134926.226552">5.6. Navigation - Project Manipulation</a></li>
+<li><a href="#ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2">5.7. Search and Replace</a>
 <ul>
-<li><a href="#ID-20230812T154052.248512">Regular Expressions</a></li>
+<li><a href="#ID-20230812T154052.248512">5.7.1. Regular Expressions</a></li>
 </ul>
 </li>
-<li><a href="#ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041">1.5.8. Navigation - Buffer &amp; Window Manipulation</a>
+<li><a href="#ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041">5.8. Navigation - Buffer &amp; Window Manipulation</a>
 <ul>
-<li><a href="#ID-20260901T134926.230296">Major / Minor Mode</a></li>
+<li><a href="#ID-20260901T134926.230296">5.8.1. Major / Minor Mode</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.233695">1.5.9. Navigation - Marks and Registers</a></li>
+<li><a href="#ID-20260901T134926.233695">5.9. Navigation - Marks and Registers</a></li>
 </ul>
 </li>
-<li><a href="#ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966">1.6. Text Manipulation</a>
+<li><a href="#ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966">6. Text Manipulation</a>
 <ul>
-<li><a href="#ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f">1.6.1. Vim Style Shortcuts</a></li>
-<li><a href="#ID-f49c8669-494d-41ed-bf95-56bad03d26b5">1.6.2. Emacs Style Shortcuts</a>
+<li><a href="#ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f">6.1. Vim Style Shortcuts</a></li>
+<li><a href="#ID-f49c8669-494d-41ed-bf95-56bad03d26b5">6.2. Emacs Style Shortcuts</a>
 <ul>
-<li><a href="#ID-0549a98a-a97c-42f9-84d0-a59a9c004541">Emacs Macro</a></li>
+<li><a href="#ID-0549a98a-a97c-42f9-84d0-a59a9c004541">6.2.1. Emacs Macro</a></li>
 </ul>
 </li>
-<li><a href="#ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144">1.6.3. Evil Multiple Cursors</a></li>
-<li><a href="#ID-20260901T134926.237655">1.6.4. Spell Checking</a></li>
+<li><a href="#ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144">6.3. Evil Multiple Cursors</a></li>
+<li><a href="#ID-20260901T134926.237655">6.4. Spell Checking</a></li>
 </ul>
 </li>
-<li><a href="#ID-20260901T134926.240330">1.7. Layouts and Workspaces</a></li>
-<li><a href="#ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10">1.8. Help &amp; Errors &amp; Troubleshooting</a>
+<li><a href="#ID-20260901T134926.240330">7. Layouts and Workspaces</a></li>
+<li><a href="#ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10">8. Help &amp; Errors &amp; Troubleshooting</a>
 <ul>
-<li><a href="#ID-af0a7768-6958-4905-9c30-e8fd27b957cb">1.8.1. General Help &amp; Documentation</a>
+<li><a href="#ID-af0a7768-6958-4905-9c30-e8fd27b957cb">8.1. General Help &amp; Documentation</a>
 <ul>
-<li><a href="#ID-20260901T134926.243037">Emacs itself</a></li>
+<li><a href="#ID-20260901T134926.243037">8.1.1. Emacs itself</a></li>
 </ul>
 </li>
-<li><a href="#ID-94e89fe8-3354-47d4-ac71-21b726abcace">1.8.2. Specific Troubleshooting and Known Issues</a></li>
-<li><a href="#ID-20260901T134926.245532">1.8.3. Performance</a></li>
-</ul>
-</li>
+<li><a href="#ID-94e89fe8-3354-47d4-ac71-21b726abcace">8.2. Specific Troubleshooting and Known Issues</a></li>
+<li><a href="#ID-20260901T134926.245532">8.3. Performance</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </nav>
-<div id="outline-container-ID-20240211T171952.064053" class="outline-2">
-<h2 id="ID-20240211T171952.064053"><span class="section-number-2">1.</span> Emacs</h2>
-<div class="outline-text-2" id="text-1">
 <ul class="org-ul">
 <li><a href="https://github.com/malb/emacs.d/blob/master/malb.org">emacs.d/malb.org at master · malb/emacs.d · GitHub</a></li>
 <li><a href="https://smallwat3r.com/blog/vanilla-emacs-config">https://smallwat3r.com/blog/vanilla-emacs-config</a></li>
@@ -416,10 +413,9 @@ SPC h d p c
 Spacemacs refugee,
 Winum config, doom-localleader-key, org mode bold highlighting
 </p>
-</div>
-<div id="outline-container-ID-20260901T134925.933588" class="outline-3">
-<h3 id="ID-20260901T134925.933588"><span class="section-number-3">1.1.</span> Emacs Initialization</h3>
-<div class="outline-text-3" id="text-1-1">
+<div id="outline-container-ID-20260901T134925.933588" class="outline-2">
+<h2 id="ID-20260901T134925.933588"><span class="section-number-2">1.</span> Emacs Initialization</h2>
+<div class="outline-text-2" id="text-1">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">init.el --- Entry point -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -443,9 +439,9 @@ the load path by then: Guix&rsquo;s Emacs puts every <code>emacs-*</code> packag
 profile there, autoloads and all, from its <code>site-start.el</code>.
 </p>
 </div>
-<div id="outline-container-ID-20261012T194636.071092" class="outline-4">
-<h4 id="ID-20261012T194636.071092"><span class="section-number-4">1.1.1.</span> Early init</h4>
-<div class="outline-text-4" id="text-1-1-1">
+<div id="outline-container-ID-20261012T194636.071092" class="outline-3">
+<h3 id="ID-20261012T194636.071092"><span class="section-number-3">1.1.</span> Early init</h3>
+<div class="outline-text-3" id="text-1-1">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">early-init.el --- Before the first frame -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -489,9 +485,9 @@ profile there, autoloads and all, from its <code>site-start.el</code>.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.074281" class="outline-4">
-<h4 id="ID-20261012T194636.074281"><span class="section-number-4">1.1.2.</span> Bootstrap</h4>
-<div class="outline-text-4" id="text-1-1-2">
+<div id="outline-container-ID-20261012T194636.074281" class="outline-3">
+<h3 id="ID-20261012T194636.074281"><span class="section-number-3">1.2.</span> Bootstrap</h3>
+<div class="outline-text-3" id="text-1-2">
 <p>
 Everything Emacs writes at runtime goes under <code>var/</code>.  Setting <code>BHW_TEST</code>
 moves that to <code>var-test/</code> and switches off every timer and network client, so
@@ -634,9 +630,9 @@ it; the <a href="#ID-20260901T134926.211024">load stamp</a> is then left unset, 
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.077097" class="outline-4">
-<h4 id="ID-20261012T194636.077097"><span class="section-number-4">1.1.3.</span> Environment</h4>
-<div class="outline-text-4" id="text-1-1-3">
+<div id="outline-container-ID-20261012T194636.077097" class="outline-3">
+<h3 id="ID-20261012T194636.077097"><span class="section-number-3">1.3.</span> Environment</h3>
+<div class="outline-text-3" id="text-1-3">
 <p>
 Emacs has the login shell&rsquo;s environment without help from this
 configuration.  The daemon is the <code>emacs</code> service of the user shepherd (Guix
@@ -649,9 +645,9 @@ through <code>bash -l</code> as well, so they see the same.
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.079889" class="outline-4">
-<h4 id="ID-20261012T194636.079889"><span class="section-number-4">1.1.4.</span> Library</h4>
-<div class="outline-text-4" id="text-1-1-4">
+<div id="outline-container-ID-20261012T194636.079889" class="outline-3">
+<h3 id="ID-20261012T194636.079889"><span class="section-number-3">1.4.</span> Library</h3>
+<div class="outline-text-3" id="text-1-4">
 <p>
 Helpers the other modules share.  Keys first: there is no <code>general.el</code> and no
 <code>map!</code> here.  The leader is an ordinary keymap, <code>bhw/define-keys</code> binds into
@@ -1180,9 +1176,9 @@ Lissner and contributors), renamed and with its macros written out.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.945686" class="outline-3">
-<h3 id="ID-20260901T134925.945686"><span class="section-number-3">1.2.</span> Package Configuration</h3>
-<div class="outline-text-3" id="text-1-2">
+<div id="outline-container-ID-20260901T134925.945686" class="outline-2">
+<h2 id="ID-20260901T134925.945686"><span class="section-number-2">2.</span> Package Configuration</h2>
+<div class="outline-text-2" id="text-2">
 <p>
 Guix installs every package this configuration uses, into the profile of
 Guix Home.  My Guix configuration lists them (its module <code>(config home
@@ -1202,9 +1198,9 @@ restart: the package&rsquo;s code stays loaded in the running session until then
 </p>
 </div>
 </div>
-<div id="outline-container-ID-dc555de1-613d-47ec-bde5-e83db71ca472" class="outline-3">
-<h3 id="ID-dc555de1-613d-47ec-bde5-e83db71ca472"><span class="section-number-3">1.3.</span> Emacs Configuration</h3>
-<div class="outline-text-3" id="text-1-3">
+<div id="outline-container-ID-dc555de1-613d-47ec-bde5-e83db71ca472" class="outline-2">
+<h2 id="ID-dc555de1-613d-47ec-bde5-e83db71ca472"><span class="section-number-2">3.</span> Emacs Configuration</h2>
+<div class="outline-text-2" id="text-3">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-e053abb6-1a1b-4b27-8278-ffb221e9ccad">&lt;&ndash;Windows 10 Reference Manual</a></li>
 </ul>
@@ -1439,9 +1435,9 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.086763" class="outline-4">
-<h4 id="ID-20261012T194636.086763"><span class="section-number-4">1.3.1.</span> Core defaults</h4>
-<div class="outline-text-4" id="text-1-3-1">
+<div id="outline-container-ID-20261012T194636.086763" class="outline-3">
+<h3 id="ID-20261012T194636.086763"><span class="section-number-3">3.1.</span> Core defaults</h3>
+<div class="outline-text-3" id="text-3-1">
 <p>
 Doom set every value below, and this configuration came to rely on them
 without saying so.  The list is the difference between a Doom session and
@@ -1868,9 +1864,9 @@ trash in <code>var-test/</code>.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.956524" class="outline-4">
-<h4 id="ID-20260901T134925.956524"><span class="section-number-4">1.3.2.</span> Config Test Harness</h4>
-<div class="outline-text-4" id="text-1-3-2">
+<div id="outline-container-ID-20260901T134925.956524" class="outline-3">
+<h3 id="ID-20260901T134925.956524"><span class="section-number-3">3.2.</span> Config Test Harness</h3>
+<div class="outline-text-3" id="text-3-2">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-reload.el --- Reload harness and config test runner -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -2071,9 +2067,9 @@ anything after it.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.092137" class="outline-4">
-<h4 id="ID-20261012T194636.092137"><span class="section-number-4">1.3.3.</span> Evil</h4>
-<div class="outline-text-4" id="text-1-3-3">
+<div id="outline-container-ID-20261012T194636.092137" class="outline-3">
+<h3 id="ID-20261012T194636.092137"><span class="section-number-3">3.3.</span> Evil</h3>
+<div class="outline-text-3" id="text-3-3">
 <p>
 Vim emulation, loaded before everything that binds keys by state.  Most of
 this section is ported from Doom Emacs&rsquo; <code>:editor evil</code> module (MIT licence,
@@ -2087,9 +2083,9 @@ their behaviour and take a <code>bhw/</code> name.  What Doom built on <code>evi
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.095200" class="outline-5">
-<h5 id="ID-20261012T194636.095200">Settings and load</h5>
-<div class="outline-text-5" id="text-orgb655234">
+<div id="outline-container-ID-20261012T194636.095200" class="outline-4">
+<h4 id="ID-20261012T194636.095200"><span class="section-number-4">3.3.1.</span> Settings and load</h4>
+<div class="outline-text-4" id="text-3-3-1">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">These have to be set before Evil loads.</span>
@@ -2157,9 +2153,9 @@ their behaviour and take a <code>bhw/</code> name.  What Doom built on <code>evi
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.098278" class="outline-5">
-<h5 id="ID-20261012T194636.098278">Commands</h5>
-<div class="outline-text-5" id="text-org9ff9999">
+<div id="outline-container-ID-20261012T194636.098278" class="outline-4">
+<h4 id="ID-20261012T194636.098278"><span class="section-number-4">3.3.2.</span> Commands</h4>
+<div class="outline-text-4" id="text-3-3-2">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Commands.</span>
@@ -2523,9 +2519,9 @@ their behaviour and take a <code>bhw/</code> name.  What Doom built on <code>evi
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.101252" class="outline-5">
-<h5 id="ID-20261012T194636.101252">Text objects</h5>
-<div class="outline-text-5" id="text-org0d24775">
+<div id="outline-container-ID-20261012T194636.101252" class="outline-4">
+<h4 id="ID-20261012T194636.101252"><span class="section-number-4">3.3.3.</span> Text objects</h4>
+<div class="outline-text-4" id="text-3-3-3">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Text objects.</span>
@@ -2613,9 +2609,9 @@ their behaviour and take a <code>bhw/</code> name.  What Doom built on <code>evi
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.104510" class="outline-5">
-<h5 id="ID-20261012T194636.104510">Advice</h5>
-<div class="outline-text-5" id="text-orgc51b1ed">
+<div id="outline-container-ID-20261012T194636.104510" class="outline-4">
+<h4 id="ID-20261012T194636.104510"><span class="section-number-4">3.3.4.</span> Advice</h4>
+<div class="outline-text-4" id="text-3-3-4">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Advice.  Each of these changes how a stock Evil command behaves.</span>
@@ -2960,9 +2956,9 @@ their behaviour and take a <code>bhw/</code> name.  What Doom built on <code>evi
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T212922.841843" class="outline-5">
-<h5 id="ID-20261012T212922.841843">Indentation of what is yanked and pasted</h5>
-<div class="outline-text-5" id="text-orgf225e07">
+<div id="outline-container-ID-20261012T212922.841843" class="outline-4">
+<h4 id="ID-20261012T212922.841843"><span class="section-number-4">3.3.5.</span> Indentation of what is yanked and pasted</h4>
+<div class="outline-text-4" id="text-3-3-5">
 <p>
 <code>y</code> leaves out the indentation that the lines it yanks have in common, and
 <code>p</code> and <code>P</code> give the lines they put in the indentation of the line point is
@@ -3110,9 +3106,9 @@ its lines share, and from its second line on takes the current line&rsquo;s.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.108012" class="outline-5">
-<h5 id="ID-20261012T194636.108012">Ex commands</h5>
-<div class="outline-text-5" id="text-orgbd24437">
+<div id="outline-container-ID-20261012T194636.108012" class="outline-4">
+<h4 id="ID-20261012T194636.108012"><span class="section-number-4">3.3.6.</span> Ex commands</h4>
+<div class="outline-text-4" id="text-3-3-6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Ex commands.</span>
@@ -3285,9 +3281,9 @@ its lines share, and from its second line on takes the current line&rsquo;s.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.110946" class="outline-5">
-<h5 id="ID-20261012T194636.110946">Companions</h5>
-<div class="outline-text-5" id="text-org9db75a0">
+<div id="outline-container-ID-20261012T194636.110946" class="outline-4">
+<h4 id="ID-20261012T194636.110946"><span class="section-number-4">3.3.7.</span> Companions</h4>
+<div class="outline-text-4" id="text-3-3-7">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">evil-collection: Evil keys for the rest of Emacs.</span>
@@ -3364,9 +3360,9 @@ its lines share, and from its second line on takes the current line&rsquo;s.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.114060" class="outline-5">
-<h5 id="ID-20261012T194636.114060">Keys</h5>
-<div class="outline-text-5" id="text-org02cfea6">
+<div id="outline-container-ID-20261012T194636.114060" class="outline-4">
+<h4 id="ID-20261012T194636.114060"><span class="section-number-4">3.3.8.</span> Keys</h4>
+<div class="outline-text-4" id="text-3-3-8">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Keys.  State by state, as Doom bound them.</span>
@@ -3491,9 +3487,9 @@ its lines share, and from its second line on takes the current line&rsquo;s.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.117148" class="outline-4">
-<h4 id="ID-20261012T194636.117148"><span class="section-number-4">1.3.4.</span> Leader</h4>
-<div class="outline-text-4" id="text-1-3-4">
+<div id="outline-container-ID-20261012T194636.117148" class="outline-3">
+<h3 id="ID-20261012T194636.117148"><span class="section-number-3">3.4.</span> Leader</h3>
+<div class="outline-text-3" id="text-3-4">
 <p>
 <code>SPC</code> is the leader in normal, visual and motion state, and <code>,</code> is the
 localleader, with <code>SPC m</code> as a second way to reach it.  Outside those states
@@ -3572,9 +3568,9 @@ keys that belong to a later section of this document are bound there.
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.120267" class="outline-5">
-<h5 id="ID-20261012T194636.120267">Commands</h5>
-<div class="outline-text-5" id="text-orgcd1a10c">
+<div id="outline-container-ID-20261012T194636.120267" class="outline-4">
+<h4 id="ID-20261012T194636.120267"><span class="section-number-4">3.4.1.</span> Commands</h4>
+<div class="outline-text-4" id="text-3-4-1">
 <p>
 The commands behind the tree that belong to no package: files, buffers,
 scratch buffers, projects, search.  They are ported from Doom Emacs&rsquo; core
@@ -4459,9 +4455,9 @@ The keys for these that are not on the leader.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.123716" class="outline-5">
-<h5 id="ID-20261012T194636.123716">Help</h5>
-<div class="outline-text-5" id="text-org50428d8">
+<div id="outline-container-ID-20261012T194636.123716" class="outline-4">
+<h4 id="ID-20261012T194636.123716"><span class="section-number-4">3.4.2.</span> Help</h4>
+<div class="outline-text-4" id="text-3-4-2">
 <p>
 <code>SPC h</code> is the help map itself, so these keys work after <code>C-h</code> too.  This is
 Doom&rsquo;s rearrangement of it, less Doom&rsquo;s own documentation commands.
@@ -4499,9 +4495,9 @@ Doom&rsquo;s rearrangement of it, less Doom&rsquo;s own documentation commands.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.126521" class="outline-5">
-<h5 id="ID-20261012T194636.126521">The tree</h5>
-<div class="outline-text-5" id="text-org2a16088">
+<div id="outline-container-ID-20261012T194636.126521" class="outline-4">
+<h4 id="ID-20261012T194636.126521"><span class="section-number-4">3.4.3.</span> The tree</h4>
+<div class="outline-text-4" id="text-3-4-3">
 <p>
 Generated from the Doom session&rsquo;s own keymap, so the keys and labels are the
 ones already in the fingers, then kept by hand.  A command named <code>bhw/…</code> is
@@ -4760,9 +4756,9 @@ one of Doom&rsquo;s, ported into this configuration.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.964317" class="outline-4">
-<h4 id="ID-20260901T134925.964317"><span class="section-number-4">1.3.5.</span> Completion Module Config</h4>
-<div class="outline-text-4" id="text-1-3-5">
+<div id="outline-container-ID-20260901T134925.964317" class="outline-3">
+<h3 id="ID-20260901T134925.964317"><span class="section-number-3">3.5.</span> Completion Module Config</h3>
+<div class="outline-text-3" id="text-3-5">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-completion.el --- Vertico, Consult and friends -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -4792,9 +4788,9 @@ one of Doom&rsquo;s, ported into this configuration.
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.129955" class="outline-5">
-<h5 id="ID-20261012T194636.129955">Vertico, Orderless and Marginalia</h5>
-<div class="outline-text-5" id="text-orgc64dc51">
+<div id="outline-container-ID-20261012T194636.129955" class="outline-4">
+<h4 id="ID-20261012T194636.129955"><span class="section-number-4">3.5.1.</span> Vertico, Orderless and Marginalia</h4>
+<div class="outline-text-4" id="text-3-5-1">
 <p>
 The minibuffer side of completion: Vertico lists the candidates, Orderless
 matches them against space-separated pieces in any order, and Marginalia
@@ -5022,9 +5018,9 @@ front of the character takes the meaning away.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.132911" class="outline-5">
-<h5 id="ID-20261012T194636.132911">Consult and Embark</h5>
-<div class="outline-text-5" id="text-orgf33b535">
+<div id="outline-container-ID-20261012T194636.132911" class="outline-4">
+<h4 id="ID-20261012T194636.132911"><span class="section-number-4">3.5.2.</span> Consult and Embark</h4>
+<div class="outline-text-4" id="text-3-5-2">
 <p>
 Consult supplies the commands that search and pick with a preview, and takes
 over the built-in ones it betters.  Embark acts on whatever is under point
@@ -5056,7 +5052,7 @@ be changed but not deleted.
                  (<span class="org-function-name">evil-show-registers</span>           . consult-register)
                  (<span class="org-constant">goto-line</span>                     . consult-goto-line)
                  (<span class="org-constant">imenu</span>                         . consult-imenu)
-                 (Info-search                   . consult-info)
+                 (<span class="org-constant">Info-search</span>                   . consult-info)
                  (<span class="org-function-name">locate</span>                        . consult-locate)
                  (<span class="org-constant">load-theme</span>                    . consult-theme)
                  (<span class="org-constant">recentf-open-files</span>            . consult-recent-file)
@@ -5310,9 +5306,9 @@ be changed but not deleted.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.976638" class="outline-5">
-<h5 id="ID-20260901T134925.976638">Consult Config</h5>
-<div class="outline-text-5" id="text-org9a88b67">
+<div id="outline-container-ID-20260901T134925.976638" class="outline-4">
+<h4 id="ID-20260901T134925.976638"><span class="section-number-4">3.5.3.</span> Consult Config</h4>
+<div class="outline-text-4" id="text-3-5-3">
 <p>
 <code>SPC SPC</code> (<code>consult-buffer</code>) lists, in this order: the lines of the buffer it
 was called from, as <code>consult-line</code> lists and colours them; org-node&rsquo;s notes by
@@ -5708,9 +5704,9 @@ CPU, and Emacs 35 ms for the search; the first starts the server, which holds
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.136589" class="outline-5">
-<h5 id="ID-20261012T194636.136589">Corfu and Cape</h5>
-<div class="outline-text-5" id="text-orgad24ac1">
+<div id="outline-container-ID-20261012T194636.136589" class="outline-4">
+<h4 id="ID-20261012T194636.136589"><span class="section-number-4">3.5.4.</span> Corfu and Cape</h4>
+<div class="outline-text-4" id="text-3-5-4">
 <p>
 Completion while typing in a buffer: Corfu pops the candidates up at point,
 after two characters and a quarter of a second, and Cape supplies sources for
@@ -5858,7 +5854,7 @@ Lissner and contributors).
   <span class="org-doc">"Complete from the words of this buffer."</span>
   (<span class="org-keyword">interactive</span>)
   (<span class="org-constant">require</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">cape</span>)
-  (<span class="org-keyword">dlet</span> ((<span class="org-variable-name">cape-dabbrev-buffer-function</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">current-buffer</span>))
+  (<span class="org-keyword">dlet</span> ((cape-dabbrev-buffer-function <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">current-buffer</span>))
     (<span class="org-function-name">cape-dabbrev</span> t)))
 
 (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/corfu-dabbrev-or-next</span> (<span class="org-type">&amp;optional</span> arg)
@@ -5869,7 +5865,7 @@ Lissner and contributors).
   (<span class="org-keyword">if</span> <span class="org-variable-name">corfu--candidates</span>
       (<span class="org-function-name">corfu-next</span> arg)
     (<span class="org-constant">require</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">cape</span>)
-    (<span class="org-keyword">dlet</span> ((<span class="org-variable-name">cape-dabbrev-buffer-function</span>
+    (<span class="org-keyword">dlet</span> ((cape-dabbrev-buffer-function
             (<span class="org-keyword">if</span> (<span class="org-keyword">bound-and-true-p</span> <span class="org-variable-name">evil-complete-all-buffers</span>)
                 <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">cape-same-mode-buffers</span>
               <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">current-buffer</span>)))
@@ -5885,7 +5881,7 @@ Lissner and contributors).
   (<span class="org-keyword">if</span> <span class="org-variable-name">corfu--candidates</span>
       (<span class="org-function-name">corfu-previous</span> arg)
     (<span class="org-constant">require</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">cape</span>)
-    (<span class="org-keyword">dlet</span> ((<span class="org-variable-name">cape-dabbrev-buffer-function</span>
+    (<span class="org-keyword">dlet</span> ((cape-dabbrev-buffer-function
             (<span class="org-keyword">if</span> (<span class="org-keyword">bound-and-true-p</span> <span class="org-variable-name">evil-complete-all-buffers</span>)
                 <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">cape-same-mode-buffers</span>
               <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">current-buffer</span>)))
@@ -6030,9 +6026,9 @@ Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.139488" class="outline-5">
-<h5 id="ID-20261012T194636.139488">Minibuffer keys</h5>
-<div class="outline-text-5" id="text-org790944c">
+<div id="outline-container-ID-20261012T194636.139488" class="outline-4">
+<h4 id="ID-20261012T194636.139488"><span class="section-number-4">3.5.5.</span> Minibuffer keys</h4>
+<div class="outline-text-4" id="text-3-5-5">
 <p>
 Keys for editing in the minibuffer with the habits of insert state: <code>C-j</code> and
 <code>C-k</code> move through the candidates or the history, <code>C-w</code> deletes a word
@@ -6100,9 +6096,9 @@ register, <code>C-s</code> searches the history, and ESC quits at once.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.989335" class="outline-4">
-<h4 id="ID-20260901T134925.989335"><span class="section-number-4">1.3.6.</span> User Interface Config</h4>
-<div class="outline-text-4" id="text-1-3-6">
+<div id="outline-container-ID-20260901T134925.989335" class="outline-3">
+<h3 id="ID-20260901T134925.989335"><span class="section-number-3">3.6.</span> User Interface Config</h3>
+<div class="outline-text-3" id="text-3-6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-ui.el --- Fonts, theme and scrolling -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -6129,9 +6125,9 @@ register, <code>C-s</code> searches the history, and ESC quits at once.
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.142132" class="outline-5">
-<h5 id="ID-20261012T194636.142132">Font</h5>
-<div class="outline-text-5" id="text-org925db2c">
+<div id="outline-container-ID-20261012T194636.142132" class="outline-4">
+<h4 id="ID-20261012T194636.142132"><span class="section-number-4">3.6.1.</span> Font</h4>
+<div class="outline-text-4" id="text-3-6-1">
 <p>
 The font itself, <code>bhw/font</code>, is set in <a href="#ID-20261012T194636.071092">Early init</a>, because a frame has to
 be born with it.  This part gives the same font to <code>fixed-pitch</code>, points
@@ -6276,9 +6272,9 @@ licence, Henrik Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.144806" class="outline-5">
-<h5 id="ID-20261012T194636.144806">Theme</h5>
-<div class="outline-text-5" id="text-org7d9679f">
+<div id="outline-container-ID-20261012T194636.144806" class="outline-4">
+<h4 id="ID-20261012T194636.144806"><span class="section-number-4">3.6.2.</span> Theme</h4>
+<div class="outline-text-4" id="text-3-6-2">
 <p>
 <a href="https://github.com/bbatsov/zenburn-emacs">Zenburn</a>: greys and muted colours of low contrast.  It replaced doom-gruvbox
 on 2026-10-15, for the eyes: text at 7.6:1 to the background rather than
@@ -6323,9 +6319,9 @@ frame appears, not at startup: a daemon has no display until then.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.147420" class="outline-5">
-<h5 id="ID-20261012T194636.147420">Current line and TODO keywords</h5>
-<div class="outline-text-5" id="text-orgee29036">
+<div id="outline-container-ID-20261012T194636.147420" class="outline-4">
+<h4 id="ID-20261012T194636.147420"><span class="section-number-4">3.6.3.</span> Current line and TODO keywords</h4>
+<div class="outline-text-4" id="text-3-6-3">
 <p>
 The line point is on is highlighted in buffers that hold text or a list,
 and not while there is a selection, whose bounds it would hide.  <code>TODO</code>,
@@ -6449,9 +6445,9 @@ hooks of the modes that hold code or prose instead, and leaves Org out.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134925.995450" class="outline-4">
-<h4 id="ID-20260901T134925.995450"><span class="section-number-4">1.3.7.</span> Smooth Scrolling Config</h4>
-<div class="outline-text-4" id="text-1-3-7">
+<div id="outline-container-ID-20260901T134925.995450" class="outline-3">
+<h3 id="ID-20260901T134925.995450"><span class="section-number-3">3.7.</span> Smooth Scrolling Config</h3>
+<div class="outline-text-3" id="text-3-7">
 <p>
 <a href="https://old.reddit.com/r/emacs/comments/1vz1uc4/configuring_emacs_scrolling_for_better/">https://old.reddit.com/r/emacs/comments/1vz1uc4/configuring_emacs_scrolling_for_better/</a>
 </p>
@@ -6504,9 +6500,9 @@ since that path never touches the trackpad.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.150108" class="outline-4">
-<h4 id="ID-20261012T194636.150108"><span class="section-number-4">1.3.8.</span> Modeline</h4>
-<div class="outline-text-4" id="text-1-3-8">
+<div id="outline-container-ID-20261012T194636.150108" class="outline-3">
+<h3 id="ID-20261012T194636.150108"><span class="section-number-3">3.8.</span> Modeline</h3>
+<div class="outline-text-3" id="text-3-8">
 <p>
 The mode line, built straight into <code>mode-line-format</code> with no package behind
 it.  It is Doom Emacs&rsquo; <code>+light</code> modeline (MIT licence, Henrik Lissner and
@@ -7184,9 +7180,9 @@ sets a mode line of its own is overruled.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.152789" class="outline-4">
-<h4 id="ID-20261012T194636.152789"><span class="section-number-4">1.3.9.</span> Windows</h4>
-<div class="outline-text-4" id="text-1-3-9">
+<div id="outline-container-ID-20261012T194636.152789" class="outline-3">
+<h3 id="ID-20261012T194636.152789"><span class="section-number-3">3.9.</span> Windows</h3>
+<div class="outline-text-3" id="text-3-9">
 <p>
 Window numbers, the window commands Doom added to <code>C-w</code> and <code>SPC w</code>, and
 popups.
@@ -7278,9 +7274,9 @@ them.
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.156200" class="outline-5">
-<h5 id="ID-20261012T194636.156200">Popups</h5>
-<div class="outline-text-5" id="text-org84da1b8">
+<div id="outline-container-ID-20261012T194636.156200" class="outline-4">
+<h4 id="ID-20261012T194636.156200"><span class="section-number-4">3.9.1.</span> Popups</h4>
+<div class="outline-text-4" id="text-3-9-1">
 <p>
 A popup is a window for a buffer that is looked at and then dismissed:
 help, messages, a compilation.  It opens along an edge of the frame, at a
@@ -7677,9 +7673,9 @@ Later sections add their own next to the code that makes the buffer.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.159306" class="outline-4">
-<h4 id="ID-20261012T194636.159306"><span class="section-number-4">1.3.10.</span> Workspaces</h4>
-<div class="outline-text-4" id="text-1-3-10">
+<div id="outline-container-ID-20261012T194636.159306" class="outline-3">
+<h3 id="ID-20261012T194636.159306"><span class="section-number-3">3.10.</span> Workspaces</h3>
+<div class="outline-text-3" id="text-3-10">
 <p>
 A workspace is a window layout with the buffers that belong to it: one per
 project, usually.  Doom built them on persp-mode.  Here a workspace is a tab
@@ -8424,9 +8420,9 @@ space narrows to another workspace&rsquo;s, and choosing one of those goes there
 </div>
 </div>
 </div>
-<div id="outline-container-ID-f227b2cc-f752-435d-a7ed-88c47b001674" class="outline-4">
-<h4 id="ID-f227b2cc-f752-435d-a7ed-88c47b001674"><span class="section-number-4">1.3.11.</span> Editor Config</h4>
-<div class="outline-text-4" id="text-1-3-11">
+<div id="outline-container-ID-f227b2cc-f752-435d-a7ed-88c47b001674" class="outline-3">
+<h3 id="ID-f227b2cc-f752-435d-a7ed-88c47b001674"><span class="section-number-3">3.11.</span> Editor Config</h3>
+<div class="outline-text-3" id="text-3-11">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-e053abb6-1a1b-4b27-8278-ffb221e9ccad">&lt;&ndash;Windows 10 Reference Manual</a></li>
 <li><a href="#ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e">&lt;&ndash;Searching - File Content</a></li>
@@ -8586,9 +8582,9 @@ from its <code>:editor</code> and <code>:emacs</code> modules and its core (MIT 
 Lissner and contributors).
 </p>
 </div>
-<div id="outline-container-ID-20261012T194636.162030" class="outline-5">
-<h5 id="ID-20261012T194636.162030">Undo</h5>
-<div class="outline-text-5" id="text-org783bef4">
+<div id="outline-container-ID-20261012T194636.162030" class="outline-4">
+<h4 id="ID-20261012T194636.162030"><span class="section-number-4">3.11.1.</span> Undo</h4>
+<div class="outline-text-4" id="text-3-11-1">
 <p>
 Undo and redo are Emacs&rsquo;s own <code>undo-only</code> and <code>undo-redo</code>: linear, and
 never wrapping round into redoing by accident.  Evil&rsquo;s <code>u</code> and <code>C-r</code> are the
@@ -8656,9 +8652,9 @@ u</code> draws the history as a tree (vundo).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.164571" class="outline-5">
-<h5 id="ID-20261012T194636.164571">Whitespace and indentation</h5>
-<div class="outline-text-5" id="text-org4911aa7">
+<div id="outline-container-ID-20261012T194636.164571" class="outline-4">
+<h4 id="ID-20261012T194636.164571"><span class="section-number-4">3.11.2.</span> Whitespace and indentation</h4>
+<div class="outline-text-4" id="text-3-11-2">
 <p>
 Whitespace at odds with the buffer&rsquo;s indentation style is shown: tabs where
 it indents with spaces, leading spaces where it indents with tabs.  The
@@ -8866,9 +8862,9 @@ Lisp, four in Python.  <code>M-x bhw/set-indent-width</code> changes it for a bu
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.168131" class="outline-5">
-<h5 id="ID-20261012T194636.168131">Word wrap</h5>
-<div class="outline-text-5" id="text-orge4906a3">
+<div id="outline-container-ID-20261012T194636.168131" class="outline-4">
+<h4 id="ID-20261012T194636.168131"><span class="section-number-4">3.11.3.</span> Word wrap</h4>
+<div class="outline-text-4" id="text-3-11-3">
 <p>
 Long lines are wrapped on screen, not in the file, and the continuation is
 indented to line up with the start of the line (<code>visual-wrap-prefix-mode</code>,
@@ -9019,9 +9015,9 @@ buffer; it is on everywhere but in special buffers.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.171743" class="outline-5">
-<h5 id="ID-20261012T194636.171743">Pairs</h5>
-<div class="outline-text-5" id="text-orgb6f01e9">
+<div id="outline-container-ID-20261012T194636.171743" class="outline-4">
+<h4 id="ID-20261012T194636.171743"><span class="section-number-4">3.11.4.</span> Pairs</h4>
+<div class="outline-text-4" id="text-3-11-4">
 <p>
 Brackets and quotes are closed as they are typed (<code>electric-pair-mode</code>),
 with some judgement: no closing quote next to a word, no closing bracket in
@@ -9134,7 +9130,7 @@ deletes whatever is before point.
 
 <span class="org-comment-delimiter">;; </span><span class="org-comment">puni.  Not in the minibuffer or in prose, where a stray bracket or</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">apostrophe is nothing to be strict about.</span>
-(<span class="org-keyword">dolist</span> (hook <span class="org-highlight-quoted-quote">'</span>(<span class="org-variable-name">prog-mode-hook</span> <span class="org-variable-name">sgml-mode-hook</span> nxml-mode-hook tex-mode-hook))
+(<span class="org-keyword">dolist</span> (hook <span class="org-highlight-quoted-quote">'</span>(<span class="org-variable-name">prog-mode-hook</span> sgml-mode-hook nxml-mode-hook tex-mode-hook))
   (<span class="org-constant">add-hook</span> hook <span class="org-highlight-quoted-quote">#'</span><span class="org-variable-name">puni-mode</span>))
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Backspace is the one below, which knows about indentation.  The keymap</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">comes whole with puni's autoloads, so it is there before puni is loaded.</span>
@@ -9142,8 +9138,8 @@ deletes whatever is before point.
 
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">python</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Python's own DEL gets in the way of the one below.</span>
-  (<span class="org-constant">define-key</span> (<span class="org-keyword">or</span> (<span class="org-keyword">bound-and-true-p</span> python-base-mode-map)
-                  python-mode-map)
+  (<span class="org-constant">define-key</span> (<span class="org-keyword">or</span> (<span class="org-keyword">bound-and-true-p</span> <span class="org-variable-name">python-base-mode-map</span>)
+                  <span class="org-variable-name">python-mode-map</span>)
               (<span class="org-constant">kbd</span> <span class="org-string">"DEL"</span>) nil))
 
 <span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
@@ -9259,9 +9255,9 @@ deletes whatever is before point.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.174644" class="outline-5">
-<h5 id="ID-20261012T194636.174644">Growing the selection</h5>
-<div class="outline-text-5" id="text-org62b962d">
+<div id="outline-container-ID-20261012T194636.174644" class="outline-4">
+<h4 id="ID-20261012T194636.174644"><span class="section-number-4">3.11.5.</span> Growing the selection</h4>
+<div class="outline-text-4" id="text-3-11-5">
 <p>
 <code>v</code> in visual state grows the selection to the next thing that holds it:
 the word, the symbol, the string, the list, the function, and in prose the
@@ -9310,9 +9306,9 @@ and <code>V</code> turns a selection into lines unless <code>v</code> has just g
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.177179" class="outline-5">
-<h5 id="ID-20261012T194636.177179">Jump list</h5>
-<div class="outline-text-5" id="text-org944e6ab">
+<div id="outline-container-ID-20261012T194636.177179" class="outline-4">
+<h4 id="ID-20261012T194636.177179"><span class="section-number-4">3.11.6.</span> Jump list</h4>
+<div class="outline-text-4" id="text-3-11-6">
 <p>
 <code>C-o</code> and <code>C-i</code> walk back and forth through the places jumped from, across
 buffers (better-jumper).  Killing a buffer leaves a jump behind, so <code>C-o</code>
@@ -9370,9 +9366,9 @@ reopens a file closed by mistake.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.179627" class="outline-5">
-<h5 id="ID-20261012T194636.179627">Folding</h5>
-<div class="outline-text-5" id="text-org029a743">
+<div id="outline-container-ID-20261012T194636.179627" class="outline-4">
+<h4 id="ID-20261012T194636.179627"><span class="section-number-4">3.11.7.</span> Folding</h4>
+<div class="outline-text-4" id="text-3-11-7">
 <p>
 <code>za</code> toggles the fold at point, <code>zc</code> and <code>zo</code> close and open it, <code>zO</code> opens it
 and all inside it, <code>zm</code> and <code>zr</code> close and open every fold, <code>zj</code> and <code>zk</code>
@@ -9519,9 +9515,9 @@ a fold is asked for there, and no sooner.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.182273" class="outline-5">
-<h5 id="ID-20261012T194636.182273">Formatting</h5>
-<div class="outline-text-5" id="text-orgc9c7811">
+<div id="outline-container-ID-20261012T194636.182273" class="outline-4">
+<h4 id="ID-20261012T194636.182273"><span class="section-number-4">3.11.8.</span> Formatting</h4>
+<div class="outline-text-4" id="text-3-11-8">
 <p>
 Buffers are reformatted when saved, by whatever formatter apheleia knows for
 the language, if it is installed.  <code>C-u SPC f s</code> saves without.  <code>SPC c f</code>
@@ -9676,9 +9672,9 @@ what it is given.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.185320" class="outline-5">
-<h5 id="ID-20261012T194636.185320">Templates</h5>
-<div class="outline-text-5" id="text-orge68d8e5">
+<div id="outline-container-ID-20261012T194636.185320" class="outline-4">
+<h4 id="ID-20261012T194636.185320"><span class="section-number-4">3.11.9.</span> Templates</h4>
+<div class="outline-text-4" id="text-3-11-9">
 <p>
 A template is typed by its name and TAB, with fields to fill in that TAB
 moves between and <code>S-TAB</code> moves back through (tempel).  Typing into a field
@@ -9852,9 +9848,9 @@ it.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.188264" class="outline-5">
-<h5 id="ID-20261012T194636.188264">Multiple cursors</h5>
-<div class="outline-text-5" id="text-org6c7de6c">
+<div id="outline-container-ID-20261012T194636.188264" class="outline-4">
+<h4 id="ID-20261012T194636.188264"><span class="section-number-4">3.11.10.</span> Multiple cursors</h4>
+<div class="outline-text-4" id="text-3-11-10">
 <p>
 evil-mc puts down extra cursors, on <code>gz</code>: <code>gzd</code> at the next match, <code>gzj</code>
 and <code>gzk</code> on the line below and above, <code>gzz</code> here, <code>gzq</code> to be rid of them.
@@ -10068,9 +10064,9 @@ and <code>gzk</code> on the line below and above, <code>gzz</code> here, <code>g
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.190846" class="outline-5">
-<h5 id="ID-20261012T194636.190846">TAB</h5>
-<div class="outline-text-5" id="text-org368f41b">
+<div id="outline-container-ID-20261012T194636.190846" class="outline-4">
+<h4 id="ID-20261012T194636.190846"><span class="section-number-4">3.11.11.</span> TAB</h4>
+<div class="outline-text-4" id="text-3-11-11">
 <p>
 One key, several jobs, tried in this order.  In insert state: move to the
 next field of a template, expand the template whose name was just typed,
@@ -10141,9 +10137,9 @@ mode itself has on TAB, jump to the matching bracket.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.004984" class="outline-5">
-<h5 id="ID-20260901T134926.004984">Savehist Config (unused)</h5>
-<div class="outline-text-5" id="text-orgf4df887">
+<div id="outline-container-ID-20260901T134926.004984" class="outline-4">
+<h4 id="ID-20260901T134926.004984"><span class="section-number-4">3.11.12.</span> Savehist Config (unused)</h4>
+<div class="outline-text-4" id="text-3-11-12">
 <p>
 <a href="https://www.emacswiki.org/emacs/SessionManagement">For more session management solutions.</a>
 <a href="https://emacs.stackexchange.com/questions/12086/high-cpu-memory-usage-and-abnormally-large-savehist-file">spacemacs - High CPU/memory usage and abnormally large savehist file? - Emacs&hellip;</a>
@@ -10187,9 +10183,9 @@ offset for each variable, and just look for any really big jumps:
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.010550" class="outline-4">
-<h4 id="ID-20260901T134926.010550"><span class="section-number-4">1.3.12.</span> Emacs Config</h4>
-<div class="outline-text-4" id="text-1-3-12">
+<div id="outline-container-ID-20260901T134926.010550" class="outline-3">
+<h3 id="ID-20260901T134926.010550"><span class="section-number-3">3.12.</span> Emacs Config</h3>
+<div class="outline-text-3" id="text-3-12">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-daemon.el --- Long-lived daemon: GC, recentf, frame rescue -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -10347,9 +10343,9 @@ that is already stuck.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.018954" class="outline-4">
-<h4 id="ID-20260901T134926.018954"><span class="section-number-4">1.3.13.</span> Dired Config</h4>
-<div class="outline-text-4" id="text-1-3-13">
+<div id="outline-container-ID-20260901T134926.018954" class="outline-3">
+<h3 id="ID-20260901T134926.018954"><span class="section-number-3">3.13.</span> Dired Config</h3>
+<div class="outline-text-3" id="text-3-13">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-dired.el --- Dired and Dirvish -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -10378,8 +10374,8 @@ dired</code> module (MIT licence, Henrik Lissner and contributors).
       <span class="org-variable-name">dired-auto-revert-buffer</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dired-buffer-stale-p</span>
       <span class="org-variable-name">dired-recursive-copies</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">always</span>
       <span class="org-variable-name">dired-recursive-deletes</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">top</span>
-      dired-create-destination-dirs <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">ask</span>
-      dired-vc-rename-file t
+      <span class="org-variable-name">dired-create-destination-dirs</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">ask</span>
+      <span class="org-variable-name">dired-vc-rename-file</span> t
       <span class="org-variable-name">dired-clean-confirm-killing-deleted-buffers</span> nil
       <span class="org-variable-name">dired-listing-switches</span> <span class="org-string">"-ahl -v --group-directories-first"</span>
       image-dired-dir (<span class="org-constant">expand-file-name</span> <span class="org-string">"image-dired/"</span> <span class="org-variable-name">bhw/cache-dir</span>)
@@ -10424,15 +10420,15 @@ dired</code> module (MIT licence, Henrik Lissner and contributors).
 (<span class="org-function-name">evil-set-initial-state</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">image-dired-display-image-mode</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">emacs</span>)
 
 <span class="org-comment-delimiter">;;; </span><span class="org-comment">Colours, and the files a listing leaves out.</span>
-(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dired-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">diredfl-mode</span>)
-(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dirvish-directory-view-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">diredfl-mode</span>)
-(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dired-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dired-omit-mode</span>)
+(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dired-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-variable-name">diredfl-mode</span>)
+(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dirvish-directory-view-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-variable-name">diredfl-mode</span>)
+(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dired-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-variable-name">dired-omit-mode</span>)
 
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dired-x</span>
-  (<span class="org-keyword">setq</span> dired-omit-verbose nil
+  (<span class="org-keyword">setq</span> <span class="org-variable-name">dired-omit-verbose</span> nil
         <span class="org-comment-delimiter">;; </span><span class="org-comment">From the standard value each time, so that a reload adds nothing.</span>
-        dired-omit-files
-        (<span class="org-constant">concat</span> (<span class="org-constant">eval</span> (<span class="org-constant">car</span> (<span class="org-constant">get</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dired-omit-files</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">standard-value</span>)) t)
+        <span class="org-variable-name">dired-omit-files</span>
+        (<span class="org-constant">concat</span> (<span class="org-constant">eval</span> (<span class="org-constant">car</span> (<span class="org-constant">get</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">dired-omit-files</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">standard-value</span>)) t)
                 <span class="org-string">"</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">^\\.DS_Store\\'"</span>
                 <span class="org-string">"</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">^\\.project</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(?:</span></span><span class="org-string">ile</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">?\\'"</span>
                 <span class="org-string">"</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">^\\.</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(?:</span></span><span class="org-string">svn</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">git</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">\\'"</span>
@@ -10453,7 +10449,7 @@ dired</code> module (MIT licence, Henrik Lissner and contributors).
           (<span class="org-string">"\\.md\\'"</span> <span class="org-string">"xdg-open"</span>))))
 
 (<span class="org-function-name">bhw/localleader-define</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dired-mode</span>
-  <span class="org-highlight-quoted-quote">'</span>((<span class="org-string">"h"</span> dired-omit-mode)))
+  <span class="org-highlight-quoted-quote">'</span>((<span class="org-string">"h"</span> <span class="org-variable-name">dired-omit-mode</span>)))
 </code></pre>
 </div>
 
@@ -10464,7 +10460,7 @@ Dirvish is loaded by the first directory that is opened, and not before.
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Dirvish.</span>
-(<span class="org-keyword">setq</span> dirvish-cache-dir (<span class="org-constant">expand-file-name</span> <span class="org-string">"dirvish/"</span> <span class="org-variable-name">bhw/cache-dir</span>))
+(<span class="org-keyword">setq</span> <span class="org-variable-name">dirvish-cache-dir</span> (<span class="org-constant">expand-file-name</span> <span class="org-string">"dirvish/"</span> <span class="org-variable-name">bhw/cache-dir</span>))
 
 <span class="org-comment-delimiter">;; </span><span class="org-comment">The two pieces of advice `</span><span class="org-comment"><span class="org-constant">dirvish-override-dired-mode</span></span><span class="org-comment">' would install, put</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">in by hand so that opening a directory is what loads Dirvish.</span>
@@ -10488,18 +10484,18 @@ Dirvish is loaded by the first directory that is opened, and not before.
   (<span class="org-variable-name">dirvish-override-dired-mode</span>)
   (<span class="org-constant">advice-add</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dirvish-pre-redisplay-h</span> <span class="org-builtin">:around</span>
               <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/dired--debounce-dirvish-redisplay-a</span>)
-  (<span class="org-keyword">setq</span> dirvish-attributes <span class="org-highlight-quoted-quote">'</span>(file-size)
-        dirvish-mode-line-format
+  (<span class="org-keyword">setq</span> <span class="org-variable-name">dirvish-attributes</span> <span class="org-highlight-quoted-quote">'</span>(file-size)
+        <span class="org-variable-name">dirvish-mode-line-format</span>
         <span class="org-highlight-quoted-quote">'</span>(<span class="org-builtin">:left</span> (<span class="org-constant">sort</span> file-time symlink) <span class="org-builtin">:right</span> (omit yank index))
-        dirvish-mode-line-height 14
-        dirvish-header-line-height 14
-        dirvish-hide-cursor <span class="org-highlight-quoted-quote">'</span>(dirvish dirvish-side)
+        <span class="org-variable-name">dirvish-mode-line-height</span> 14
+        <span class="org-variable-name">dirvish-header-line-height</span> 14
+        <span class="org-variable-name">dirvish-hide-cursor</span> <span class="org-highlight-quoted-quote">'</span>(dirvish dirvish-side)
         <span class="org-comment-delimiter">;; </span><span class="org-comment">Keep a session only so as to get back to the listing a file was</span>
         <span class="org-comment-delimiter">;; </span><span class="org-comment">opened from.  A leftover session is easily broken, and starting</span>
         <span class="org-comment-delimiter">;; </span><span class="org-comment">afresh costs little.</span>
-        dirvish-reuse-session <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">open</span>)
+        <span class="org-variable-name">dirvish-reuse-session</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">open</span>)
 
-  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> dirvish-mode-map
+  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> <span class="org-variable-name">dirvish-mode-map</span>
     <span class="org-string">"?"</span>         <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-dispatch</span>
     <span class="org-string">"q"</span>         <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-quit</span>
     <span class="org-string">"b"</span>         <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-quick-access</span>
@@ -10526,7 +10522,7 @@ Dirvish is loaded by the first directory that is opened, and not before.
     <span class="org-string">"ss"</span>        <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-symlink</span>
     <span class="org-string">"sS"</span>        <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-relative-symlink</span>
     <span class="org-string">"sh"</span>        <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-hardlink</span>)
-  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">motion</span> dirvish-mode-map
+  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">motion</span> <span class="org-variable-name">dirvish-mode-map</span>
     [left]  <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dired-up-directory</span>
     [right] <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dired-find-file</span>
     <span class="org-string">"[h"</span>    <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-history-go-backward</span>
@@ -10543,11 +10539,11 @@ Dirvish is loaded by the first directory that is opened, and not before.
                      (<span class="org-string">"M-n"</span>     . dirvish-narrow)
                      (<span class="org-string">"M-s"</span>     . dirvish-setup-menu)
                      (<span class="org-string">"M-e"</span>     . dirvish-emerge-menu)))
-    (<span class="org-constant">define-key</span> dirvish-mode-map (<span class="org-constant">kbd</span> (<span class="org-constant">car</span> binding)) (<span class="org-constant">cdr</span> binding)))
+    (<span class="org-constant">define-key</span> <span class="org-variable-name">dirvish-mode-map</span> (<span class="org-constant">kbd</span> (<span class="org-constant">car</span> binding)) (<span class="org-constant">cdr</span> binding)))
   <span class="org-comment-delimiter">;; </span><span class="org-comment">M-m is the leader's (see Leader), so the mark menu has no key of its</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">own; it is on the menu that ? opens.</span>
   (<span class="org-constant">which-key-add-keymap-based-replacements</span>
-    (<span class="org-function-name">evil-get-auxiliary-keymap</span> dirvish-mode-map <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> t)
+    (<span class="org-function-name">evil-get-auxiliary-keymap</span> <span class="org-variable-name">dirvish-mode-map</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> t)
     <span class="org-string">"y"</span> <span class="org-string">"yank"</span>
     <span class="org-string">"s"</span> <span class="org-string">"symlinks"</span>))
 
@@ -10564,7 +10560,7 @@ Dirvish is loaded by the first directory that is opened, and not before.
     (<span class="org-keyword">let</span> ((win (dirvish-side--session-visible-p)))
       (<span class="org-keyword">when</span> (<span class="org-keyword">and</span> win arg)
         (<span class="org-keyword">with-selected-window</span> win
-          (dirvish-quit))
+          (<span class="org-function-name">dirvish-quit</span>))
         (<span class="org-keyword">setq</span> win nil))
       (<span class="org-keyword">unless</span> win
         (<span class="org-constant">call-interactively</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">dirvish-side</span>))
@@ -10576,8 +10572,8 @@ Dirvish is loaded by the first directory that is opened, and not before.
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">dirvish</span>
-  (<span class="org-keyword">setq</span> dirvish-hide-details t)
-  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> dirvish-mode-map
+  (<span class="org-keyword">setq</span> <span class="org-variable-name">dirvish-hide-details</span> t)
+  (<span class="org-function-name">evil-define-key*</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">normal</span> <span class="org-variable-name">dirvish-mode-map</span>
     <span class="org-string">";"</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">consult-line</span>
     <span class="org-string">"A"</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/org-attach-visit-headline-from-dired</span>))
 
@@ -10599,9 +10595,9 @@ Dirvish is loaded by the first directory that is opened, and not before.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.027037" class="outline-4">
-<h4 id="ID-20260901T134926.027037"><span class="section-number-4">1.3.14.</span> EWW Config</h4>
-<div class="outline-text-4" id="text-1-3-14">
+<div id="outline-container-ID-20260901T134926.027037" class="outline-3">
+<h3 id="ID-20260901T134926.027037"><span class="section-number-3">3.14.</span> EWW Config</h3>
+<div class="outline-text-3" id="text-3-14">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-eww.el --- EWW -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -10841,9 +10837,9 @@ Stavrou&rsquo;s</a>.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.033731" class="outline-4">
-<h4 id="ID-20260901T134926.033731"><span class="section-number-4">1.3.15.</span> Term Config</h4>
-<div class="outline-text-4" id="text-1-3-15">
+<div id="outline-container-ID-20260901T134926.033731" class="outline-3">
+<h3 id="ID-20260901T134926.033731"><span class="section-number-3">3.15.</span> Term Config</h3>
+<div class="outline-text-3" id="text-3-15">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-term.el --- Ghostel terminal -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -11097,9 +11093,9 @@ terminal: <code>ghostel-scroll-on-input</code> anchors regardless.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.039934" class="outline-4">
-<h4 id="ID-20260901T134926.039934"><span class="section-number-4">1.3.16.</span> Checkers Config</h4>
-<div class="outline-text-4" id="text-1-3-16">
+<div id="outline-container-ID-20260901T134926.039934" class="outline-3">
+<h3 id="ID-20260901T134926.039934"><span class="section-number-3">3.16.</span> Checkers Config</h3>
+<div class="outline-text-3" id="text-3-16">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-checkers.el --- Spelling and syntax checking -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -11737,13 +11733,13 @@ Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.046383" class="outline-4">
-<h4 id="ID-20260901T134926.046383"><span class="section-number-4">1.3.17.</span> Tools Config</h4>
-<div class="outline-text-4" id="text-1-3-17">
+<div id="outline-container-ID-20260901T134926.046383" class="outline-3">
+<h3 id="ID-20260901T134926.046383"><span class="section-number-3">3.17.</span> Tools Config</h3>
+<div class="outline-text-3" id="text-3-17">
 </div>
-<div id="outline-container-ID-20261012T194636.193472" class="outline-5">
-<h5 id="ID-20261012T194636.193472">Code</h5>
-<div class="outline-text-5" id="text-org3cacc54">
+<div id="outline-container-ID-20261012T194636.193472" class="outline-4">
+<h4 id="ID-20261012T194636.193472"><span class="section-number-4">3.17.1.</span> Code</h4>
+<div class="outline-text-4" id="text-3-17-1">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-code.el --- Looking things up, evaluating, language servers -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -11767,9 +11763,9 @@ eval</code>, <code>:tools lsp</code> and <code>:tools tree-sitter</code> modules
 Lissner and contributors).
 </p>
 </div>
-<div id="outline-container-ID-20261012T194636.195988" class="outline-6">
-<h6 id="ID-20261012T194636.195988">Lookup</h6>
-<div class="outline-text-6" id="text-org5e7dd3b">
+<div id="outline-container-ID-20261012T194636.195988" class="outline-5">
+<h5 id="ID-20261012T194636.195988">Lookup</h5>
+<div class="outline-text-5" id="text-org8675e84">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Lookup.  Each list is run as a hook, the buffer's own handlers first, and</span>
@@ -12154,9 +12150,9 @@ Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.199754" class="outline-6">
-<h6 id="ID-20261012T194636.199754">Evaluating</h6>
-<div class="outline-text-6" id="text-org890ba69">
+<div id="outline-container-ID-20261012T194636.199754" class="outline-5">
+<h5 id="ID-20261012T194636.199754">Evaluating</h5>
+<div class="outline-text-5" id="text-org8581d75">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Evaluating.</span>
@@ -12548,9 +12544,9 @@ Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.202231" class="outline-6">
-<h6 id="ID-20261012T194636.202231">Language servers</h6>
-<div class="outline-text-6" id="text-org3ed2adb">
+<div id="outline-container-ID-20261012T194636.202231" class="outline-5">
+<h5 id="ID-20261012T194636.202231">Language servers</h5>
+<div class="outline-text-5" id="text-orgb574553">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Language servers.</span>
@@ -12678,9 +12674,9 @@ Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.205666" class="outline-6">
-<h6 id="ID-20261012T194636.205666">Tree-sitter</h6>
-<div class="outline-text-6" id="text-org3465f1c">
+<div id="outline-container-ID-20261012T194636.205666" class="outline-5">
+<h5 id="ID-20261012T194636.205666">Tree-sitter</h5>
+<div class="outline-text-5" id="text-org38cd514">
 <p>
 A language&rsquo;s section may ask for its tree-sitter mode, and gets it if the
 grammar is installed.  Python&rsquo;s and JSON&rsquo;s are, and those two ask (see
@@ -12718,9 +12714,9 @@ installs another.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-88e3726e-0317-4bf6-846c-0630da77d0ad" class="outline-5">
-<h5 id="ID-88e3726e-0317-4bf6-846c-0630da77d0ad">Project Config</h5>
-<div class="outline-text-5" id="text-org9985455">
+<div id="outline-container-ID-88e3726e-0317-4bf6-846c-0630da77d0ad" class="outline-4">
+<h4 id="ID-88e3726e-0317-4bf6-846c-0630da77d0ad"><span class="section-number-4">3.17.2.</span> Project Config</h4>
+<div class="outline-text-4" id="text-3-17-2">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-project.el --- Projects -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -12958,9 +12954,9 @@ else of it.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-e50476d7-33f3-4961-8438-3c8d7156598a" class="outline-5">
-<h5 id="ID-e50476d7-33f3-4961-8438-3c8d7156598a">Pdf-Tools Config</h5>
-<div class="outline-text-5" id="text-org7073756">
+<div id="outline-container-ID-e50476d7-33f3-4961-8438-3c8d7156598a" class="outline-4">
+<h4 id="ID-e50476d7-33f3-4961-8438-3c8d7156598a"><span class="section-number-4">3.17.3.</span> Pdf-Tools Config</h4>
+<div class="outline-text-4" id="text-3-17-3">
 <ul class="org-ul">
 <li><a href="https://news.ycombinator.com/item?id=37110628">More PDF tools from HN</a></li>
 <li><a href="https://breezepdf.com/">https://breezepdf.com/</a></li>
@@ -13021,10 +13017,10 @@ needed.
 
 (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/pdf-cleanup-windows-h</span> ()
   <span class="org-doc">"Kill the annotation and contents buffers left over from this document."</span>
-  (<span class="org-keyword">when</span> (<span class="org-constant">buffer-live-p</span> pdf-annot-list-document-buffer)
-    (<span class="org-function-name">pdf-info-close</span> pdf-annot-list-document-buffer))
-  (<span class="org-keyword">when</span> (<span class="org-constant">buffer-live-p</span> pdf-annot-list-buffer)
-    (<span class="org-constant">kill-buffer</span> pdf-annot-list-buffer))
+  (<span class="org-keyword">when</span> (<span class="org-constant">buffer-live-p</span> <span class="org-variable-name">pdf-annot-list-document-buffer</span>)
+    (<span class="org-function-name">pdf-info-close</span> <span class="org-variable-name">pdf-annot-list-document-buffer</span>))
+  (<span class="org-keyword">when</span> (<span class="org-constant">buffer-live-p</span> <span class="org-variable-name">pdf-annot-list-buffer</span>)
+    (<span class="org-constant">kill-buffer</span> <span class="org-variable-name">pdf-annot-list-buffer</span>))
   (<span class="org-keyword">let</span> ((contents-buffer (<span class="org-constant">get-buffer</span> <span class="org-string">"*Contents*"</span>)))
     (<span class="org-keyword">when</span> (<span class="org-keyword">and</span> contents-buffer (<span class="org-constant">buffer-live-p</span> contents-buffer))
       (<span class="org-constant">kill-buffer</span> contents-buffer))))
@@ -13042,7 +13038,7 @@ needed.
   <span class="org-doc">"Give the list of annotations no mode line and no line numbers."</span>
   (<span class="org-variable-name">mode-line-invisible-mode</span> +1)
   (<span class="org-variable-name">display-line-numbers-mode</span> -1))
-(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">pdf-annot-list-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/pdf-annot-list-init-h</span>)
+(<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">pdf-annot-list-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/pdf-annot-list-init-h</span>)
 
 (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/pdf-reload-midnight-minor-mode-h</span> (<span class="org-type">&amp;rest</span> _)
   <span class="org-doc">"Redraw this PDF in the colours `</span><span class="org-doc"><span class="org-constant">pdf-view-midnight-colors</span></span><span class="org-doc">' now names."</span>
@@ -13429,9 +13425,9 @@ Old config:
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.054322" class="outline-5">
-<h5 id="ID-20260901T134926.054322">Magit Config</h5>
-<div class="outline-text-5" id="text-org7cca4ed">
+<div id="outline-container-ID-20260901T134926.054322" class="outline-4">
+<h4 id="ID-20260901T134926.054322"><span class="section-number-4">3.17.4.</span> Magit Config</h4>
+<div class="outline-text-4" id="text-3-17-4">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-vc.el --- Version control and Magit -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -13516,9 +13512,9 @@ awesome. Might just replace `SPC g f l (magit-log-buffer-file)` and `C-x v g
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.208229" class="outline-6">
-<h6 id="ID-20261012T194636.208229">Version control</h6>
-<div class="outline-text-6" id="text-orgfc625bf">
+<div id="outline-container-ID-20261012T194636.208229" class="outline-5">
+<h5 id="ID-20261012T194636.208229">Version control</h5>
+<div class="outline-text-5" id="text-orgf8a8d24">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Version control.  Only the systems still met with: the fewer vc has to</span>
@@ -13708,9 +13704,9 @@ awesome. Might just replace `SPC g f l (magit-log-buffer-file)` and `C-x v g
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.210866" class="outline-6">
-<h6 id="ID-20261012T194636.210866">Magit</h6>
-<div class="outline-text-6" id="text-orgf6dcabc">
+<div id="outline-container-ID-20261012T194636.210866" class="outline-5">
+<h5 id="ID-20261012T194636.210866">Magit</h5>
+<div class="outline-text-5" id="text-org59d5d59">
 <p>
 A magit buffer takes the window it was called from, with three exceptions.
 A commit opened from a log or from the status buffer goes beside it, to the
@@ -14000,7 +13996,7 @@ reverted at once and the others when they are next shown, in place of
         <span class="org-variable-name">magit-bury-buffer-function</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">magit-mode-quit-window</span>)
 
   <span class="org-comment-delimiter">;; </span><span class="org-comment">References in a process buffer become buttons.</span>
-  (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">magit-process-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">goto-address-mode</span>)
+  (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">magit-process-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-variable-name">goto-address-mode</span>)
   (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">magit-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/disable-line-numbers-h</span>)
   (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">magit-post-refresh-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/magit-mark-stale-buffers-h</span>)
   (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">window-buffer-change-functions</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/magit-revert-buffer-maybe-h</span>)
@@ -14060,9 +14056,9 @@ reverted at once and the others when they are next shown, in place of
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.213571" class="outline-6">
-<h6 id="ID-20261012T194636.213571">Forge</h6>
-<div class="outline-text-6" id="text-org0b6c520">
+<div id="outline-container-ID-20261012T194636.213571" class="outline-5">
+<h5 id="ID-20261012T194636.213571">Forge</h5>
+<div class="outline-text-5" id="text-orgbf68fb2">
 <p>
 Forge is loaded by the first <code>SPC g g</code>, not with Magit: what it depends on
 compiles a database library when first loaded, which blocks Emacs.
@@ -14101,9 +14097,9 @@ compiles a database library when first loaded, which blocks Emacs.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261026T221012.990469" class="outline-6">
-<h6 id="ID-20261026T221012.990469">Agitjo</h6>
-<div class="outline-text-6" id="text-org788c278">
+<div id="outline-container-ID-20261026T221012.990469" class="outline-5">
+<h5 id="ID-20261026T221012.990469">Agitjo</h5>
+<div class="outline-text-5" id="text-org6f8f182">
 <p>
 Forge only browses the pull requests of a Forgejo forge such as Codeberg; it
 cannot open one there.  Agitjo can, by AGit-Flow: a push to <code>refs/for/BRANCH</code>
@@ -14136,9 +14132,9 @@ normal state too, where Evil&rsquo;s <code>#</code> comes first.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.215920" class="outline-6">
-<h6 id="ID-20261012T194636.215920">Evil in Magit</h6>
-<div class="outline-text-6" id="text-org4716ac1">
+<div id="outline-container-ID-20261012T194636.215920" class="outline-5">
+<h5 id="ID-20261012T194636.215920">Evil in Magit</h5>
+<div class="outline-text-5" id="text-orgdbd3ff5">
 <p>
 evil-collection gives Magit its Vim keys.  These are the ones it leaves
 out, or cannot bind because the leader has them.
@@ -14207,9 +14203,9 @@ out, or cannot bind because the leader has them.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.218187" class="outline-6">
-<h6 id="ID-20261012T194636.218187">Remote files</h6>
-<div class="outline-text-6" id="text-org4a6421e">
+<div id="outline-container-ID-20261012T194636.218187" class="outline-5">
+<h5 id="ID-20261012T194636.218187">Remote files</h5>
+<div class="outline-text-5" id="text-orge0e62bb">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">TRAMP.</span>
@@ -14305,9 +14301,9 @@ out, or cannot bind because the leader has them.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.059685" class="outline-6">
-<h6 id="ID-20260901T134926.059685">Magit Layer</h6>
-<div class="outline-text-6" id="text-org1a694e8">
+<div id="outline-container-ID-20260901T134926.059685" class="outline-5">
+<h5 id="ID-20260901T134926.059685">Magit Layer</h5>
+<div class="outline-text-5" id="text-org143630f">
 <p>
 use <b>magit-file-rename</b> to rename files already tracked by git.
 Once again, <a href="https://www.youtube.com/watch?v=NDP91RNgT4A">Git in Spacemacs/Emacs with Magit - YouTube</a> .
@@ -14366,9 +14362,9 @@ Once again, <a href="https://www.youtube.com/watch?v=NDP91RNgT4A">Git in Spacema
 </div>
 </div>
 </div>
-<div id="outline-container-ID-b930cf24-7e9e-4284-ac77-fadc8c4ea7d0" class="outline-6">
-<h6 id="ID-b930cf24-7e9e-4284-ac77-fadc8c4ea7d0">Github Tutorial</h6>
-<div class="outline-text-6" id="text-orge4e71de">
+<div id="outline-container-ID-b930cf24-7e9e-4284-ac77-fadc8c4ea7d0" class="outline-5">
+<h5 id="ID-b930cf24-7e9e-4284-ac77-fadc8c4ea7d0">Github Tutorial</h5>
+<div class="outline-text-5" id="text-org01b5e7c">
 <ul class="org-ul">
 <li><a href="https://medium.com/@ruthmpardee/git-fork-workflow-using-rebase-587a144be470">Git Fork Workflow Using Rebase. Here is a suggested git forking… | by Ruth M&hellip;.</a></li>
 <li><a href="https://ane.github.io/emacs/patches.html">Working with Git and patches in Emacs</a></li>
@@ -14571,9 +14567,9 @@ On Windows:
 </ol></li>
 </ol>
 </div>
-<ul class="org-ul">
-<li><a id="ID-20260901T134926.065060"></a>Conventional Commits<br>
-<div class="outline-text-7" id="text-org6345666">
+<div id="outline-container-ID-20260901T134926.065060" class="outline-6">
+<h6 id="ID-20260901T134926.065060">Conventional Commits</h6>
+<div class="outline-text-6" id="text-org99645af">
 <p>
 Keeps my commit history tidy. Able to be used as extracted changelogs. Like
 essay or citation conventions.
@@ -14645,12 +14641,11 @@ essay or citation conventions.
 </tbody>
 </table>
 </div>
-</li>
-</ul>
 </div>
-<div id="outline-container-ID-20260901T134926.071555" class="outline-6">
-<h6 id="ID-20260901T134926.071555">Magit Forged</h6>
-<div class="outline-text-6" id="text-orgf2e9151">
+</div>
+<div id="outline-container-ID-20260901T134926.071555" class="outline-5">
+<h5 id="ID-20260901T134926.071555">Magit Forged</h5>
+<div class="outline-text-5" id="text-org02fdf49">
 <p>
 Magit Forged is a way to view/and compose issues and pull requests of a
 particular git repository while remaining in Emacs.
@@ -14681,9 +14676,9 @@ to see that Forge commands are listed under <code>@</code></li>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.076318" class="outline-5">
-<h5 id="ID-20260901T134926.076318">Claude Code IDE Config</h5>
-<div class="outline-text-5" id="text-orgec455f4">
+<div id="outline-container-ID-20260901T134926.076318" class="outline-4">
+<h4 id="ID-20260901T134926.076318"><span class="section-number-4">3.17.5.</span> Claude Code IDE Config</h4>
+<div class="outline-text-4" id="text-3-17-5">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-claude.el --- Claude Code IDE and its MCP tools -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -15837,9 +15832,9 @@ systemd service. Praise the Lord, and all the people working on open science.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.084686" class="outline-5">
-<h5 id="ID-20260901T134926.084686">Lexic Config</h5>
-<div class="outline-text-5" id="text-orgd212c7b">
+<div id="outline-container-ID-20260901T134926.084686" class="outline-4">
+<h4 id="ID-20260901T134926.084686"><span class="section-number-4">3.17.6.</span> Lexic Config</h4>
+<div class="outline-text-4" id="text-3-17-6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-lexic.el --- Lexic dictionaries -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -16092,9 +16087,9 @@ systemd service. Praise the Lord, and all the people working on open science.
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20260914T142200.000001" class="outline-6">
-<h6 id="ID-20260914T142200.000001">Latin Lookup &amp; the Inflected-Form Index</h6>
-<div class="outline-text-6" id="text-orgea70b19">
+<div id="outline-container-ID-20260914T142200.000001" class="outline-5">
+<h5 id="ID-20260914T142200.000001">Latin Lookup &amp; the Inflected-Form Index</h5>
+<div class="outline-text-5" id="text-org22fbd3c">
 <p>
 <code>lexic-search-word-at-point</code> is useless on Latin out of the box, and the failure
 is quiet rather than loud.  Every StarDict dictionary is keyed by lemma, Latin
@@ -16150,9 +16145,9 @@ The entry for <b>love</b> is literally <code>amor, amoris</code>; for <b>produce
 one.
 </p>
 </div>
-<ul class="org-ul">
-<li><a id="ID-20260929T101558.851853"></a>Rebuilding the dictionary<br>
-<div class="outline-text-7" id="text-orgcdbae09">
+<div id="outline-container-ID-20260929T101558.851853" class="outline-6">
+<h6 id="ID-20260929T101558.851853">Rebuilding the dictionary</h6>
+<div class="outline-text-6" id="text-org175075e">
 <p>
 The installed copy was also damaged.  Its index held 46,146 records of which
 <b>9,102</b> carried a blank headword and a zero-length body, and everything from
@@ -16190,9 +16185,10 @@ the count from the <code>.idx</code> rather than trusting it, and the test suite
 that the two still agree.
 </p>
 </div>
-</li>
-<li><a id="ID-20260929T101558.863404"></a>The inflected-form index<br>
-<div class="outline-text-7" id="text-orgc2dd22f">
+</div>
+<div id="outline-container-ID-20260929T101558.863404" class="outline-6">
+<h6 id="ID-20260929T101558.863404">The inflected-form index</h6>
+<div class="outline-text-6" id="text-org8d621b0">
 <p>
 What the conversion did keep is the Whitaker&rsquo;s morphology code in each entry
 body &mdash; <code>N (3rd) M</code>, <code>V (1st) TRANS</code>, <code>ADJ</code>, <code>NUM</code>, <code>PACK</code> &mdash; and declension
@@ -16220,9 +16216,10 @@ is deliberate throughout: a spurious form costs one extra line in a result list,
 a missing one costs a failed lookup, which is the bug being fixed.
 </p>
 </div>
-</li>
-<li><a id="ID-20260929T101558.870586"></a>The installed set<br>
-<div class="outline-text-7" id="text-org734f1d9">
+</div>
+<div id="outline-container-ID-20260929T101558.870586" class="outline-6">
+<h6 id="ID-20260929T101558.870586">The installed set</h6>
+<div class="outline-text-6" id="text-org2ad2b41">
 <p>
 Latin &gt; English is now one dictionary, <code>latin-english</code>, because the rebuilt
 Whitaker&rsquo;s covers everything the three small FreeDict sets held and 30k lemmas
@@ -16255,12 +16252,11 @@ other spelling of consonantal i, and finally truncating the word into a prefix
 glob whose matches are resolved back to concrete headwords before display.
 </p>
 </div>
-</li>
-</ul>
 </div>
-<div id="outline-container-ID-20260901T134926.091972" class="outline-6">
-<h6 id="ID-20260901T134926.091972">Lexic Installation &amp; Background</h6>
-<div class="outline-text-6" id="text-org0bacad0">
+</div>
+<div id="outline-container-ID-20260901T134926.091972" class="outline-5">
+<h5 id="ID-20260901T134926.091972">Lexic Installation &amp; Background</h5>
+<div class="outline-text-5" id="text-org4e248ae">
 <p>
 <a href="http://jsomers.net/blog/dictionary">You’re probably using the wrong dictionary</a>. The first place I looked was Oleh
 Krehel&rsquo;s <a href="https://github.com/abo-abo/define-word">defined word package</a>. It does not allow you to query multiple
@@ -16356,9 +16352,9 @@ Check out <code>lexic-dictionary-help</code>
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.097248" class="outline-6">
-<h6 id="ID-20260901T134926.097248">Lexic Order of Dictionaries</h6>
-<div class="outline-text-6" id="text-org3a480ee">
+<div id="outline-container-ID-20260901T134926.097248" class="outline-5">
+<h5 id="ID-20260901T134926.097248">Lexic Order of Dictionaries</h5>
+<div class="outline-text-5" id="text-orgede522e">
 <ol class="org-ol">
 <li>The golden mean, the dictionary that has the first say, the lovingly crafted life&rsquo;s work of Noah Webster: Webster Unabridged 1913</li>
 <li>Thesauri - Synonyms
@@ -16417,9 +16413,9 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 </div>
 </div>
 </div>
-<div id="outline-container-ID-23b4e9e1-7828-47e5-a39a-8612662b95bf" class="outline-5">
-<h5 id="ID-23b4e9e1-7828-47e5-a39a-8612662b95bf">Biblio Config</h5>
-<div class="outline-text-5" id="text-org9136d95">
+<div id="outline-container-ID-23b4e9e1-7828-47e5-a39a-8612662b95bf" class="outline-4">
+<h4 id="ID-23b4e9e1-7828-47e5-a39a-8612662b95bf"><span class="section-number-4">3.17.7.</span> Biblio Config</h4>
+<div class="outline-text-4" id="text-3-17-7">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-3e8c244e-8a39-4ffd-a30c-cc4c7abcad6c">&lt;&ndash;Project Jerome</a></li>
 <li><a href="https://kristofferbalintona.me/posts/202206141852/">Citations in org-mode: Org-cite and Citar | Kristoffer Balintona</a></li>
@@ -16772,7 +16768,7 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
   <span class="org-comment-delimiter">;; </span><span class="org-comment">the sentinel back means nothing in the document set toc.  Point goes</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">where `</span><span class="org-comment"><span class="org-constant">org-export--annotate-info</span></span><span class="org-comment">' had it, so a subtree export finds</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">its heading.</span>
-  (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org-latex-plain-no-toc</span> (<span class="org-function-name">info</span> _backend)
+  (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org-latex-plain-no-toc</span> (<span class="org-constant">info</span> _backend)
     <span class="org-doc">"Turn off the table of contents for LaTeX class plain unless asked for.</span>
 <span class="org-doc">For `</span><span class="org-doc"><span class="org-constant">org-export-filter-options-functions</span></span><span class="org-doc">'."</span>
     (<span class="org-keyword">when</span> (<span class="org-keyword">and</span> (<span class="org-constant">equal</span> (<span class="org-constant">plist-get</span> info <span class="org-builtin">:latex-class</span>) <span class="org-string">"plain"</span>)
@@ -16923,13 +16919,13 @@ note is still one file per reference, named for the citekey.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.102649" class="outline-4">
-<h4 id="ID-20260901T134926.102649"><span class="section-number-4">1.3.18.</span> Languages Config</h4>
-<div class="outline-text-4" id="text-1-3-18">
+<div id="outline-container-ID-20260901T134926.102649" class="outline-3">
+<h3 id="ID-20260901T134926.102649"><span class="section-number-3">3.18.</span> Languages Config</h3>
+<div class="outline-text-3" id="text-3-18">
 </div>
-<div id="outline-container-ID-20261012T194636.221176" class="outline-5">
-<h5 id="ID-20261012T194636.221176">Language Modes</h5>
-<div class="outline-text-5" id="text-org6c95b97">
+<div id="outline-container-ID-20261012T194636.221176" class="outline-4">
+<h4 id="ID-20261012T194636.221176"><span class="section-number-4">3.18.1.</span> Language Modes</h4>
+<div class="outline-text-4" id="text-3-18-1">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-lang.el --- Languages -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -17004,9 +17000,9 @@ licence, Henrik Lissner and contributors): <code>emacs-lisp</code>, <code>sh</co
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.223760" class="outline-6">
-<h6 id="ID-20261012T194636.223760">Emacs Lisp</h6>
-<div class="outline-text-6" id="text-orga162335">
+<div id="outline-container-ID-20261012T194636.223760" class="outline-5">
+<h5 id="ID-20261012T194636.223760">Emacs Lisp</h5>
+<div class="outline-text-5" id="text-orgca7c947">
 <p>
 <code>gr</code> and <code>gR</code> evaluate in the buffer itself; <code>, b</code> points them at another
 buffer, for code that only makes sense in the buffer it is about.  <code>K</code> opens
@@ -17816,9 +17812,9 @@ and functions off.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.226513" class="outline-6">
-<h6 id="ID-20261012T194636.226513">Shell scripts</h6>
-<div class="outline-text-6" id="text-orga319be9">
+<div id="outline-container-ID-20261012T194636.226513" class="outline-5">
+<h5 id="ID-20261012T194636.226513">Shell scripts</h5>
+<div class="outline-text-5" id="text-org74f52eb">
 <p>
 <code>K</code> opens the man page of the command at point and <code>SPC o r</code> a shell of the
 kind the script is written for.  Variables and command substitutions are
@@ -17929,9 +17925,9 @@ the string, and completion asks bash itself.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.228583" class="outline-6">
-<h6 id="ID-20261012T194636.228583">Data files</h6>
-<div class="outline-text-6" id="text-org35e3256">
+<div id="outline-container-ID-20261012T194636.228583" class="outline-5">
+<h5 id="ID-20261012T194636.228583">Data files</h5>
+<div class="outline-text-5" id="text-org8c0c48f">
 <p>
 JSON opens in <code>json-ts-mode</code> when the tree-sitter grammar is installed and
 in <code>js-json-mode</code> when it is not, both Emacs&rsquo; own, with <code>, f</code> to
@@ -17990,9 +17986,9 @@ field, <code>, k</code> to cut fields and <code>, t</code> to transpose.  XML is
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.230546" class="outline-6">
-<h6 id="ID-20261012T194636.230546">Markdown</h6>
-<div class="outline-text-6" id="text-org12f5bf6">
+<div id="outline-container-ID-20261012T194636.230546" class="outline-5">
+<h5 id="ID-20261012T194636.230546">Markdown</h5>
+<div class="outline-text-5" id="text-org5992b10">
 <p>
 A <code>README</code> opens in <code>gfm-mode</code>, GitHub&rsquo;s dialect.  <code>, o</code> opens the page in
 a browser and <code>, p</code> previews it, compiled by whichever of marked, pandoc,
@@ -18191,9 +18187,9 @@ TAB cycles the heading&rsquo;s visibility, <code>]h</code> and <code>[h</code> m
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.232693" class="outline-6">
-<h6 id="ID-20261012T194636.232693">LaTeX</h6>
-<div class="outline-text-6" id="text-org879e7a8">
+<div id="outline-container-ID-20261012T194636.232693" class="outline-5">
+<h5 id="ID-20261012T194636.232693">LaTeX</h5>
+<div class="outline-text-5" id="text-org4bd9b2e">
 <p>
 Emacs&rsquo;s own <code>latex-mode</code>: a <code>.tex</code> file is rarely written by hand here, Org
 exports to LaTeX instead.  <a href="https://github.com/cdominik/cdlatex">CDLaTeX</a> gives fast math here and in Org, and
@@ -18271,9 +18267,9 @@ RefTeX labels and citations.  On <code>,</code>: <code>c</code> saves and compil
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.237474" class="outline-6">
-<h6 id="ID-20261012T194636.237474">Ledger</h6>
-<div class="outline-text-6" id="text-org3d4141b">
+<div id="outline-container-ID-20261012T194636.237474" class="outline-5">
+<h5 id="ID-20261012T194636.237474">Ledger</h5>
+<div class="outline-text-5" id="text-orge9e694d">
 <p>
 The notes on ledger itself are under <a href="#ID-20240306T235804.739944">Ledger Config</a>.  In a journal, <code>]]</code>
 and <code>[[</code> move by transaction.  On <code>,</code>: <code>a</code> add a transaction, <code>e</code> edit the
@@ -18373,9 +18369,9 @@ the report&rsquo;s command, <code>gd</code> goes to the posting and <code>gr</co
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20240306T235804.739944" class="outline-5">
-<h5 id="ID-20240306T235804.739944">Ledger Config</h5>
-<div class="outline-text-5" id="text-orgc37f423">
+<div id="outline-container-ID-20240306T235804.739944" class="outline-4">
+<h4 id="ID-20240306T235804.739944"><span class="section-number-4">3.18.2.</span> Ledger Config</h4>
+<div class="outline-text-4" id="text-3-18-2">
 <ul class="org-ul">
 <li><a href="https://orgmode.org/worg/org-contrib/babel/languages/ob-doc-ledger.html">org babel and ledger</a></li>
 <li><a href="https://www.youtube.com/watch?v=cjoCNRpLanY">conquering your finances with emacs and ledger</a></li>
@@ -18430,9 +18426,9 @@ Quick reports to run:
 </div>
 </div>
 </div>
-<div id="outline-container-ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c" class="outline-5">
-<h5 id="ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c">Common Lisp Config</h5>
-<div class="outline-text-5" id="text-org10b983d">
+<div id="outline-container-ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c" class="outline-4">
+<h4 id="ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c"><span class="section-number-4">3.18.3.</span> Common Lisp Config</h4>
+<div class="outline-text-4" id="text-3-18-3">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-common-lisp.el --- Common Lisp -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -18719,9 +18715,9 @@ licence, Henrik Lissner and contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b" class="outline-5">
-<h5 id="ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b">Org Mode Config</h5>
-<div class="outline-text-5" id="text-orgbebd25f">
+<div id="outline-container-ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b" class="outline-4">
+<h4 id="ID-dcaa7b2f-cffc-41c1-812e-56b6ef02454b"><span class="section-number-4">3.18.4.</span> Org Mode Config</h4>
+<div class="outline-text-4" id="text-3-18-4">
 <ul class="org-ul">
 <li><a href="https://github.com/novoid/org-mode-workshop">Org Mode Workshop Example Config</a></li>
 <li><a href="http://ehneilsen.net/notebook/orgExamples/org-examples.html#sec-5">Particle Physics Researcher - Advanced Emacs org-mode examples and cookbook</a></li>
@@ -18925,9 +18921,9 @@ templates and capture frame, its TODO keywords and their faces, and its
 link abbreviations.
 </p>
 </div>
-<div id="outline-container-ID-20261012T194636.239818" class="outline-6">
-<h6 id="ID-20261012T194636.239818">Defaults</h6>
-<div class="outline-text-6" id="text-orgab1b491">
+<div id="outline-container-ID-20261012T194636.239818" class="outline-5">
+<h5 id="ID-20261012T194636.239818">Defaults</h5>
+<div class="outline-text-5" id="text-org1eae8fe">
 <p>
 What Doom set that is still in effect.  The agenda&rsquo;s own options are set
 again, and most of them differently, in <a href="#ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e">Org Agenda Config</a>.
@@ -19329,9 +19325,9 @@ again, and most of them differently, in <a href="#ID-c6afcb5e-172f-49c6-b912-fe4
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261019T185734.196810" class="outline-6">
-<h6 id="ID-20261019T185734.196810">LaTeX Previews</h6>
-<div class="outline-text-6" id="text-org49de80d">
+<div id="outline-container-ID-20261019T185734.196810" class="outline-5">
+<h5 id="ID-20261019T185734.196810">LaTeX Previews</h5>
+<div class="outline-text-5" id="text-org6a0d075">
 <p>
 LaTeX fragments are previewed by Org&rsquo;s own previewer, new in Org 10 (<a href="https://abode.karthinks.com/org-latex-preview/">setup
 notes</a>): all of a buffer&rsquo;s at once and in the background, sized and
@@ -19395,9 +19391,9 @@ is turned off: it would warn once in every buffer.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.242944" class="outline-6">
-<h6 id="ID-20261012T194636.242944">Babel</h6>
-<div class="outline-text-6" id="text-org66a68c9">
+<div id="outline-container-ID-20261012T194636.242944" class="outline-5">
+<h5 id="ID-20261012T194636.242944">Babel</h5>
+<div class="outline-text-5" id="text-org6d5c579">
 <p>
 A source block runs without asking, in the language&rsquo;s own indentation.  A
 language&rsquo;s Babel library is loaded the first time a block in that language
@@ -19436,7 +19432,7 @@ back to waiting where neither can do it.
       <span class="org-variable-name">org-link-elisp-confirm-function</span> nil
       <span class="org-comment-delimiter">;; </span><span class="org-comment">A block is edited in another window, not over the whole frame.</span>
       <span class="org-variable-name">org-src-window-setup</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">other-window</span>
-      org-babel-lisp-eval-fn <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">sly-eval</span>)
+      <span class="org-variable-name">org-babel-lisp-eval-fn</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">sly-eval</span>)
 
 (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">org-src-lang-modes</span> <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"md"</span> . markdown))
 (<span class="org-constant">define-key</span> <span class="org-variable-name">org-src-mode-map</span> (<span class="org-constant">kbd</span> <span class="org-string">"C-c C-c"</span>) <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">org-edit-src-exit</span>)
@@ -19466,7 +19462,7 @@ back to waiting where neither can do it.
 <span class="org-doc">block is run and waited for.  A :sync header overrides :async."</span>
   (<span class="org-keyword">if</span> (<span class="org-constant">null</span> orig-fn)
       (<span class="org-constant">funcall</span> fn orig-fn arg info params)
-    (<span class="org-keyword">let*</span> ((<span class="org-function-name">info</span> (<span class="org-keyword">or</span> info (<span class="org-function-name">org-babel-get-src-block-info</span>)))
+    (<span class="org-keyword">let*</span> ((<span class="org-constant">info</span> (<span class="org-keyword">or</span> info (<span class="org-function-name">org-babel-get-src-block-info</span>)))
            (params (<span class="org-function-name">org-babel-merge-params</span> (<span class="org-constant">nth</span> 2 info) params)))
       (<span class="org-keyword">if</span> (<span class="org-keyword">or</span> (<span class="org-constant">assq</span> <span class="org-builtin">:sync</span> params)
               (<span class="org-constant">not</span> (<span class="org-constant">assq</span> <span class="org-builtin">:async</span> params))
@@ -19529,7 +19525,7 @@ back to waiting where neither can do it.
                (<span class="org-constant">require</span> <span class="org-constant">lang</span> nil t))
       (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">org-babel-load-languages</span> (<span class="org-constant">cons</span> lang t)))))
 
-(<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org--babel-lazy-load-library-a</span> (<span class="org-function-name">info</span>)
+(<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org--babel-lazy-load-library-a</span> (<span class="org-constant">info</span>)
   <span class="org-doc">"Load the Babel library for the block INFO describes.</span>
 <span class="org-doc">After-while advice for `</span><span class="org-doc"><span class="org-constant">org-babel-confirm-evaluate</span></span><span class="org-doc">'; it covers tangling too."</span>
   (<span class="org-keyword">let*</span> ((lang (<span class="org-constant">nth</span> 0 info))
@@ -19622,9 +19618,9 @@ back to waiting where neither can do it.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.245090" class="outline-6">
-<h6 id="ID-20261012T194636.245090">Commands</h6>
-<div class="outline-text-6" id="text-orgb86a573">
+<div id="outline-container-ID-20261012T194636.245090" class="outline-5">
+<h5 id="ID-20261012T194636.245090">Commands</h5>
+<div class="outline-text-5" id="text-org5d3c715">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Commands.</span>
@@ -20275,9 +20271,9 @@ back to waiting where neither can do it.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.247310" class="outline-6">
-<h6 id="ID-20261012T194636.247310">Keys</h6>
-<div class="outline-text-6" id="text-orgcdb2650">
+<div id="outline-container-ID-20261012T194636.247310" class="outline-5">
+<h5 id="ID-20261012T194636.247310">Keys</h5>
+<div class="outline-text-5" id="text-org5898f9a">
 <p>
 RET does what is meant with the thing at point: it toggles a checkbox or a
 TODO, follows a link or a footnote, runs a source block, recalculates a
@@ -20586,9 +20582,9 @@ refile, <code>s</code> the subtree.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.249241" class="outline-6">
-<h6 id="ID-20261012T194636.249241">Popups and companions</h6>
-<div class="outline-text-6" id="text-orgf176731">
+<div id="outline-container-ID-20261012T194636.249241" class="outline-5">
+<h5 id="ID-20261012T194636.249241">Popups and companions</h5>
+<div class="outline-text-5" id="text-orgb0552f6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Popups.  The agenda takes a window of its own.</span>
@@ -20687,7 +20683,7 @@ refile, <code>s</code> the subtree.
       (<span class="org-constant">beginning-of-line</span>)
       (<span class="org-keyword">when</span> (<span class="org-keyword">let</span> ((<span class="org-variable-name">case-fold-search</span> t))
               (<span class="org-constant">looking-at</span> <span class="org-string">"^[ \t]*#\\+</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(</span></span><span class="org-string">begin</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">end</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">_src"</span>))
-        (<span class="org-keyword">let</span> ((<span class="org-function-name">info</span> (<span class="org-function-name">org-babel-get-src-block-info</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">light</span>)))
+        (<span class="org-keyword">let</span> ((<span class="org-constant">info</span> (<span class="org-function-name">org-babel-get-src-block-info</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">light</span>)))
           (<span class="org-constant">concat</span>
            (<span class="org-constant">propertize</span> (<span class="org-keyword">or</span> (<span class="org-constant">nth</span> 0 info) <span class="org-string">"no lang"</span>) <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">face</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">font-lock-string-face</span>)
            <span class="org-string">": "</span>
@@ -20778,7 +20774,7 @@ refile, <code>s</code> the subtree.
       (<span class="org-function-name">org-pdftools-open</span> (<span class="org-constant">replace-regexp-in-string</span> regexp <span class="org-string">""</span> link))
       t)))
 
-(<span class="org-function-name">org-link-set-parameters</span> (<span class="org-keyword">or</span> (<span class="org-keyword">bound-and-true-p</span> org-pdftools-link-prefix) <span class="org-string">"pdf"</span>)
+(<span class="org-function-name">org-link-set-parameters</span> (<span class="org-keyword">or</span> (<span class="org-keyword">bound-and-true-p</span> <span class="org-variable-name">org-pdftools-link-prefix</span>) <span class="org-string">"pdf"</span>)
                          <span class="org-builtin">:follow</span>   (<span class="org-function-name">bhw/pdf--org-link-handler</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">org-pdftools-open</span>)
                          <span class="org-builtin">:complete</span> (<span class="org-function-name">bhw/pdf--org-link-handler</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">org-pdftools-complete-link</span>)
                          <span class="org-builtin">:store</span>    (<span class="org-function-name">bhw/pdf--org-link-handler</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">org-pdftools-store-link</span>)
@@ -20794,9 +20790,9 @@ refile, <code>s</code> the subtree.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e" class="outline-6">
-<h6 id="ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e">Org Agenda Config</h6>
-<div class="outline-text-6" id="text-org21f13bb">
+<div id="outline-container-ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e" class="outline-5">
+<h5 id="ID-c6afcb5e-172f-49c6-b912-fe4c0440d98e">Org Agenda Config</h5>
+<div class="outline-text-5" id="text-org26b212c">
 <ul class="org-ul">
 <li><a href="../bibtex-notes/allenGettingThingsDone2015.html#ID-20260508T215524.718712">Getting things done: the art of stress-free productivity</a></li>
 <li><a href="https://github.com/Trevoke/org-gtd.el/blob/master/doc/org-gtd.org">org-gtd.el/org-gtd.org at master · Trevoke/org-gtd.el · GitHub</a></li>
@@ -21740,9 +21736,9 @@ priorities.
 </code></pre>
 </div>
 </div>
-<ul class="org-ul">
-<li><a id="ID-20260929T101558.878289"></a>Clocking<br>
-<div class="outline-text-7" id="text-org395695f">
+<div id="outline-container-ID-20260929T101558.878289" class="outline-6">
+<h6 id="ID-20260929T101558.878289">Clocking</h6>
+<div class="outline-text-6" id="text-org7c63b7e">
 <p>
 <code>bhw/clock-in-dwim</code> (<code>SPC n c</code>) is the one clock command. Bare, it acts now; a
 prefix says how long, or when:
@@ -22631,9 +22627,10 @@ with the WSL VM without running <code>kill-emacs-hook</code>.
 </code></pre>
 </div>
 </div>
-</li>
-<li><a id="ID-20260901T134926.112814"></a>Conflict detection<br>
-<div class="outline-text-7" id="text-orgb589f1e">
+</div>
+<div id="outline-container-ID-20260901T134926.112814" class="outline-6">
+<h6 id="ID-20260901T134926.112814">Conflict detection</h6>
+<div class="outline-text-6" id="text-org2c0c6c4">
 <p>
 Double-booking is caught by an audit at set times of day rather than at the
 moment a timestamp is written. At each of <code>bhw/org-conflict-audit-times</code> (08:00,
@@ -23116,7 +23113,7 @@ and the custom <code>org-agenda-prefix-format</code> above cannot break it.
 </div>
 <ul class="org-ul">
 <li><a id="ID-20260929T101558.887330"></a>Scheduling into free time<br>
-<div class="outline-text-8" id="text-org51bf1db">
+<div class="outline-text-7" id="text-org9cf5631">
 <p>
 The audit&rsquo;s reading of a day doubles as a list of when it is busy, so the same
 scan books undated tasks into the gaps. <code>bhw/org-schedule-free-slot</code> (<code>, d f</code>
@@ -23903,9 +23900,10 @@ finding any.
 </div>
 </li>
 </ul>
-</li>
-<li><a id="ID-20260901T134926.120596"></a>Organizational Buckets i.e. inbox dumps<br>
-<div class="outline-text-7" id="text-orgf95351b">
+</div>
+<div id="outline-container-ID-20260901T134926.120596" class="outline-6">
+<h6 id="ID-20260901T134926.120596">Organizational Buckets i.e. inbox dumps</h6>
+<div class="outline-text-6" id="text-orgd64026c">
 <p>
 Tasks are broken down into kinds. Because humans cannot bi-locate, all tasks needs to have a valid <b>contextual location</b> in which to accomplish them. This is done with tags which are prefixed with &ldquo;@&rdquo;,
 errand - Tasks that must be completed out and about
@@ -23989,12 +23987,11 @@ Difference between 0someday items and WAIT keyword items is the intersection bet
 </ul></li>
 </ol>
 </div>
-</li>
-</ul>
 </div>
-<div id="outline-container-ID-8457b1b9-e8e8-4050-9e7e-22ac1b1488da" class="outline-6">
-<h6 id="ID-8457b1b9-e8e8-4050-9e7e-22ac1b1488da">Org Attach Config</h6>
-<div class="outline-text-6" id="text-org5d8eec9">
+</div>
+<div id="outline-container-ID-8457b1b9-e8e8-4050-9e7e-22ac1b1488da" class="outline-5">
+<h5 id="ID-8457b1b9-e8e8-4050-9e7e-22ac1b1488da">Org Attach Config</h5>
+<div class="outline-text-5" id="text-orge2222b8">
 <ul class="org-ul">
 <li><a href="https://medium.com/@James86768479/org-id-org-attach-better-folder-names-3905f3841044">Org ID, Org Attach &amp; Better Folder Names | by Josh<sub>Rbot</sub> | Medium</a></li>
 </ul>
@@ -24103,9 +24100,9 @@ whatever <code>org-attach-method</code> says.  org-download did all this until
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.124923" class="outline-6">
-<h6 id="ID-20260901T134926.124923">Org Edna Config</h6>
-<div class="outline-text-6" id="text-orgcf795ea">
+<div id="outline-container-ID-20260901T134926.124923" class="outline-5">
+<h5 id="ID-20260901T134926.124923">Org Edna Config</h5>
+<div class="outline-text-5" id="text-orgd9de6c7">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-edna.el --- Org Edna dependencies -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24212,9 +24209,9 @@ whatever <code>org-attach-method</code> says.  org-download did all this until
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.129339" class="outline-6">
-<h6 id="ID-20260901T134926.129339">Org Mem Config</h6>
-<div class="outline-text-6" id="text-org9cd4019">
+<div id="outline-container-ID-20260901T134926.129339" class="outline-5">
+<h5 id="ID-20260901T134926.129339">Org Mem Config</h5>
+<div class="outline-text-5" id="text-orgac9b49c">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-node.el --- org-mem and org-node -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24297,9 +24294,9 @@ whatever <code>org-attach-method</code> says.  org-download did all this until
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.133720" class="outline-6">
-<h6 id="ID-20260901T134926.133720">Org Node Config</h6>
-<div class="outline-text-6" id="text-orgeff3f3c">
+<div id="outline-container-ID-20260901T134926.133720" class="outline-5">
+<h5 id="ID-20260901T134926.133720">Org Node Config</h5>
+<div class="outline-text-5" id="text-org7e2d150">
 <p>
 <a href="https://github.com/d12frosted/vulpea">GitHub - d12frosted/vulpea: Database layer for org-mode notes with async inde&hellip;</a>
 </p>
@@ -24375,9 +24372,9 @@ whatever <code>org-attach-method</code> says.  org-download did all this until
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261018T082512.418306" class="outline-6">
-<h6 id="ID-20261018T082512.418306">Org Similar Config</h6>
-<div class="outline-text-6" id="text-org6fb5564">
+<div id="outline-container-ID-20261018T082512.418306" class="outline-5">
+<h5 id="ID-20261018T082512.418306">Org Similar Config</h5>
+<div class="outline-text-5" id="text-org8b555d6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-similar.el --- Similar notes, in a drawer -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24390,7 +24387,7 @@ each with the passage that matched, and a note can carry a <code>:SIMILAR:</code
 way org-node&rsquo;s <code>:BACKLINKS:</code> drawer lists the notes that link to it:
 </p>
 
-<pre class="example" id="orgfe27218">
+<pre class="example" id="org70b9f34">
 :SIMILAR:
 0.82 [[id:20260101T000000.000000][Some note]]
 0.77 [[id:20260102T000000.000000][Another note]]
@@ -24613,9 +24610,9 @@ to a cosine of 0.9994, so they share one index.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.138702" class="outline-6">
-<h6 id="ID-20260901T134926.138702">Org Noter Config</h6>
-<div class="outline-text-6" id="text-org605b231">
+<div id="outline-container-ID-20260901T134926.138702" class="outline-5">
+<h5 id="ID-20260901T134926.138702">Org Noter Config</h5>
+<div class="outline-text-5" id="text-orgd5c4115">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-noter.el --- Org Noter -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24668,8 +24665,7 @@ to a cosine of 0.9994, so they share one index.
   <span class="org-comment-delimiter">;; </span><span class="org-comment">2026-07-30), `</span><span class="org-comment"><span class="org-constant">org-noter-always-create-frame</span></span><span class="org-comment">' nil means "never create a</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">frame", reusing the selected one even when it already hosts a session.</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">The old `</span><span class="org-comment"><span class="org-constant">make-frame</span></span><span class="org-comment">'-shadowing advice for this is no longer needed.</span>
-  <span class="org-comment-delimiter">;; </span><span class="org-comment">Guix's 1.6.1 predates it: my Guix configuration builds org-noter</span>
-  <span class="org-comment-delimiter">;; </span><span class="org-comment">from master until Guix's is newer.</span>
+  <span class="org-comment-delimiter">;; </span><span class="org-comment">Guix's org-noter has it since 1.6.2.</span>
 
   (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org-noter-quit</span> ()
     <span class="org-doc">"Kill org-noter session without closing the emacs client frame.</span>
@@ -24744,9 +24740,9 @@ to a cosine of 0.9994, so they share one index.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260909T144500.000000" class="outline-6">
-<h6 id="ID-20260909T144500.000000">Org Table Widget Config</h6>
-<div class="outline-text-6" id="text-org891e6e5">
+<div id="outline-container-ID-20260909T144500.000000" class="outline-5">
+<h5 id="ID-20260909T144500.000000">Org Table Widget Config</h5>
+<div class="outline-text-5" id="text-orge831f3c">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-table-widget.el --- Org table widgets -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24834,9 +24830,9 @@ actually ran &ndash; is a line step.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.143843" class="outline-6">
-<h6 id="ID-20260901T134926.143843">Org Transclusion Config</h6>
-<div class="outline-text-6" id="text-org5b75996">
+<div id="outline-container-ID-20260901T134926.143843" class="outline-5">
+<h5 id="ID-20260901T134926.143843">Org Transclusion Config</h5>
+<div class="outline-text-5" id="text-org662349f">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-transclusion.el --- Org transclusion -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -24862,9 +24858,9 @@ actually ran &ndash; is a line step.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-6d3d787b-9a20-426f-bb71-97a63bee6597" class="outline-6">
-<h6 id="ID-6d3d787b-9a20-426f-bb71-97a63bee6597">Org Mode Export</h6>
-<div class="outline-text-6" id="text-orgd0f438c">
+<div id="outline-container-ID-6d3d787b-9a20-426f-bb71-97a63bee6597" class="outline-5">
+<h5 id="ID-6d3d787b-9a20-426f-bb71-97a63bee6597">Org Mode Export</h5>
+<div class="outline-text-5" id="text-org21d744c">
 <ul class="org-ul">
 <li><a href="https://github.com/thi-ng/org-spec">An Org-mode template for technical specification documents and HTML publishing</a></li>
 <li><a href="http://yummymelon.com/devnull/running-sql-queries-on-org-tables.html">nfdn: Running SQL Queries on Org Tables</a></li>
@@ -24873,9 +24869,9 @@ actually ran &ndash; is a line step.
 </ul>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.148923" class="outline-6">
-<h6 id="ID-20260901T134926.148923">Ob Tangle Sync Config</h6>
-<div class="outline-text-6" id="text-orgd81bb79">
+<div id="outline-container-ID-20260901T134926.148923" class="outline-5">
+<h5 id="ID-20260901T134926.148923">Ob Tangle Sync Config</h5>
+<div class="outline-text-5" id="text-org3c0fc43">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-tangle.el --- Tangle on save and tangle sync -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -25026,9 +25022,9 @@ headers say.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261028T213456.147435" class="outline-6">
-<h6 id="ID-20261028T213456.147435">Exc Config</h6>
-<div class="outline-text-6" id="text-orged5a418">
+<div id="outline-container-ID-20261028T213456.147435" class="outline-5">
+<h5 id="ID-20261028T213456.147435">Exc Config</h5>
+<div class="outline-text-5" id="text-org7ef189c">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-exc.el --- Spreadsheets in exc -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -25080,9 +25076,9 @@ Evil follows. <code>exc-csv</code> has no autoloads.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.153870" class="outline-6">
-<h6 id="ID-20260901T134926.153870">Office to Org Config</h6>
-<div class="outline-text-6" id="text-org91f450d">
+<div id="outline-container-ID-20260901T134926.153870" class="outline-5">
+<h5 id="ID-20260901T134926.153870">Office to Org Config</h5>
+<div class="outline-text-5" id="text-org8fb18a6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-office-to-org.el --- Office documents to Org -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -25123,9 +25119,9 @@ Behaviour is tunable via
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.158554" class="outline-6">
-<h6 id="ID-20260901T134926.158554">Org Clock Analyzer Config</h6>
-<div class="outline-text-6" id="text-orgd48b081">
+<div id="outline-container-ID-20260901T134926.158554" class="outline-5">
+<h5 id="ID-20260901T134926.158554">Org Clock Analyzer Config</h5>
+<div class="outline-text-5" id="text-org6008ae0">
 <p>
 I can maybe get some ideas from the link below: <a href="https://github.com/SSD2019/org-auto-scheduler">https://github.com/SSD2019/org-auto-scheduler</a>
 </p>
@@ -25165,7 +25161,7 @@ SPC n c → p forecasts that subtree. Dynamic block: #+BEGIN: clock-analyzer :vi
 tags :range this-year :limit 5.
 </p>
 
-<pre class="example" id="orgb9bc2cd">
+<pre class="example" id="org2c41224">
 cd ~/project-carlo/emacs
 emacs -q --batch -L site-lisp \
   -l org -l tests/org-clock-analyzer-tests.el -f ert-run-tests-batch-and-exit
@@ -25240,9 +25236,9 @@ emacs -q --batch -L site-lisp \
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.163010" class="outline-6">
-<h6 id="ID-20260901T134926.163010">Org Contacts Config</h6>
-<div class="outline-text-6" id="text-org6a21b79">
+<div id="outline-container-ID-20260901T134926.163010" class="outline-5">
+<h5 id="ID-20260901T134926.163010">Org Contacts Config</h5>
+<div class="outline-text-5" id="text-org844f9c2">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-contacts.el --- Org contacts -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -25291,9 +25287,9 @@ Install the below if we&rsquo;re going to import contacts into Emacs.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20240219T122532.621724" class="outline-6">
-<h6 id="ID-20240219T122532.621724">Ox Publish Config</h6>
-<div class="outline-text-6" id="text-orgffecfbc">
+<div id="outline-container-ID-20240219T122532.621724" class="outline-5">
+<h5 id="ID-20240219T122532.621724">Ox Publish Config</h5>
+<div class="outline-text-5" id="text-org5d45ccb">
 <ul class="org-ul">
 <li><a href="https://gongzhitaao.org/orgcss/">CSS for Org-exported HTML</a></li>
 </ul>
@@ -25642,9 +25638,9 @@ intended i.e. %C
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.170026" class="outline-6">
-<h6 id="ID-20260901T134926.170026">Org Re Reveal Config</h6>
-<div class="outline-text-6" id="text-orgb38d897">
+<div id="outline-container-ID-20260901T134926.170026" class="outline-5">
+<h5 id="ID-20260901T134926.170026">Org Re Reveal Config</h5>
+<div class="outline-text-5" id="text-org65fbb05">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-org-reveal.el --- Reveal.js slides -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -25675,9 +25671,9 @@ Add audio to presentation? <a href="https://gitlab.com/oer/emacs-reveal">oer / e
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.173539" class="outline-5">
-<h5 id="ID-20260901T134926.173539">Cdlatex Config</h5>
-<div class="outline-text-5" id="text-org1281a2b">
+<div id="outline-container-ID-20260901T134926.173539" class="outline-4">
+<h4 id="ID-20260901T134926.173539"><span class="section-number-4">3.18.5.</span> Cdlatex Config</h4>
+<div class="outline-text-4" id="text-3-18-5">
 <p>
 <a href="https://mathpix.com/snipping-tool">Mathpix: Snipping Tool</a>
 <a href="https://karthinks.com/software/latex-input-for-impatient-scholars/#fnref:5">LaTeX Input for Impatient Scholars | Karthinks</a>
@@ -25685,9 +25681,9 @@ Add audio to presentation? <a href="https://gitlab.com/oer/emacs-reveal">oer / e
 </p>
 </div>
 </div>
-<div id="outline-container-ID-90492a6c-28d8-49cc-936e-16f598c592d1" class="outline-5">
-<h5 id="ID-90492a6c-28d8-49cc-936e-16f598c592d1">Plantuml Config</h5>
-<div class="outline-text-5" id="text-org5941b0a">
+<div id="outline-container-ID-90492a6c-28d8-49cc-936e-16f598c592d1" class="outline-4">
+<h4 id="ID-90492a6c-28d8-49cc-936e-16f598c592d1"><span class="section-number-4">3.18.6.</span> Plantuml Config</h4>
+<div class="outline-text-4" id="text-3-18-6">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-951faff8-8ea3-4a95-b8e1-bf025b4d0da3">&lt;&ndash;Plant UML</a></li>
 </ul>
@@ -25716,9 +25712,9 @@ Old config, with the command in place of a jar path:
 </div>
 </div>
 </div>
-<div id="outline-container-ID-36fa755a-d77f-4959-a503-cc1a4803659e" class="outline-5">
-<h5 id="ID-36fa755a-d77f-4959-a503-cc1a4803659e">Python Config</h5>
-<div class="outline-text-5" id="text-org63390a7">
+<div id="outline-container-ID-36fa755a-d77f-4959-a503-cc1a4803659e" class="outline-4">
+<h4 id="ID-36fa755a-d77f-4959-a503-cc1a4803659e"><span class="section-number-4">3.18.7.</span> Python Config</h4>
+<div class="outline-text-4" id="text-3-18-7">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-9b4047b9-4cf7-4882-9355-467786362d30">&lt;&ndash;Python</a></li>
 </ul>
@@ -25756,7 +25752,7 @@ contributors).
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Python.</span>
-(<span class="org-keyword">setq</span> python-indent-guess-indent-offset-verbose nil)
+(<span class="org-keyword">setq</span> <span class="org-variable-name">python-indent-guess-indent-offset-verbose</span> nil)
 
 (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">auto-mode-alist</span> <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"/</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(?:</span></span><span class="org-string">Pipfile</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">|</span></span><span class="org-string">\\.?flake8</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">\\'"</span> . conf-mode))
 (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">auto-mode-alist</span> <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"/uv\\.lock\\'"</span> . conf-toml-mode))
@@ -25767,11 +25763,11 @@ contributors).
   <span class="org-doc">"Open the Python REPL and return its buffer."</span>
   (<span class="org-keyword">interactive</span>)
   (<span class="org-constant">require</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">python</span>)
-  (<span class="org-keyword">unless</span> python-shell-interpreter
+  (<span class="org-keyword">unless</span> <span class="org-variable-name">python-shell-interpreter</span>
     (<span class="org-constant">user-error</span> <span class="org-string">"`</span><span class="org-string"><span class="org-constant">python-shell-interpreter</span></span><span class="org-string">' isn't set"</span>))
   (<span class="org-constant">pop-to-buffer</span>
    (<span class="org-constant">process-buffer</span>
-    (<span class="org-function-name">run-python</span> nil (<span class="org-keyword">bound-and-true-p</span> python-shell-dedicated) t))))
+    (<span class="org-constant">run-python</span> nil (<span class="org-keyword">bound-and-true-p</span> <span class="org-variable-name">python-shell-dedicated</span>) t))))
 
 (<span class="org-keyword">dolist</span> (hook <span class="org-highlight-quoted-quote">'</span>(python-mode-local-vars-hook python-ts-mode-local-vars-hook))
   (<span class="org-constant">add-hook</span> hook <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/lsp</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">append</span>))
@@ -25783,12 +25779,12 @@ contributors).
 
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">python</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">python3 by name, since on some systems plain python is Python 2.</span>
-  (<span class="org-keyword">when</span> (<span class="org-keyword">and</span> (<span class="org-constant">string=</span> python-shell-interpreter <span class="org-string">"python"</span>)
+  (<span class="org-keyword">when</span> (<span class="org-keyword">and</span> (<span class="org-constant">string=</span> <span class="org-variable-name">python-shell-interpreter</span> <span class="org-string">"python"</span>)
              (<span class="org-constant">executable-find</span> <span class="org-string">"python3"</span>))
-    (<span class="org-keyword">setq</span> python-shell-interpreter <span class="org-string">"python3"</span>))
+    (<span class="org-keyword">setq</span> <span class="org-variable-name">python-shell-interpreter</span> <span class="org-string">"python3"</span>))
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Python 3.13's new REPL does not take an interrupt from Emacs: the ^C</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">arrives as input.  The old one does.</span>
-  (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">python-shell-process-environment</span> <span class="org-string">"PYTHON_BASIC_REPL=1"</span>))
+  (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">python-shell-process-environment</span> <span class="org-string">"PYTHON_BASIC_REPL=1"</span>))
 </code></pre>
 </div>
 
@@ -25800,7 +25796,7 @@ contributors).
 <span class="org-comment-delimiter">;; </span><span class="org-comment">dedicated entry makes ty the unconditional choice.</span>
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">eglot</span>
   (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">eglot-server-programs</span>
-               <span class="org-highlight-quoted-quote">'</span>((<span class="org-function-name">python-mode</span> python-ts-mode) . (<span class="org-string">"ty"</span> <span class="org-string">"server"</span>))))
+               <span class="org-highlight-quoted-quote">'</span>((<span class="org-constant">python-mode</span> python-ts-mode) . (<span class="org-string">"ty"</span> <span class="org-string">"server"</span>))))
 </code></pre>
 </div>
 
@@ -25812,9 +25808,9 @@ contributors).
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20220829T170149.630909" class="outline-4">
-<h4 id="ID-20220829T170149.630909"><span class="section-number-4">1.3.19.</span> Email Config</h4>
-<div class="outline-text-4" id="text-1-3-19">
+<div id="outline-container-ID-20220829T170149.630909" class="outline-3">
+<h3 id="ID-20220829T170149.630909"><span class="section-number-3">3.19.</span> Email Config</h3>
+<div class="outline-text-3" id="text-3-19">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-6588253f-4a2e-4a8c-ac23-bcb073e47213">&lt;&ndash;Linux Program Directory</a></li>
 <li><a href="communication-setup-in-emacs.html#ID-20220829T170034.331688">&lt;&ndash;Communication in Emacs</a></li>
@@ -25974,9 +25970,9 @@ refresh token died),
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261012T194636.251916" class="outline-5">
-<h5 id="ID-20261012T194636.251916">Mu4e Defaults</h5>
-<div class="outline-text-5" id="text-orgd4fc4b2">
+<div id="outline-container-ID-20261012T194636.251916" class="outline-4">
+<h4 id="ID-20261012T194636.251916"><span class="section-number-4">3.19.1.</span> Mu4e Defaults</h4>
+<div class="outline-text-4" id="text-3-19-1">
 <p>
 What stands under <a href="#ID-20260901T134926.181741">Mu4e Config</a>, which sets most of it again: mail fetched
 by mbsync and sent by smtpmail, the first context picked at start, the
@@ -26880,9 +26876,9 @@ versions of mu.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.177520" class="outline-5">
-<h5 id="ID-20260901T134926.177520">Gmail Configuration Tips</h5>
-<div class="outline-text-5" id="text-orgf1f3fb7">
+<div id="outline-container-ID-20260901T134926.177520" class="outline-4">
+<h4 id="ID-20260901T134926.177520"><span class="section-number-4">3.19.2.</span> Gmail Configuration Tips</h4>
+<div class="outline-text-4" id="text-3-19-2">
 <p>
 Use POP3 forwarding on proper emails. Then check box enabling us to send as
 those addresses. Inbox options should be default with all categories checked
@@ -26907,9 +26903,9 @@ lists its options.
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.181741" class="outline-5">
-<h5 id="ID-20260901T134926.181741">Mu4e Config</h5>
-<div class="outline-text-5" id="text-orgff08924">
+<div id="outline-container-ID-20260901T134926.181741" class="outline-4">
+<h4 id="ID-20260901T134926.181741"><span class="section-number-4">3.19.3.</span> Mu4e Config</h4>
+<div class="outline-text-4" id="text-3-19-3">
 <ul class="org-ul">
 <li><p>
 Updating Inbox &amp; Sorting Mail
@@ -27018,7 +27014,7 @@ To add/remove an address from the mu store, re-init it (mu4e must NOT be
 running — quit it first with <code>SPC u q</code> in the main view, as <code>q</code> only buries
 it; the maildir itself is untouched):
 </p>
-<pre class="example" id="orgfd85d9d">
+<pre class="example" id="org72a84ae">
   mu init --maildir=/home/ben/project-jerome/email-archive \
     --my-address=me@gmail.com --my-address=me@school.example \
     --my-address=alias1@bhw.name --my-address=alias2@bhw.name \
@@ -27952,9 +27948,9 @@ then <code>mbsync -a</code> and <code>mu index</code>. Now in emacs `M-x mu4e&rs
 </code></pre>
 </div>
 </div>
-<div id="outline-container-ID-20261027T205251.552106" class="outline-6">
-<h6 id="ID-20261027T205251.552106">OpenPGP</h6>
-<div class="outline-text-6" id="text-orgc5d1f0c">
+<div id="outline-container-ID-20261027T205251.552106" class="outline-5">
+<h5 id="ID-20261027T205251.552106">OpenPGP</h5>
+<div class="outline-text-5" id="text-org9b51a05">
 <p>
 Sign always, encrypt when possible, after <a href="https://www.bounga.org/emacs/2026/06/30/sign-always-encrypt-when-possible-in-mu4e/">Bounga</a>.  Mail From: an address
 in <code>bhw/mail-openpgp-senders</code> (personal-info.el) is signed, PGP/MIME, and
@@ -28042,9 +28038,9 @@ no passphrase prompt comes from a timer.</li>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260929T173340.091537" class="outline-6">
-<h6 id="ID-20260929T173340.091537">Scheduled Sending</h6>
-<div class="outline-text-6" id="text-org7eda57e">
+<div id="outline-container-ID-20260929T173340.091537" class="outline-5">
+<h5 id="ID-20260929T173340.091537">Scheduled Sending</h5>
+<div class="outline-text-5" id="text-orgd95c7f3">
 <p>
 The mail counterpart of <code>bhw/ement-schedule-message</code>: compose as usual, then
 send later instead of now.  The message is fully built when it is queued, so
@@ -28743,9 +28739,9 @@ sent again unasked, since it may have gone out.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.186015" class="outline-5">
-<h5 id="ID-20260901T134926.186015">Consult-Mu Config</h5>
-<div class="outline-text-5" id="text-org5f044c9">
+<div id="outline-container-ID-20260901T134926.186015" class="outline-4">
+<h4 id="ID-20260901T134926.186015"><span class="section-number-4">3.19.4.</span> Consult-Mu Config</h4>
+<div class="outline-text-4" id="text-3-19-4">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 (<span class="org-keyword">use-package</span> consult-mu
@@ -28862,9 +28858,9 @@ sent again unasked, since it may have gone out.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260704T165939.380852" class="outline-5">
-<h5 id="ID-20260704T165939.380852">bhw.name email config</h5>
-<div class="outline-text-5" id="text-org8f2792a">
+<div id="outline-container-ID-20260704T165939.380852" class="outline-4">
+<h4 id="ID-20260704T165939.380852"><span class="section-number-4">3.19.5.</span> bhw.name email config</h4>
+<div class="outline-text-4" id="text-3-19-5">
 <p>
 Any email addressed to the bhw.name domain is forwarded to my personal gmail
 address through DNS records set on Porkbun. Any email sent from the bhw.name
@@ -28874,13 +28870,13 @@ Email Delivery service limits to 60MB as 2MB is the default.</a>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.189601" class="outline-4">
-<h4 id="ID-20260901T134926.189601"><span class="section-number-4">1.3.20.</span> Application Config</h4>
-<div class="outline-text-4" id="text-1-3-20">
+<div id="outline-container-ID-20260901T134926.189601" class="outline-3">
+<h3 id="ID-20260901T134926.189601"><span class="section-number-3">3.20.</span> Application Config</h3>
+<div class="outline-text-3" id="text-3-20">
 </div>
-<div id="outline-container-ID-20220829T170201.833199" class="outline-5">
-<h5 id="ID-20220829T170201.833199">Elfeed Config</h5>
-<div class="outline-text-5" id="text-org375b6c4">
+<div id="outline-container-ID-20220829T170201.833199" class="outline-4">
+<h4 id="ID-20220829T170201.833199"><span class="section-number-4">3.20.1.</span> Elfeed Config</h4>
+<div class="outline-text-4" id="text-3-20-1">
 <ul class="org-ul">
 <li><a href="communication-setup-in-emacs.html#ID-20220829T170034.331688">&lt;&ndash;Communication in Emacs</a></li>
 <li><a href="https://github.com/larrasket/rssc">GitHub - larrasket/rssc: rssc provides a real-time, self-hostable regex-orien&hellip;</a></li>
@@ -29182,9 +29178,9 @@ subtitles more effectively.</li>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20220829T170131.891099" class="outline-5">
-<h5 id="ID-20220829T170131.891099">Ement Config</h5>
-<div class="outline-text-5" id="text-org0cd29b5">
+<div id="outline-container-ID-20220829T170131.891099" class="outline-4">
+<h4 id="ID-20220829T170131.891099"><span class="section-number-4">3.20.2.</span> Ement Config</h4>
+<div class="outline-text-4" id="text-3-20-2">
 <ul class="org-ul">
 <li><a href="communication-setup-in-emacs.html#ID-20220829T170034.331688">&lt;&ndash;Communication in Emacs</a></li>
 <li><a href="https://github.com/aard-fi/elneo">GitHub - aard-fi/elneo · GitHub</a> (Ement alternative)</li>
@@ -31072,9 +31068,9 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260731T202534.411560" class="outline-5">
-<h5 id="ID-20260731T202534.411560">Transmission Config</h5>
-<div class="outline-text-5" id="text-orgdc5e4d2">
+<div id="outline-container-ID-20260731T202534.411560" class="outline-4">
+<h4 id="ID-20260731T202534.411560"><span class="section-number-4">3.20.3.</span> Transmission Config</h4>
+<div class="outline-text-4" id="text-3-20-3">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-transmission.el --- Transmission -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -31228,9 +31224,9 @@ probes with a non-blocking connect first and raises a <code>user-error</code> in
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.197514" class="outline-5">
-<h5 id="ID-20260901T134926.197514">Calendar Config</h5>
-<div class="outline-text-5" id="text-orga996edd">
+<div id="outline-container-ID-20260901T134926.197514" class="outline-4">
+<h4 id="ID-20260901T134926.197514"><span class="section-number-4">3.20.4.</span> Calendar Config</h4>
+<div class="outline-text-4" id="text-3-20-4">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;; </span><span class="org-comment">bhw-apps.el --- Calendar, Anki, weather and calculator -*- lexical-binding: t; -*-</span>
 </code></pre>
@@ -31274,9 +31270,9 @@ probes with a non-blocking connect first and raises a <code>user-error</code> in
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.201988" class="outline-5">
-<h5 id="ID-20260901T134926.201988">Anki Editor Config</h5>
-<div class="outline-text-5" id="text-org442eebb">
+<div id="outline-container-ID-20260901T134926.201988" class="outline-4">
+<h4 id="ID-20260901T134926.201988"><span class="section-number-4">3.20.5.</span> Anki Editor Config</h4>
+<div class="outline-text-4" id="text-3-20-5">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 (<span class="org-keyword">use-package</span> anki-editor <span class="org-builtin">:defer</span> t)
@@ -31325,9 +31321,9 @@ probes with a non-blocking connect first and raises a <code>user-error</code> in
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.205113" class="outline-5">
-<h5 id="ID-20260901T134926.205113">Biome Config</h5>
-<div class="outline-text-5" id="text-org79139a7">
+<div id="outline-container-ID-20260901T134926.205113" class="outline-4">
+<h4 id="ID-20260901T134926.205113"><span class="section-number-4">3.20.6.</span> Biome Config</h4>
+<div class="outline-text-4" id="text-3-20-6">
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/biome-detroit</span> ()
@@ -31359,9 +31355,9 @@ probes with a non-blocking connect first and raises a <code>user-error</code> in
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20261022T120813.468246" class="outline-5">
-<h5 id="ID-20261022T120813.468246">KeePassXC Config</h5>
-<div class="outline-text-5" id="text-org069d6fb">
+<div id="outline-container-ID-20261022T120813.468246" class="outline-4">
+<h4 id="ID-20261022T120813.468246"><span class="section-number-4">3.20.7.</span> KeePassXC Config</h4>
+<div class="outline-text-4" id="text-3-20-7">
 <p>
 <a href="https://github.com/dakra/keepassxc.el">keepassxc.el</a> asks a running <a href="https://keepassxc.org/">KeePassXC</a> for passwords, over the protocol of
 KeePassXC&rsquo;s browser extension.  <code>SPC o k</code> opens its menu: copy a password,
@@ -31569,9 +31565,9 @@ keepassxc-auth-source-import</code> copies what <code>~/.authinfo</code> has int
 </div>
 </div>
 </div>
-<div id="outline-container-ID-ee59a5dc-2d13-4417-8996-860711c1119e" class="outline-5">
-<h5 id="ID-ee59a5dc-2d13-4417-8996-860711c1119e">Casual Emacs Calc Config</h5>
-<div class="outline-text-5" id="text-org5d907b9">
+<div id="outline-container-ID-ee59a5dc-2d13-4417-8996-860711c1119e" class="outline-4">
+<h4 id="ID-ee59a5dc-2d13-4417-8996-860711c1119e"><span class="section-number-4">3.20.8.</span> Casual Emacs Calc Config</h4>
+<div class="outline-text-4" id="text-3-20-8">
 <ul class="org-ul">
 <li><a href="https://www.n16f.net/blog/using-units-in-emacs-calc/">Using Units in Emacs Calc</a></li>
 <li><a href="https://pjs64.wordpress.com/2020/12/07/worgsheet-calc-intro/">WorgSheet Calc Intro</a></li>
@@ -31658,18 +31654,18 @@ comprehensive tutorial outlined it, <a href="https://hansklav.home.xs4all.nl/rpn
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.207924" class="outline-5">
-<h5 id="ID-20260901T134926.207924">Emacs Reader Config</h5>
-<div class="outline-text-5" id="text-orge62b198">
+<div id="outline-container-ID-20260901T134926.207924" class="outline-4">
+<h4 id="ID-20260901T134926.207924"><span class="section-number-4">3.20.9.</span> Emacs Reader Config</h4>
+<div class="outline-text-4" id="text-3-20-9">
 <p>
 Reinstall guide: <a href="https://codeberg.org/divyaranjan/emacs-reader/issues/122#issuecomment-9315806">#122 - Trouble Installing via VC - divyaranjan/emacs-reader - Codeberg.org</a>
 </p>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.211024" class="outline-4">
-<h4 id="ID-20260901T134926.211024"><span class="section-number-4">1.3.21.</span> Config Load Sentinel</h4>
-<div class="outline-text-4" id="text-1-3-21">
+<div id="outline-container-ID-20260901T134926.211024" class="outline-3">
+<h3 id="ID-20260901T134926.211024"><span class="section-number-3">3.21.</span> Config Load Sentinel</h3>
+<div class="outline-text-3" id="text-3-21">
 <p>
 This must remain the <b>final</b> block tangled into init.el: reaching it proves
 every module was attempted, and the stamp is set only if none of them failed.
@@ -31686,9 +31682,9 @@ against the last reload&rsquo;s start time to detect loads that died partway thr
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.215135" class="outline-3">
-<h3 id="ID-20260901T134926.215135"><span class="section-number-3">1.4.</span> Config Test Suite</h3>
-<div class="outline-text-3" id="text-1-4">
+<div id="outline-container-ID-20260901T134926.215135" class="outline-2">
+<h2 id="ID-20260901T134926.215135"><span class="section-number-2">4.</span> Config Test Suite</h2>
+<div class="outline-text-2" id="text-4">
 <p>
 An ERT suite for the tangled configuration, run by the <a href="#ID-20260901T134925.956524">Config Test Harness</a>
 in a test boot after every <code>bhw/reload</code> unless <code>bhw/config-tests-on-reload</code> is
@@ -38360,9 +38356,9 @@ emacsclient -s <span class="org-string">"</span><span class="org-string"><span c
 </div>
 </div>
 </div>
-<div id="outline-container-ID-585facc9-22e3-4705-bb67-0e32727cab9a" class="outline-3">
-<h3 id="ID-585facc9-22e3-4705-bb67-0e32727cab9a"><span class="section-number-3">1.5.</span> Emacs Navigation &amp; Searching</h3>
-<div class="outline-text-3" id="text-1-5">
+<div id="outline-container-ID-585facc9-22e3-4705-bb67-0e32727cab9a" class="outline-2">
+<h2 id="ID-585facc9-22e3-4705-bb67-0e32727cab9a"><span class="section-number-2">5.</span> Emacs Navigation &amp; Searching</h2>
+<div class="outline-text-2" id="text-5">
 <ul class="org-ul">
 <li><a href="https://beepb00p.xyz/pkm-search.html">Blog (Introduction) - Building personal search infrastructure for your knowledge and code</a></li>
 </ul>
@@ -38372,13 +38368,17 @@ search.</b>
 </p>
 
 <p>
-It is highly recommended to swap <code>ESC</code> and <code>Caps Lock</code>. It is also highly recommended to swap <code>ctrl</code> and <code>alt</code> for ergonomic reasons as well. Search for a &ldquo;space cadet keyboard&rdquo; and you will see that the &ldquo;Emacs pinky&rdquo; is not intended. One is to use the strongest digit of your finger, the thumb, to activate most key chords, regardless if you use Evil Vim Emulation or not.  <code>C-g</code> will also act as ESC in situations where <code>fd</code> or <code>ESC</code> fail you.
-<code>SPC SPC</code> acts as <code>M-x</code>
+It is highly recommended to swap <code>ESC</code> and <code>Caps Lock</code>. It is also highly
+recommended to swap <code>ctrl</code> and <code>alt</code> for ergonomic reasons as well. Search for a
+&ldquo;space cadet keyboard&rdquo; and you will see that the &ldquo;Emacs pinky&rdquo; is not intended.
+It is by design to use the strongest digit of your finger, the thumb, to
+activate most key chords, regardless if you use Evil Vim Emulation or not. <code>C-g</code>
+will also act as ESC in situations where <code>fd</code> or <code>ESC</code> fail you.
 </p>
 </div>
-<div id="outline-container-ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e" class="outline-4">
-<h4 id="ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e"><span class="section-number-4">1.5.1.</span> Searching - File Content</h4>
-<div class="outline-text-4" id="text-1-5-1">
+<div id="outline-container-ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e" class="outline-3">
+<h3 id="ID-9814ca0a-c1e3-4130-a10f-83274b59fb5e"><span class="section-number-3">5.1.</span> Searching - File Content</h3>
+<div class="outline-text-3" id="text-5-1">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-6588253f-4a2e-4a8c-ac23-bcb073e47213">&lt;&ndash;Linux Program Directory</a></li>
 </ul>
@@ -38561,9 +38561,9 @@ avy-goto-char-timer &gt; type more than one letter. timer can be shortened or le
 </table>
 </div>
 </div>
-<div id="outline-container-ID-dc39bae8-349f-46b2-a1d8-267972c69642" class="outline-4">
-<h4 id="ID-dc39bae8-349f-46b2-a1d8-267972c69642"><span class="section-number-4">1.5.2.</span> Searching - File Name</h4>
-<div class="outline-text-4" id="text-1-5-2">
+<div id="outline-container-ID-dc39bae8-349f-46b2-a1d8-267972c69642" class="outline-3">
+<h3 id="ID-dc39bae8-349f-46b2-a1d8-267972c69642"><span class="section-number-3">5.2.</span> Searching - File Name</h3>
+<div class="outline-text-3" id="text-5-2">
 <ul class="org-ul">
 <li><a href="../cpb.html#ID-6588253f-4a2e-4a8c-ac23-bcb073e47213">&lt;&ndash;Linux Program Directory</a></li>
 </ul>
@@ -38585,9 +38585,9 @@ pathname, of course. <a href="https://www.linode.com/docs/guides/finding-files-w
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.220377" class="outline-4">
-<h4 id="ID-20260901T134926.220377"><span class="section-number-4">1.5.3.</span> Searching - Directory</h4>
-<div class="outline-text-4" id="text-1-5-3">
+<div id="outline-container-ID-20260901T134926.220377" class="outline-3">
+<h3 id="ID-20260901T134926.220377"><span class="section-number-3">5.3.</span> Searching - Directory</h3>
+<div class="outline-text-3" id="text-5-3">
 <table>
 
 
@@ -38616,9 +38616,9 @@ pathname, of course. <a href="https://www.linode.com/docs/guides/finding-files-w
 </table>
 </div>
 </div>
-<div id="outline-container-ID-ef93fb7f-3af3-4194-8811-127ab3495844" class="outline-4">
-<h4 id="ID-ef93fb7f-3af3-4194-8811-127ab3495844"><span class="section-number-4">1.5.4.</span> Searching - World Wide Web</h4>
-<div class="outline-text-4" id="text-1-5-4">
+<div id="outline-container-ID-ef93fb7f-3af3-4194-8811-127ab3495844" class="outline-3">
+<h3 id="ID-ef93fb7f-3af3-4194-8811-127ab3495844"><span class="section-number-3">5.4.</span> Searching - World Wide Web</h3>
+<div class="outline-text-3" id="text-5-4">
 <ul class="org-ul">
 <li><a href="https://github.com/qeeqbox/social-analyzer">OSINT Social Media Searcher</a></li>
 <li><a href="https://www.gwern.net/Search#search">Gwern - Internet Search Tips</a></li>
@@ -38635,18 +38635,18 @@ Appending reddit to search term
 Duck Duck go, Bing etc.
 </p>
 </div>
-<div id="outline-container-ID-20c4bc2f-e467-48d7-9dd6-928c36457d26" class="outline-5">
-<h5 id="ID-20c4bc2f-e467-48d7-9dd6-928c36457d26">Web Scraping</h5>
-<div class="outline-text-5" id="text-org2234f80">
+<div id="outline-container-ID-20c4bc2f-e467-48d7-9dd6-928c36457d26" class="outline-4">
+<h4 id="ID-20c4bc2f-e467-48d7-9dd6-928c36457d26"><span class="section-number-4">5.4.1.</span> Web Scraping</h4>
+<div class="outline-text-4" id="text-5-4-1">
 <ul class="org-ul">
 <li><a href="https://lispmethods.com/web-scraping.html">Web Scrape with Lisp</a></li>
 </ul>
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.223862" class="outline-4">
-<h4 id="ID-20260901T134926.223862"><span class="section-number-4">1.5.5.</span> Searching - Handling Directories with Dired</h4>
-<div class="outline-text-4" id="text-1-5-5">
+<div id="outline-container-ID-20260901T134926.223862" class="outline-3">
+<h3 id="ID-20260901T134926.223862"><span class="section-number-3">5.5.</span> Searching - Handling Directories with Dired</h3>
+<div class="outline-text-3" id="text-5-5">
 <table>
 
 
@@ -38685,9 +38685,9 @@ the absolute file name of each marked file.
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.226552" class="outline-4">
-<h4 id="ID-20260901T134926.226552"><span class="section-number-4">1.5.6.</span> Navigation - Project Manipulation</h4>
-<div class="outline-text-4" id="text-1-5-6">
+<div id="outline-container-ID-20260901T134926.226552" class="outline-3">
+<h3 id="ID-20260901T134926.226552"><span class="section-number-3">5.6.</span> Navigation - Project Manipulation</h3>
+<div class="outline-text-3" id="text-5-6">
 <p>
 What is a project? Spacemacs uses projectile.el (pre-installed) to manage projects.
 </p>
@@ -38727,9 +38727,9 @@ via <code>bhw/project-forget-dead-projects</code>; see <a href="#ID-88e3726e-031
 </p>
 </div>
 </div>
-<div id="outline-container-ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2" class="outline-4">
-<h4 id="ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2"><span class="section-number-4">1.5.7.</span> Search and Replace</h4>
-<div class="outline-text-4" id="text-1-5-7">
+<div id="outline-container-ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2" class="outline-3">
+<h3 id="ID-efc0878e-0ea6-4469-8a7e-3cae42bdb4d2"><span class="section-number-3">5.7.</span> Search and Replace</h3>
+<div class="outline-text-3" id="text-5-7">
 <ul class="org-ul">
 <li><a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Rx-Notation.html">The rx Structured Regexp Notation</a></li>
 <li><a href="https://protesilaos.com/codelog/2020-01-23-emacs-regexp-primer/">Emacs Regexp Primer</a></li>
@@ -38923,9 +38923,9 @@ Use the ^ character.
 <a href="https://docstore.mik.ua/orelly/unix3/vi/ch06_03.htm">https://docstore.mik.ua/orelly/unix3/vi/ch06_03.htm</a>
 </p>
 </div>
-<div id="outline-container-ID-20230812T154052.248512" class="outline-5">
-<h5 id="ID-20230812T154052.248512">Regular Expressions</h5>
-<div class="outline-text-5" id="text-orgd6fd5e3">
+<div id="outline-container-ID-20230812T154052.248512" class="outline-4">
+<h4 id="ID-20230812T154052.248512"><span class="section-number-4">5.7.1.</span> Regular Expressions</h4>
+<div class="outline-text-4" id="text-5-7-1">
 <p>
 The pattern that matches substrings in parentheses having no other ( and )
 characters in between (like (xyz 123) in Text (abc(xyz 123)) is
@@ -38945,9 +38945,9 @@ Details:
 </div>
 </div>
 </div>
-<div id="outline-container-ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041" class="outline-4">
-<h4 id="ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041"><span class="section-number-4">1.5.8.</span> Navigation - Buffer &amp; Window Manipulation</h4>
-<div class="outline-text-4" id="text-1-5-8">
+<div id="outline-container-ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041" class="outline-3">
+<h3 id="ID-a5f3d92c-00b3-4fc0-806f-7ad577fc8041"><span class="section-number-3">5.8.</span> Navigation - Buffer &amp; Window Manipulation</h3>
+<div class="outline-text-3" id="text-5-8">
 <ul class="org-ul">
 <li><a href="#ID-dc39bae8-349f-46b2-a1d8-267972c69642">&lt;&ndash;Searching - File Name</a></li>
 <li><a href="https://karthinks.com/software/emacs-window-management-almanac/">The Emacs Window Management Almanac | Karthinks</a></li>
@@ -39019,9 +39019,9 @@ Details:
 </tbody>
 </table>
 </div>
-<div id="outline-container-ID-20260901T134926.230296" class="outline-5">
-<h5 id="ID-20260901T134926.230296">Major / Minor Mode</h5>
-<div class="outline-text-5" id="text-org90ac4aa">
+<div id="outline-container-ID-20260901T134926.230296" class="outline-4">
+<h4 id="ID-20260901T134926.230296"><span class="section-number-4">5.8.1.</span> Major / Minor Mode</h4>
+<div class="outline-text-4" id="text-5-8-1">
 <table>
 
 
@@ -39054,9 +39054,9 @@ Minor mode can be reached with SPC t. See spacemacs documentation.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.233695" class="outline-4">
-<h4 id="ID-20260901T134926.233695"><span class="section-number-4">1.5.9.</span> Navigation - Marks and Registers</h4>
-<div class="outline-text-4" id="text-1-5-9">
+<div id="outline-container-ID-20260901T134926.233695" class="outline-3">
+<h3 id="ID-20260901T134926.233695"><span class="section-number-3">5.9.</span> Navigation - Marks and Registers</h3>
+<div class="outline-text-3" id="text-5-9">
 <table>
 
 
@@ -39160,13 +39160,13 @@ Convenient functions also from the evil package.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966" class="outline-3">
-<h3 id="ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966"><span class="section-number-3">1.6.</span> Text Manipulation</h3>
-<div class="outline-text-3" id="text-1-6">
+<div id="outline-container-ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966" class="outline-2">
+<h2 id="ID-69d738e4-4bc2-47f8-b804-c5ee90c1f966"><span class="section-number-2">6.</span> Text Manipulation</h2>
+<div class="outline-text-2" id="text-6">
 </div>
-<div id="outline-container-ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f" class="outline-4">
-<h4 id="ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f"><span class="section-number-4">1.6.1.</span> Vim Style Shortcuts</h4>
-<div class="outline-text-4" id="text-1-6-1">
+<div id="outline-container-ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f" class="outline-3">
+<h3 id="ID-8e53ebc6-5ddc-4822-a999-46bc5b3d141f"><span class="section-number-3">6.1.</span> Vim Style Shortcuts</h3>
+<div class="outline-text-3" id="text-6-1">
 <ol class="org-ol">
 <li><a href="https://stackoverflow.com/questions/1218390/what-is-your-most-productive-shortcut-with-vim">Jim Dennis on understanding Vi</a></li>
 
@@ -39201,9 +39201,9 @@ use another substitute separator, e.g., using the hash # character: :s#usrbin#/u
 </ol>
 </div>
 </div>
-<div id="outline-container-ID-f49c8669-494d-41ed-bf95-56bad03d26b5" class="outline-4">
-<h4 id="ID-f49c8669-494d-41ed-bf95-56bad03d26b5"><span class="section-number-4">1.6.2.</span> Emacs Style Shortcuts</h4>
-<div class="outline-text-4" id="text-1-6-2">
+<div id="outline-container-ID-f49c8669-494d-41ed-bf95-56bad03d26b5" class="outline-3">
+<h3 id="ID-f49c8669-494d-41ed-bf95-56bad03d26b5"><span class="section-number-3">6.2.</span> Emacs Style Shortcuts</h3>
+<div class="outline-text-3" id="text-6-2">
 <p>
 Emacs 12.5 Documentation on Rectangles has useful information
 </p>
@@ -39259,9 +39259,9 @@ Emacs 12.5 Documentation on Rectangles has useful information
 </tbody>
 </table>
 </div>
-<div id="outline-container-ID-0549a98a-a97c-42f9-84d0-a59a9c004541" class="outline-5">
-<h5 id="ID-0549a98a-a97c-42f9-84d0-a59a9c004541">Emacs Macro</h5>
-<div class="outline-text-5" id="text-org79d83e7">
+<div id="outline-container-ID-0549a98a-a97c-42f9-84d0-a59a9c004541" class="outline-4">
+<h4 id="ID-0549a98a-a97c-42f9-84d0-a59a9c004541"><span class="section-number-4">6.2.1.</span> Emacs Macro</h4>
+<div class="outline-text-4" id="text-6-2-1">
 <p>
 The Emacs way to define macros is available behind the prefix: SPC K
 </p>
@@ -39284,9 +39284,9 @@ replay works until another key than K is pressed.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144" class="outline-4">
-<h4 id="ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144"><span class="section-number-4">1.6.3.</span> Evil Multiple Cursors</h4>
-<div class="outline-text-4" id="text-1-6-3">
+<div id="outline-container-ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144" class="outline-3">
+<h3 id="ID-3634ef6f-0cd9-4edc-ac13-7addbd1ed144"><span class="section-number-3">6.3.</span> Evil Multiple Cursors</h3>
+<div class="outline-text-3" id="text-6-3">
 <p>
 grm - evil-mc-make-all-cursors
 gru - evil-mc-undo-all-cursors
@@ -39309,9 +39309,9 @@ grp - evil-mc-skip-and-goto-prev-match
 </p>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.237655" class="outline-4">
-<h4 id="ID-20260901T134926.237655"><span class="section-number-4">1.6.4.</span> Spell Checking</h4>
-<div class="outline-text-4" id="text-1-6-4">
+<div id="outline-container-ID-20260901T134926.237655" class="outline-3">
+<h3 id="ID-20260901T134926.237655"><span class="section-number-3">6.4.</span> Spell Checking</h3>
+<div class="outline-text-3" id="text-6-4">
 <p>
 Spelling runs through <code>jinx</code>, not flyspell, and Jinx asks libenchant, which
 for English asks aspell.  It is switched on in <code>text-mode</code> and its
@@ -39363,21 +39363,21 @@ quirk/quick/quin.
 </div>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.240330" class="outline-3">
-<h3 id="ID-20260901T134926.240330"><span class="section-number-3">1.7.</span> Layouts and Workspaces</h3>
-<div class="outline-text-3" id="text-1-7">
+<div id="outline-container-ID-20260901T134926.240330" class="outline-2">
+<h2 id="ID-20260901T134926.240330"><span class="section-number-2">7.</span> Layouts and Workspaces</h2>
+<div class="outline-text-2" id="text-7">
 <p>
 Refer to official spacemacs documentation on the same wording.
 </p>
 </div>
 </div>
-<div id="outline-container-ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10" class="outline-3">
-<h3 id="ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10"><span class="section-number-3">1.8.</span> Help &amp; Errors &amp; Troubleshooting</h3>
-<div class="outline-text-3" id="text-1-8">
+<div id="outline-container-ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10" class="outline-2">
+<h2 id="ID-5174dd2f-aea7-40b2-8e0a-a70f40ef2f10"><span class="section-number-2">8.</span> Help &amp; Errors &amp; Troubleshooting</h2>
+<div class="outline-text-2" id="text-8">
 </div>
-<div id="outline-container-ID-af0a7768-6958-4905-9c30-e8fd27b957cb" class="outline-4">
-<h4 id="ID-af0a7768-6958-4905-9c30-e8fd27b957cb"><span class="section-number-4">1.8.1.</span> General Help &amp; Documentation</h4>
-<div class="outline-text-4" id="text-1-8-1">
+<div id="outline-container-ID-af0a7768-6958-4905-9c30-e8fd27b957cb" class="outline-3">
+<h3 id="ID-af0a7768-6958-4905-9c30-e8fd27b957cb"><span class="section-number-3">8.1.</span> General Help &amp; Documentation</h3>
+<div class="outline-text-3" id="text-8-1">
 <p>
 When the Emacs daemon freezes for some unknown reason, stop it through its
 shepherd service, which sends SIGTERM and then, after 30 seconds, SIGKILL, and
@@ -39396,9 +39396,9 @@ delete. If an update breaks something, <code>guix package --roll-back</code> ret
 profile to its previous generation; restart Emacs afterwards.
 </p>
 </div>
-<div id="outline-container-ID-20260901T134926.243037" class="outline-5">
-<h5 id="ID-20260901T134926.243037">Emacs itself</h5>
-<div class="outline-text-5" id="text-org5b0a2de">
+<div id="outline-container-ID-20260901T134926.243037" class="outline-4">
+<h4 id="ID-20260901T134926.243037"><span class="section-number-4">8.1.1.</span> Emacs itself</h4>
+<div class="outline-text-4" id="text-8-1-1">
 <p>
 I once built Emacs from source, for native compilation, tree-sitter and pure
 GTK, none of which Debian&rsquo;s Emacs then had.  Now Emacs comes from Guix like
@@ -39420,9 +39420,9 @@ isolation, so no build dependency is ever installed, and <code>guix package
 </div>
 </div>
 </div>
-<div id="outline-container-ID-94e89fe8-3354-47d4-ac71-21b726abcace" class="outline-4">
-<h4 id="ID-94e89fe8-3354-47d4-ac71-21b726abcace"><span class="section-number-4">1.8.2.</span> Specific Troubleshooting and Known Issues</h4>
-<div class="outline-text-4" id="text-1-8-2">
+<div id="outline-container-ID-94e89fe8-3354-47d4-ac71-21b726abcace" class="outline-3">
+<h3 id="ID-94e89fe8-3354-47d4-ac71-21b726abcace"><span class="section-number-3">8.2.</span> Specific Troubleshooting and Known Issues</h3>
+<div class="outline-text-3" id="text-8-2">
 <ol class="org-ol">
 <li><p>
 Copy paste from WSL2 to Windows is broken?
@@ -39481,9 +39481,9 @@ See <a href="#ID-20260901T134926.010550">Emacs Config</a> for the guards that ar
 </ol>
 </div>
 </div>
-<div id="outline-container-ID-20260901T134926.245532" class="outline-4">
-<h4 id="ID-20260901T134926.245532"><span class="section-number-4">1.8.3.</span> Performance</h4>
-<div class="outline-text-4" id="text-1-8-3">
+<div id="outline-container-ID-20260901T134926.245532" class="outline-3">
+<h3 id="ID-20260901T134926.245532"><span class="section-number-3">8.3.</span> Performance</h3>
+<div class="outline-text-3" id="text-8-3">
 <p>
 Use the Emacs profiler <code>SPC h T</code> to track performance issues.
 </p>
@@ -39512,7 +39512,6 @@ firewall scanning is causing the slowdown. <code>Windows Security</code> &gt; <c
 threat protection settings</code> &gt; <code>Exclusions</code> &gt; <code>Add or remove exclusions</code> &gt;
 Add Folder <code>\\wsl.localhost\Guix</code> and Add Process <code>msrdc.exe</code>.
 </p>
-</div>
 </div>
 </div>
 </div>
