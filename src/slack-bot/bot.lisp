@@ -32,8 +32,8 @@
                 #:proposal-clash-checked-p
                 #:view-schedule
                 #:date-range-phrase-p
-                #:remind-driver
-                #:trips-for-driver-today
+                #:remind-departure
+                #:trips-for-passenger-today
                 #:trip-departure-universal-time
                 #:trips-for-return-driver-today
                 #:trip-return-universal-time
@@ -81,9 +81,9 @@ of days.
 
 A persistent /subscribe registry (graph-db-backed via
 project-isidore/slack-bot/database)
-plus an in-process scheduler thread DMs subscribed drivers
-*REMINDER-LEAD-MINUTES* before each leg they drive: the departure when they are its first passenger, the
-return when they are the first listed for the return.
+plus an in-process scheduler thread DMs subscribers *REMINDER-LEAD-MINUTES*
+before the departure of each trip they are on, driving or riding, and before
+each return they drive, being the first listed for it.
 
 A second registry records which initials each Slack account goes by, so a
 message can say \"me\", \"my\" or \"I\" instead of spelling them out: /iam sets
@@ -198,7 +198,7 @@ If something is missing, I reply with what I understood and ask you to re-send t
 
 *Who you are*: type `/iam` and your initials, e.g. `/iam DMM`, and I'll read `me`, `my` and `I` as you from then on — `/book me a van to the dentist tomorrow 9 to 11`, `/book can I get a van for the pool Saturday 8-10`, `/book me and CG to swimming Tuesday 7-9pm`. Type `/iam` on its own to see who I have you down as. I remember it across restarts and through `/unsubscribe`.
 
-*Reminders*: type `/subscribe` and your initials, e.g. `/subscribe BW`, and I'll message you 30 minutes before each trip you are driving, out or back, with the vehicle you are taking (the first name listed drives). `/unsubscribe` turns them off.
+*Reminders*: type `/subscribe` and your initials, e.g. `/subscribe BW`, and I'll message you 30 minutes before each trip you are on, with the vehicle, the driver (the first name listed) and who else is going, and 30 minutes before each return you are driving. `/unsubscribe` turns them off.
 
 *This message*: `/help`."
   "The help page: what the bot is and how to use every command, for people
@@ -963,15 +963,15 @@ currently registered, so it doubles as `/whoami`."
                initial)))))
 
 (defparameter *reminder-lead-minutes* 30
-  "How many minutes before a trip leg leaves its driver is sent the reminder
-DM (SCHEDULER-TICK).  /subscribe's reply quotes it; +HELP-TEXT+ states it in
-words and has to be changed by hand.")
+  "How many minutes before a trip leg leaves a subscriber on it is sent the
+reminder DM (SCHEDULER-TICK).  /subscribe's reply quotes it; +HELP-TEXT+
+states it in words and has to be changed by hand.")
 
 (defslash-command "/subscribe" (params)
   "/subscribe <INITIAL> — receive a direct message *REMINDER-LEAD-MINUTES*
-before each trip leg today where you are the driver, naming the vehicle: the
-departure when you are the first passenger listed for it, the return when you
-are the first listed for that.
+before the departure of each trip today you are on, driving or riding, naming
+the vehicle, the driver (the first passenger listed) and the other
+passengers; and before each return you drive, being the first listed for it.
 Example:
   /subscribe BW
 Persists across restarts. Use /unsubscribe to stop."
@@ -987,7 +987,7 @@ Persists across restarts. Use /unsubscribe to stop."
        ;; to get both reminders and "book me a van".  /unsubscribe drops only
        ;; the subscription; the identity outlives it.
        (add-slack-identity user-id (string-upcase initial))
-       (format nil "Subscribed. You will be DM'd ~D minutes before each departure or return that ~A drives, with the vehicle to take. I'll also read \"me\" as ~:*~A in your messages."
+       (format nil "Subscribed. You will be DM'd ~D minutes before each trip ~A is on, with the vehicle, driver and passengers, and before each return ~:*~A drives. I'll also read \"me\" as ~:*~A in your messages."
                *reminder-lead-minutes* (string-upcase initial))))))
 
 (defslash-command "/unsubscribe" (params)
@@ -1076,12 +1076,12 @@ posted back asynchronously via chat.postMessage."
 
 (defun scheduler-tick ()
   "Single sweep: for each subscription, DM a reminder *REMINDER-LEAD-MINUTES*
-before each leg of today's trips that the subscriber drives -- the departure
-when they are the first dep-passenger, the return when they are the first
-ret-passenger.  A leg is due from the lead time plus the 60s between sweeps
-until it leaves, so the DM goes out between the lead time and a minute more
-ahead of it, and a leg booked later than that is still reminded, on the next
-sweep."
+before the departure of each of today's trips the subscriber is on, driving
+or riding (REMIND-DEPARTURE, the same DM for everyone on it), and before each
+return they drive, being its first ret-passenger.  A leg is due from the
+lead time plus the 60s between sweeps until it leaves, so the DM goes out
+between the lead time and a minute more ahead of it, and a leg booked later
+than that is still reminded, on the next sweep."
   (maybe-reset-sent-reminders)
   (let ((now (get-universal-time))
         (window (* 60 (1+ *reminder-lead-minutes*))))
@@ -1099,9 +1099,9 @@ sweep."
                              user-id initial leg (trip-vehicle trip))))))
           (handler-case
               (progn
-                (dolist (trip (trips-for-driver-today initial))
+                (dolist (trip (trips-for-passenger-today initial))
                   (remind trip :departure (trip-departure-universal-time trip)
-                          (lambda () (remind-driver initial))))
+                          (lambda () (remind-departure trip))))
                 (dolist (trip (trips-for-return-driver-today initial))
                   (remind trip :return (trip-return-universal-time trip)
                           (lambda () (remind-return-driver trip)))))

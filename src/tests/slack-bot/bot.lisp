@@ -654,8 +654,9 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
       (ok (string= "D1" (car (first posted))))
       (ok (search "Subscribed" (cdr (first posted))))
       ;; ... and says how far ahead the reminders come
-      (ok (search "30 minutes before each departure or return that BW drives"
-                  (cdr (first posted)))))))
+      (ok (search "30 minutes before each trip BW is on"
+                  (cdr (first posted))))
+      (ok (search "before each return BW drives" (cdr (first posted)))))))
 
 (deftest scheduler-tick-window
   ;; A leg is due from *REMINDER-LEAD-MINUTES* plus the minute between sweeps
@@ -670,16 +671,15 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
          (sb::*sent-reminders-date* (sb::today-date-key)))
     (with-mocked-functions ((db:all-slack-subscriptions
                              (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-driver-today
+                            (vb:trips-for-passenger-today
                              (lambda (initial) (declare (ignore initial)) (list trip)))
                             (vb:trips-for-return-driver-today
                              (lambda (initial) (declare (ignore initial)) nil))
                             (vb:trip-departure-universal-time
                              (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) dep-offset)))
-                            (vb:remind-driver
-                             (lambda (initial &optional day)
-                               (declare (ignore day))
-                               (format nil "reminder for ~a" initial)))
+                            (vb:remind-departure
+                             (lambda (tr)
+                               (format nil "reminder for ~a" (first (vb:trip-dep-passengers tr)))))
                             (sb::post-slack-message
                              (lambda (channel text) (push (cons channel text) posted))))
       ;; inside the window -> one DM to the subscriber
@@ -723,8 +723,8 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
         (ok (= 4 (length posted)))))
     ;; errors for one subscription are logged, not raised
     (with-mocked-functions ((db:all-slack-subscriptions (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-driver-today (lambda (initial) (declare (ignore initial))
-                                                         (error "sheet unavailable"))))
+                            (vb:trips-for-passenger-today (lambda (initial) (declare (ignore initial))
+                                                            (error "sheet unavailable"))))
       (let ((*error-output* (make-string-output-stream)))
         (ok (progn (sb::scheduler-tick) t))
         (ok (search "sheet unavailable" (get-output-stream-string *error-output*)))))))
@@ -744,7 +744,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
          (sb::*sent-reminders-date* (sb::today-date-key)))
     (with-mocked-functions ((db:all-slack-subscriptions
                              (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-driver-today
+                            (vb:trips-for-passenger-today
                              (lambda (initial) (declare (ignore initial)) (list trip)))
                             (vb:trips-for-return-driver-today
                              (lambda (initial) (declare (ignore initial)) (list trip)))
@@ -752,10 +752,9 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
                              (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) dep-offset)))
                             (vb:trip-return-universal-time
                              (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) ret-offset)))
-                            (vb:remind-driver
-                             (lambda (initial &optional day)
-                               (declare (ignore day))
-                               (format nil "departure for ~a" initial)))
+                            (vb:remind-departure
+                             (lambda (tr)
+                               (format nil "departure for ~a" (first (vb:trip-dep-passengers tr)))))
                             (sb::post-slack-message
                              (lambda (channel text) (push (cons channel text) posted))))
       (let ((*error-output* (make-broadcast-stream)))
@@ -775,6 +774,46 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
         (sb::scheduler-tick)
         (ok (= 3 (length posted)))
         (ok (string= "departure for BW" (cdr (first posted))))))))
+
+(deftest scheduler-tick-passengers
+  ;; Everyone subscribed who is on a trip's departure, driving or riding, is
+  ;; sent the same DM as its driver; the return still goes to its driver
+  ;; alone.  Only the sheet read is mocked, so the real lookups and wording run.
+  (let* ((trip (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
+                             :departure "8:35 am" :return-time "12 pm"
+                             :block-start-row 138
+                             :dep-passengers '("BW" "DM" "CG")
+                             :ret-passengers '("BW" "DM" "CG")))
+         (departure "BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and DM, CG are passengers.")
+         (ret-offset 3600)
+         (posted '())
+         (sb::*reminder-lead-minutes* 30)
+         (sb::*sent-reminders* (make-hash-table :test #'equal))
+         (sb::*sent-reminders-date* (sb::today-date-key)))
+    (with-mocked-functions ((db:all-slack-subscriptions
+                             ;; DM's initials in lowercase; ZZ is not on the trip
+                             (lambda () '(("U1" . "BW") ("U2" . "dm") ("U3" . "ZZ"))))
+                            (vb::todays-trips (lambda () (list trip)))
+                            (vb:trip-departure-universal-time
+                             (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) 100)))
+                            (vb:trip-return-universal-time
+                             (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) ret-offset)))
+                            (sb::post-slack-message
+                             (lambda (channel text) (push (cons channel text) posted))))
+      (let ((*error-output* (make-broadcast-stream)))
+        ;; the driver and the passenger who subscribed get the same DM
+        (sb::scheduler-tick)
+        (ok (equal (list (cons "U1" departure) (cons "U2" departure))
+                   (reverse posted)))
+        ;; ... once
+        (sb::scheduler-tick)
+        (ok (= 2 (length posted)))
+        ;; the return is reminded to BW, who drives it back, and nobody else
+        (setf ret-offset 100)
+        (sb::scheduler-tick)
+        (ok (= 3 (length posted)))
+        (ok (equal (cons "U1" "BW is the driver of the DGH for the return from SHMS at 12 pm and DM, CG are passengers.")
+                   (first posted)))))))
 
 (deftest reminder-key-shape
   (let ((a (vb:make-trip :vehicle :dgh :block-start-row 3))

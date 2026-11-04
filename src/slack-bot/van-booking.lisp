@@ -41,9 +41,10 @@
    #:propose-booking #:propose-natural #:revise-proposal #:commit-booking
    #:proposal-day-view #:proposal-trip-view #:proposal-clash-checked-p
    #:remind-driver
+   #:remind-departure
    #:view-schedule
    #:date-range-phrase-p
-   #:trips-for-driver-today
+   #:trips-for-passenger-today
    #:trip-departure-universal-time
    #:remind-return-driver
    #:trips-for-return-driver-today
@@ -933,12 +934,34 @@ Chevy\", \"a personal vehicle\".  NIL for no vehicle."
     (:personal "a personal vehicle")
     (t (format nil "the ~a" vehicle))))
 
+(defun name-other-passengers (lead others)
+  "LEAD, a reminder's sentence naming a leg's driver, finished with OTHERS,
+the leg's passengers besides its driver."
+  (cond
+    ((null others)
+     (format nil "~a with no other passengers." lead))
+    ((null (rest others))
+     (format nil "~a and ~a is a passenger." lead (first others)))
+    (t
+     (format nil "~a and ~{~a~^, ~} are passengers." lead others))))
+
+(defun remind-departure (trip)
+  "Return the reminder for TRIP's departure, the same for everyone on it: the
+driver (the first of its dep-passengers), the vehicle (VEHICLE-PHRASE), the
+destination, the time, and the other passengers."
+  (destructuring-bind (&optional driver &rest others) (trip-dep-passengers trip)
+    (name-other-passengers
+     (format nil "~a is the driver~@[ of ~a~] for a trip to ~a departing at ~a"
+             driver (vehicle-phrase (trip-vehicle trip))
+             (trip-destination trip) (trip-departure trip))
+     others)))
+
 (defun remind-driver (driver &optional (day-phrase "today"))
   "Return a string summarizing the trips DRIVER (e.g. \"BW\") is driving on
 DAY-PHRASE (natural-language string parsed by chronicity, defaults to today).
-The driver is the first initial in dep-passengers.  Each trip names the
-vehicle to be driven (VEHICLE-PHRASE).  If multiple trips match, all are
-listed in one string separated by spaces."
+The driver is the first initial in dep-passengers.  Each trip is worded by
+REMIND-DEPARTURE.  If multiple trips match, all are listed in one string
+separated by spaces."
   (let* ((day-dt (chronicity:parse day-phrase :context :future))
          (day-str (format-booking-day day-dt))
          (sheet (find-week-sheet day-dt)))
@@ -956,36 +979,17 @@ listed in one string separated by spaces."
               day-trips)))
       (if (null driver-trips)
           (format nil "~a is not driving on ~a." driver day-str)
-          (format nil "~{~a~^ ~}"
-                  (mapcar
-                   (lambda (tr)
-                     (let ((others (rest (trip-dep-passengers tr)))
-                           (lead (format nil "~a is the driver~@[ of ~a~] for a trip to ~a departing at ~a"
-                                         driver (vehicle-phrase (trip-vehicle tr))
-                                         (trip-destination tr) (trip-departure tr))))
-                       (cond
-                         ((null others)
-                          (format nil "~a with no other passengers." lead))
-                         ((null (rest others))
-                          (format nil "~a and ~a is a passenger." lead (first others)))
-                         (t
-                          (format nil "~a and ~{~a~^, ~} are passengers." lead others)))))
-                   driver-trips))))))
+          (format nil "~{~a~^ ~}" (mapcar #'remind-departure driver-trips))))))
 
 (defun remind-return-driver (trip)
   "Return the reminder for the driver of TRIP's return leg, the first of its
-ret-passengers, worded like REMIND-DRIVER's and naming the vehicle likewise."
+ret-passengers, worded like REMIND-DEPARTURE's and naming the vehicle likewise."
   (destructuring-bind (&optional driver &rest others) (trip-ret-passengers trip)
-    (let ((lead (format nil "~a is the driver~@[ of ~a~] for the return from ~a at ~a"
-                        driver (vehicle-phrase (trip-vehicle trip))
-                        (trip-destination trip) (trip-return-time trip))))
-      (cond
-        ((null others)
-         (format nil "~a with no other passengers." lead))
-        ((null (rest others))
-         (format nil "~a and ~a is a passenger." lead (first others)))
-        (t
-         (format nil "~a and ~{~a~^, ~} are passengers." lead others))))))
+    (name-other-passengers
+     (format nil "~a is the driver~@[ of ~a~] for the return from ~a at ~a"
+             driver (vehicle-phrase (trip-vehicle trip))
+             (trip-destination trip) (trip-return-time trip))
+     others)))
 
 (defun todays-trips ()
   "The trips in today's block of the week sheet that covers today, or NIL
@@ -997,14 +1001,13 @@ when no sheet covers today.  Reads the sheet afresh on every call."
       (find-trips (parse-schedule (read-sheet sheet) :sheet-name sheet)
                   :day day-str))))
 
-(defun trips-for-driver-today (initial)
-  "Return the trips departing today where INITIAL is the first dep-passenger.
-Used by the slack-bot reminder scheduler. Returns NIL when no sheet covers
-today or no matching trips exist."
+(defun trips-for-passenger-today (initial)
+  "Return the trips departing today with INITIAL among the dep-passengers,
+driving (the first of them) or riding.  Used by the slack-bot reminder
+scheduler. Returns NIL when no sheet covers today or no matching trips exist."
   (remove-if-not
    (lambda (tr)
-     (let ((pax (trip-dep-passengers tr)))
-       (and pax (string-equal initial (first pax)))))
+     (member initial (trip-dep-passengers tr) :test #'string-equal))
    (todays-trips)))
 
 (defun trips-for-return-driver-today (initial)

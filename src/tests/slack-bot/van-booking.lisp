@@ -706,7 +706,8 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
         (call-with-mock-read-sheet sheet
                                    (lambda ()
                                      (let ((result (remind-driver "bw" "April 22")))
-                                       (ok (search "bw is the driver" result)))))))
+                                       ;; named as the sheet spells it
+                                       (ok (search "BW is the driver" result)))))))
 
   (testing "no-sheet-covers-day"
       (let ((vb::*weeks* *sample-weeks*)
@@ -2187,7 +2188,7 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
     (ng (vb::trip-departure-universal-time (make-trip :departure nil)))
     (ng (vb::trip-departure-universal-time (make-trip :departure "garbage"))))
 
-  (testing "driver-trips-today"
+  (testing "passenger-trips-today"
     (let* ((day-str (bn:format-booking-day (chronicity:parse "today")))
            (sheet (make-test-sheet
                    (make-block (format nil "~a           ~a" day-str day-str)
@@ -2199,17 +2200,17 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
        (lambda ()
          ;; a week range covering every day of the year
          (let ((vb::*weeks* '("Jan 1-Dec 31")))
-           (let ((trips (vb::trips-for-driver-today "BW")))
+           (let ((trips (vb::trips-for-passenger-today "BW")))
              (ok (= 1 (length trips)))
              (ok (string= "SHMS" (trip-destination (first trips)))))
-           ;; CG drives the LGH trip but only rides on the DGH one
-           (let ((trips (vb::trips-for-driver-today "cg")))
-             (ok (= 1 (length trips)))
-             (ok (string= "Shrine" (trip-destination (first trips)))))
-           (ok (equal '() (vb::trips-for-driver-today "ZZ"))))
+           ;; CG drives the LGH trip and rides on the DGH one: both count
+           (let ((trips (vb::trips-for-passenger-today "cg")))
+             (ok (equal '("SHMS" "Shrine")
+                        (sort (mapcar #'trip-destination trips) #'string<))))
+           (ok (equal '() (vb::trips-for-passenger-today "ZZ"))))
          ;; no sheet covers today
          (let ((vb::*weeks* '("Feb 30-Feb 31")))
-           (ok (equal '() (vb::trips-for-driver-today "BW"))))))))
+           (ok (equal '() (vb::trips-for-passenger-today "BW"))))))))
 
   (testing "return-driver-trips-today"
     ;; The return leg has its own driver, the first ret-passenger: DM drives
@@ -2228,7 +2229,8 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
              (ok (= 1 (length trips)))
              (ok (string= "SHMS" (trip-destination (first trips)))))
            (ok (equal '() (vb::trips-for-return-driver-today "BW")))
-           (ok (equal '() (vb::trips-for-driver-today "DM"))))))))
+           ;; CG only comes back, so has no departure to be reminded of
+           (ok (equal '() (vb::trips-for-passenger-today "CG"))))))))
 
   (testing "return-universal-time"
     (multiple-value-bind (s m h) (decode-universal-time
@@ -2238,6 +2240,19 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
       (ok (= 12 h)))
     (ng (vb::trip-return-universal-time (make-trip :return-time "")))
     (ng (vb::trip-return-universal-time (make-trip :departure "8:35 am"))))
+
+  (testing "remind-departure-wording"
+    (ok (string= "BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and DM, CG are passengers."
+                 (vb:remind-departure (make-trip :vehicle :dgh :destination "SHMS"
+                                                 :departure "8:35 am"
+                                                 :dep-passengers '("BW" "DM" "CG")))))
+    (ok (string= "BW is the driver of a personal vehicle for a trip to SHMS departing at 8:35 am and DM is a passenger."
+                 (vb:remind-departure (make-trip :vehicle :personal :destination "SHMS"
+                                                 :departure "8:35 am"
+                                                 :dep-passengers '("BW" "DM")))))
+    (ok (string= "BW is the driver for a trip to SHMS departing at 8:35 am with no other passengers."
+                 (vb:remind-departure (make-trip :destination "SHMS" :departure "8:35 am"
+                                                 :dep-passengers '("BW"))))))
 
   (testing "remind-return-driver-wording"
     (ok (string= "BW is the driver for the return from SHMS at 12 pm with no other passengers."
