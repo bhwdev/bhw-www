@@ -43,7 +43,7 @@ jobs:
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o ServerAliveInterval=60 "root@$DEPLOY_HOST" "$COMMIT"
+            -o ServerAliveInterval=60 "deploy@$DEPLOY_HOST" "$COMMIT"
 
       # The site answering is the test of the restart; the build cannot run it.
       - name: Check that the site answers

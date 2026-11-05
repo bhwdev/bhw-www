@@ -90,20 +90,24 @@ graph-db plumbing the two databases share. The tests mirror this tree under
 
 A push to =master= deploys. [[file:.github/workflows/deploy.yml][.github/workflows/deploy.yml]] connects to the
 production host with a key that can do nothing there but run its deploy hook,
-and hands it the commit: =ssh root@HOST COMMIT=. sshd passes =COMMIT= to the
+and hands it the commit: =ssh deploy@HOST COMMIT=. sshd passes =COMMIT= to the
 hook in =SSH_ORIGINAL_COMMAND=, and the hook refuses (exit 64) anything but 40
 hex digits. It fetches GitHub's archive of that commit, builds =guix.scm= with
 the host's Guix (the build runs the test suites; a failure stops the deploy
 before the restart), installs the program as the next generation of the
-profile =/var/guix/profiles/project-isidore=, and restarts the service. The
-host runs Guix System; the hook, the service and Caddy are its system
+profile =/var/guix/profiles/per-user/deploy/project-isidore=, and restarts the
+service. The hook runs as the unprivileged account =deploy=, not root:
+evaluating =guix.scm= runs this repository's code, and sudo allows =deploy=
+only the two =herd= commands that enable and restart the service. The host
+runs Guix System; the hook, the service and Caddy are its system
 configuration, kept outside this repository. So the host's Guix, not this
 repository, fixes the SBCL and Lisp libraries that production builds with.
-To roll back: =guix package -p /var/guix/profiles/project-isidore --roll-back=,
-then =herd restart project-isidore=. One-time setup:
+To roll back, as =deploy= (=sudo -u deploy= from root): =guix package
+-p /var/guix/profiles/per-user/deploy/project-isidore --roll-back=, then, as
+root, =herd restart project-isidore=. One-time setup:
 
-1. On the host, allow a new deploy key in root's authorized keys, for the hook
-   only:
+1. On the host, allow a new deploy key in the =deploy= account's authorized
+   keys, for the hook only:
 
    #+begin_src text
      restrict,command="/gnu/store/...-project-isidore-deploy" ssh-ed25519 AAAA... project-isidore-deploy
