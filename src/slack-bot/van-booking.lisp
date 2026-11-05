@@ -8,8 +8,6 @@
   (:import-from #:com.inuoe.jzon)
   (:import-from #:dexador)
   (:import-from #:quri)
-  (:import-from #:chronicity
-                #:hour-of #:minute-of #:year-of #:month-of #:day-of)
   (:import-from #:local-time)
   (:import-from #:project-isidore/slack-bot/booking-nlp
                 #:parse-booking #:revise-booking #:possible-initials
@@ -18,8 +16,8 @@
                 #:booking-request-ret-time #:booking-request-vehicle
                 #:booking-request-missing #:booking-request-understood
                 #:booking-incomplete
-                #:format-time-12h #:format-booking-day #:normalize-day-phrase
-                #:*month-names*)
+                #:today #:parse-day #:parse-clock #:month-number
+                #:format-time-12h #:format-booking-day #:*month-names*)
   (:export
    ;; struct
    #:trip #:make-trip #:copy-trip #:trip-p
@@ -300,24 +298,14 @@ Personal trip departing at \"Saturday\"."
 ;;; functions are what stops that, and what stops somebody being written onto
 ;;; two trips that run at the same time.
 
-(defun clock-minutes (time-str)
-  "Minutes since midnight for a 12h TIME-STR like \"8:35 am\", or NIL when
-TIME-STR is blank or CHRONICITY cannot read it.  DEPARTURE-MINUTES answers 0
-in that case, which is what sorting a table wants but not what deciding an
-overlap wants: an unreadable time must not be taken for midnight."
-  (when (non-blank-p time-str)
-    (handler-case
-        (let ((dt (chronicity:parse time-str :context :future)))
-          (when dt (+ (* 60 (hour-of dt)) (minute-of dt))))
-      (error () nil))))
-
 (defun request-window (dep-time ret-time)
   "Return (values START END), minutes since midnight, for a trip leaving at
 DEP-TIME and back at RET-TIME, or NIL when either is blank, unreadable, or
 the two do not run forwards -- a return before its departure cannot be read
-as a window, and a trip carrying on past midnight is one such pair."
-  (let ((start (clock-minutes dep-time))
-        (end (clock-minutes ret-time)))
+as a window, and a trip carrying on past midnight is one such pair.  An
+unreadable time must not be taken for midnight, as DEPARTURE-MINUTES takes it."
+  (let ((start (parse-clock dep-time))
+        (end (parse-clock ret-time)))
     (when (and start end (< start end))
       (values start end))))
 
@@ -867,17 +855,17 @@ Matches case-insensitively as a prefix of *month-names*."
           (error "Unknown month abbreviation: ~a" abbrev))))
 
 (defun date-key (dt)
-  "Return YYYYMMDD integer for chronicity datetime DT, suitable for ordering."
-  (+ (* (year-of dt) 10000) (* (month-of dt) 100) (day-of dt)))
+  "Return YYYYMMDD integer for the LOCAL-TIME timestamp DT, suitable for ordering."
+  (+ (* (local-time:timestamp-year dt) 10000)
+     (* (local-time:timestamp-month dt) 100)
+     (local-time:timestamp-day dt)))
 
 (defun current-year-date-key (dt)
   "Like DATE-KEY but always uses today's year. Use this when comparing
    against ranges from *WEEKS*, which PARSE-WEEK-RANGE anchors to the
-   current year. This avoids :context :future rolling absolute month-day
-   phrases (e.g. \"April 22\") into the next year and missing the sheet."
-  (+ (* (year-of (chronicity:parse "today")) 10000)
-     (* (month-of dt) 100)
-     (day-of dt)))
+   current year."
+  (+ (* (local-time:timestamp-year (today)) 10000)
+     (mod (date-key dt) 10000)))
 
 (defun parse-week-range (sheet-name)
   "Parse SHEET-NAME like \"Apr 20-26\" or \"Mar 30-Apr 5 (Holy wk)\".
@@ -886,7 +874,7 @@ year, or (values nil nil) if the name does not match the expected shape
 \(including names whose month word is not a month, e.g. \"Week 1-2\")."
   (cl-ppcre:register-groups-bind (sm sd em ed)
       ("^([A-Za-z]+)\\s+(\\d+)\\s*-\\s*(?:([A-Za-z]+)\\s+)?(\\d+)" sheet-name)
-    (let* ((year (year-of (chronicity:parse "today")))
+    (let* ((year (local-time:timestamp-year (today)))
            (start-month (ignore-errors (month-abbrev-num sm)))
            (end-month (if em (ignore-errors (month-abbrev-num em)) start-month))
            (start-day (parse-integer sd))
@@ -958,11 +946,11 @@ destination, the time, and the other passengers."
 
 (defun remind-driver (driver &optional (day-phrase "today"))
   "Return a string summarizing the trips DRIVER (e.g. \"BW\") is driving on
-DAY-PHRASE (natural-language string parsed by chronicity, defaults to today).
+DAY-PHRASE (a day as PARSE-DAY reads it, defaults to today).
 The driver is the first initial in dep-passengers.  Each trip is worded by
 REMIND-DEPARTURE.  If multiple trips match, all are listed in one string
 separated by spaces."
-  (let* ((day-dt (chronicity:parse day-phrase :context :future))
+  (let* ((day-dt (parse-day day-phrase))
          (day-str (format-booking-day day-dt))
          (sheet (find-week-sheet day-dt)))
     (unless sheet
@@ -994,7 +982,7 @@ ret-passengers, worded like REMIND-DEPARTURE's and naming the vehicle likewise."
 (defun todays-trips ()
   "The trips in today's block of the week sheet that covers today, or NIL
 when no sheet covers today.  Reads the sheet afresh on every call."
-  (let* ((day-dt (chronicity:parse "today"))
+  (let* ((day-dt (today))
          (day-str (format-booking-day day-dt))
          (sheet (find-week-sheet day-dt)))
     (when sheet
@@ -1064,9 +1052,8 @@ hyphen a phone keyboard autocorrected into a dash still reads as a range."
 
 (defun carry-month (start end)
   "Return END qualified by START's month when END names nothing but a day, so
-the far end of \"Sept 19 - 22\" reads as \"Sept 22\" instead of a bare \"22\"
-chronicity would resolve against the wrong month.  END is returned unchanged
-otherwise."
+the far end of \"Sept 19 - 22\" reads as \"Sept 22\" instead of a bare \"22\",
+which PARSE-DAY cannot place.  END is returned unchanged otherwise."
   (let ((month (and (cl-ppcre:scan (format nil "^\\s*~a\\s*$" *day-regex*) end)
                     (phrase-month-word start))))
     (if month
@@ -1110,18 +1097,23 @@ more often than as a pair of dates, so it is left alone."
               (values start end)
               (values trimmed trimmed))))))
 
-(defun week-phrase-range (phrase)
-  "Return (values START END), chronicity datetimes, when PHRASE names a week
-or weekend relative to today; NIL otherwise.  Weeks run Monday to Sunday like
-the sheet's tabs, which chronicity's own week spans do not.
+(defun period-phrase-range (phrase)
+  "Return (values START END), dates, when PHRASE names a week, weekend or
+month; NIL otherwise.  Weeks run Monday to Sunday like the sheet's tabs.
   \"this week\", \"the week\", \"the whole week\", \"all week\", \"week\"
                                         -> this Monday to this Sunday
   \"next week\", \"the coming week\", \"all of next week\"
                                         -> next Monday to next Sunday
   \"last week\", \"the previous week\"  -> last Monday to last Sunday
-  \"the rest of the week\"              -> today to this Sunday
   \"the weekend\", \"this weekend\", \"next weekend\"
                                         -> that week's Saturday and Sunday
+  \"this month\", \"next month\", \"last month\" and the like
+                                        -> that month's first to last day
+  \"May\", \"all of May\", \"May 2027\"   -> May 1 to May 31, in the current
+                                           year unless the phrase gives one
+  \"the rest of the week\", \"the rest of the month\", \"the rest of May\"
+                                        -> today to the period's last day,
+                                           when today falls in it
 Filler (\"the\", \"all\", \"of\", \"whole\", \"entire\", \"full\", a trailing
 \"long\") is ignored, so \"the whole of next week\" and \"all week long\" read
 as expected."
@@ -1133,77 +1125,72 @@ as expected."
                                      :test #'string=))
                            words))
          (noun (car (last words)))
-         (which (if (= (length words) 2) (first words) "this")))
-    (when (and (<= 1 (length words) 2)
-               (member noun '("week" "weekend") :test #'string=)
-               (member which '("this" "next" "coming" "upcoming" "following"
-                               "last" "previous" "past")
-                       :test #'string=))
-      (let* ((today (chronicity:parse "today"))
-             ;; local-time counts Sunday as day 0
-             (since-monday (mod (+ (local-time:timestamp-day-of-week today) 6) 7))
-             (offset (cond ((member which '("next" "coming" "upcoming" "following")
-                                    :test #'string=)
-                            7)
-                           ((member which '("last" "previous" "past") :test #'string=)
-                            -7)
-                           (t 0)))
-             (monday (local-time:timestamp+ today (- offset since-monday) :day))
-             (sunday (local-time:timestamp+ monday 6 :day))
-             (start (if (string= noun "weekend")
-                        (local-time:timestamp+ monday 5 :day)
-                        monday))
-             ;; "the rest of the week" starts today rather than Monday
-             (start (if (and rest-p (zerop offset) (local-time:timestamp< start today))
-                        today
-                        start)))
-        (values start sunday)))))
+         (which (if (= (length words) 2) (first words) "this"))
+         (shift (cond ((member which '("next" "coming" "upcoming" "following")
+                               :test #'string=)
+                       1)
+                      ((member which '("last" "previous" "past") :test #'string=)
+                       -1)
+                      ((string= which "this") 0)))
+         (named-month (and words (month-number (first words))))
+         (named-year (and named-month (= (length words) 2)
+                          (cl-ppcre:scan "^\\d{4}$" (second words))
+                          (parse-integer (second words))))
+         (today (today)))
+    (flet ((whole-month (first-day)
+             (values first-day
+                     (local-time:timestamp+
+                      first-day
+                      (1- (local-time:days-in-month (local-time:timestamp-month first-day)
+                                                    (local-time:timestamp-year first-day)))
+                      :day))))
+      (multiple-value-bind (start end)
+          (cond
+            ((and named-month (or (null (rest words)) named-year))
+             (whole-month (local-time:encode-timestamp
+                           0 0 0 0 1 named-month
+                           (or named-year (local-time:timestamp-year today)))))
+            ((not (and (<= 1 (length words) 2) shift)) nil)
+            ((string= noun "month")
+             (whole-month (local-time:timestamp+
+                           (local-time:timestamp-minimize-part today :day) shift :month)))
+            ((member noun '("week" "weekend") :test #'string=)
+             (let ((monday (local-time:timestamp+
+                            today
+                            ;; local-time counts Sunday as day 0
+                            (- (* 7 shift) (mod (+ (local-time:timestamp-day-of-week today) 6) 7))
+                            :day)))
+               (values (if (string= noun "weekend")
+                           (local-time:timestamp+ monday 5 :day)
+                           monday)
+                       (local-time:timestamp+ monday 6 :day)))))
+        (when start
+          (values (if (and rest-p
+                           (local-time:timestamp< start today)
+                           (local-time:timestamp<= today end))
+                      today
+                      start)
+                  end))))))
 
 (defun phrase-date-range (phrase)
-  "Resolve a date PHRASE to (values START END), chronicity datetimes on the
-first and last day it covers.  \"today\", \"tomorrow\", \"Apr 20\" and
-\"Saturday\" cover one day; \"this week\", \"the whole week\", \"next week\"
-and the like cover the sheet's Monday-to-Sunday week, \"the rest of the week\"
-today to Sunday and \"the weekend\" Saturday to Sunday (see WEEK-PHRASE-RANGE,
-which takes precedence over chronicity).  Anything else goes through the
-booking parser's NORMALIZE-DAY-PHRASE first, so a day reads here exactly as
-it does in a booking: \"this coming Tuesday\" and \"the upcoming Tuesday\"
-are that Tuesday, \"Tuesday September 8\" is September 8 (chronicity alone
-would answer the coming Tuesday), \"4/22\" is April 22, and a month-day
-without a year (\"Apr 20\", \"20th of April\") is this year's date, since the
-sheet only ever covers the current year, not the next occurrence chronicity's
-:FUTURE context would pick once the day has passed.  Returns NIL when
-chronicity cannot read PHRASE."
-  (multiple-value-bind (monday sunday) (week-phrase-range phrase)
-    (if monday
-        (values monday sunday)
-        (let ((span (chronicity:parse (normalize-day-phrase phrase)
-                                      :context :future :guess nil)))
-          (when span
-            (let* ((start (chronicity:span-start span))
-                   ;; a span ends at the following midnight, so step back
-                   ;; into the last day it covers
-                   (end (local-time:timestamp- (chronicity:span-end span) 1 :sec)))
-              (values start (if (local-time:timestamp< end start) start end))))))))
+  "Resolve a date PHRASE to (values START END), the first and last day it
+covers.  A week, weekend or month (\"next week\", \"the weekend\", \"this
+month\", \"May\") covers all its days (PERIOD-PHRASE-RANGE); anything else is
+a single day as a booking reads it (PARSE-DAY): \"today\", \"Saturday\",
+\"Apr 20\", \"4/22\", \"in 3 days\".  Returns NIL when PHRASE is neither."
+  (multiple-value-bind (start end) (period-phrase-range phrase)
+    (if start
+        (values start end)
+        (let ((day (parse-day phrase)))
+          (when day
+            (values day day))))))
 
 (defun trip-date-key (trip)
-  "Return YYYYMMDD key for TRIP by parsing its day string, or NIL on failure.
-   TRIP-DAY is formatted as \"DayOfWeek MonthName Day\" (e.g., \"Monday April 20\").
-   Chronicity does not parse that combined form, so strip the weekday first.
-   The year is forced to today's year so the key matches the fixed-year
-   ranges in *WEEKS*."
-  (let ((day (trip-day trip)))
-    (when (non-blank-p day)
-      (handler-case
-       (let* ((trimmed (string-trim " " day))
-              (space (position #\  trimmed))
-              (tail
-               (if space
-                   (subseq trimmed (1+ space))
-                   trimmed))
-              (dt (chronicity:parse tail :context :future)))
-         (when dt (current-year-date-key dt)))
-       (error nil nil)))))
+  "Return YYYYMMDD key for TRIP's day (\"Monday April 20\"), in the current
+year like the ranges in *WEEKS*, or NIL when it does not read as a day."
+  (let ((day (parse-day (trip-day trip))))
+    (when day
+      (date-key day))))
 
 (defun find-week-sheets-in-range (start-key end-key)
   "Return the sheet names from WEEK-SHEETS whose date range overlaps [START-KEY, END-KEY]."
@@ -1214,21 +1201,14 @@ chronicity cannot read PHRASE."
 
 (defun format-short-date (day-str)
   "Reformat a TRIP-DAY string like \"Monday April 20\" as \"Mon Apr 20\".
-   Falls back to DAY-STR unchanged if parsing fails."
-  (handler-case
-      (let* ((trimmed (string-trim " " day-str))
-             (space (position #\Space trimmed))
-             (tail (if space (subseq trimmed (1+ space)) trimmed))
-             (weekday (if space (subseq trimmed 0 space) ""))
-             (dt (chronicity:parse tail :context :future)))
-        (if dt
-            (format nil "~a ~a ~D"
-                    (subseq (string-capitalize weekday) 0
-                            (min 3 (length weekday)))
-                    (subseq (nth (1- (month-of dt)) *month-names*) 0 3)
-                    (day-of dt))
-            day-str))
-    (error () day-str)))
+   Falls back to DAY-STR unchanged if it does not read as a day."
+  (let ((day (parse-day day-str)))
+    (if day
+        (format nil "~a ~a ~D"
+                (subseq (aref local-time:+day-names+ (local-time:timestamp-day-of-week day)) 0 3)
+                (subseq (nth (1- (local-time:timestamp-month day)) *month-names*) 0 3)
+                (local-time:timestamp-day day))
+        day-str)))
 
 (defun vehicle-priority (vehicle)
   "Return a sort key for VEHICLE based on position in *vehicles* (lower = higher priority)."
@@ -1236,9 +1216,9 @@ chronicity cannot read PHRASE."
 
 (defun departure-minutes (time-str)
   "Convert a 12h TIME-STR like \"8:35 am\" to minutes-since-midnight. 0 on failure.
-   Sorting a day's rows wants a number for every row; CLOCK-MINUTES is the one
+   Sorting a day's rows wants a number for every row; PARSE-CLOCK is the one
    to use where an unreadable time must not pass for midnight."
-  (or (clock-minutes time-str) 0))
+  (or (parse-clock time-str) 0))
 
 (defun truncate-cell (s width)
   "Truncate S to WIDTH chars, appending '...' when shortened."
@@ -1329,8 +1309,8 @@ first."
 (defun view-schedule (&optional (range-phrase "today"))
   "Display booked trips over a natural-language date range as a plaintext table.
    RANGE-PHRASE may be a single day or period (\"today\", \"tomorrow\", \"Apr 20\",
-   \"this week\", \"the whole week\", \"the rest of the week\", \"next week\",
-   \"the weekend\") for that window, or two of them joined by 'to',
+   \"in 3 days\", \"this week\", \"the whole week\", \"the rest of the week\",
+   \"next week\", \"the weekend\", \"this month\", \"May\") for that window, or two of them joined by 'to',
    'through', 'and', '&' or '-' (\"today to next Friday\", \"this week and next
    week\", \"Apr 20 through Apr 26\") for the window spanning both.  A range may
    also be written the compact way the sheet's tabs are (\"Sept 19-22\",
@@ -1397,7 +1377,7 @@ asker should hear before saying yes."
 (defun date-range-phrase-p (phrase)
   "True when PHRASE is a date range VIEW-SCHEDULE can read: a single day or
 period (\"today\", \"the weekend\", \"Sept 12\") or two of them joined the way
-SPLIT-RANGE-PHRASE splits them (\"Sept 19 to Sept 22\").  A phrase chronicity
+SPLIT-RANGE-PHRASE splits them (\"Sept 19 to Sept 22\").  A phrase PARSE-DAY
 cannot read, or that signals while being read, gives NIL rather than an
 error, so `/view` can answer a phrase it cannot read with examples rather
 than with VIEW-SCHEDULE's error."

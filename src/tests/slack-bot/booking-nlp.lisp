@@ -6,7 +6,7 @@
   (:import-from #:rove #:deftest #:ok #:ng)
   (:local-nicknames (#:bn #:project-isidore/slack-bot/booking-nlp)
                     (#:nlp #:project-isidore/slack-bot/nlp))
-  (:import-from #:chronicity)
+  (:import-from #:local-time)
   (:documentation
    "Tests for project-isidore/slack-bot/booking-nlp.
 
@@ -24,7 +24,7 @@ handle.  Add a line there whenever a user's message is misread."))
 (defun day-string (phrase)
   "Lowercased sheet-format day (\"saturday september 5\") for a relative
 PHRASE such as \"tomorrow\", computed at check time."
-  (string-downcase (bn:format-booking-day (chronicity:parse phrase :context :future))))
+  (string-downcase (bn:format-booking-day (bn:parse-day phrase))))
 
 (defun month-day-string (month-day)
   "Lowercased sheet-format day for MONTH-DAY (\"April 11\") in the current year."
@@ -357,7 +357,17 @@ new parser's terms (no articles in destinations, no default day).")
     ;; range shares: this message was once booked for 8 to 9 in the morning
     ("Book trip to the Detroit Airport pickup with BW as the driver and JC and BW as the returning passengers for yesterday from 8 to 9 o'clock p.m. Oct 11 Sunday. DGH is the vehicle."
      :destination "Detroit Airport" :day-md "October 11" :passengers ("BW" "JC")
-     :vehicle :dgh :dep-time "8:00 pm" :ret-time "9:00 pm" :missing nil))
+     :vehicle :dgh :dep-time "8:00 pm" :ret-time "9:00 pm" :missing nil)
+    ;; a day counted from today, in digits or in words, at either end
+    ("BW to the pool in 3 days 9am to noon"
+     :destination "pool" :day-like "in 3 days" :passengers ("BW")
+     :dep-time "9:00 am" :ret-time "12:00 pm" :missing nil)
+    ("in two days MM and GG to the dentist, leaving at 8 back by 11"
+     :destination "dentist" :day-like "in 2 days" :passengers ("MM" "GG")
+     :dep-time "8:00 am" :ret-time "11:00 am" :missing nil)
+    ;; hours are not a day
+    ("BW to the pool in 3 hours"
+     :missing-includes (:day)))
   "Free-form sentences the regex parser could not handle.")
 
 (defparameter *booking-corpus* (append *legacy-corpus* *free-form-corpus*))
@@ -396,47 +406,78 @@ new parser's terms (no articles in destinations, no default day).")
                 (bn:parse-booking "to the dentist for MM tomorrow 9am to noon"
                                   :known-destinations '("SHMS" "Pool"))))))
 
-(deftest day-phrase-normalisation
-  (ok (string= "tuesday" (bn::normalize-day-phrase "Tues")))
-  (ok (string= "Thursday" (bn::normalize-day-phrase "Thursday's")))
-  (ok (string= (format nil "April 22 ~d" (current-year)) (bn::normalize-day-phrase "4/22")))
-  (ok (string= "April 22 2026" (bn::normalize-day-phrase "4/22/26")))
-  (ok (string= "April 22 2026" (bn::normalize-day-phrase "4/22/2026")))
-  (ok (string= (format nil "April 11th ~d" (current-year)) (bn::normalize-day-phrase "April 11th")))
-  (ok (string= (format nil "Apr 11 ~d" (current-year)) (bn::normalize-day-phrase "Apr. 11")))
-  ;; a day-first month-day is turned round: chronicity reads "April 11th",
-  ;; not "11th of April"
-  (ok (string= (format nil "April 11th ~d" (current-year)) (bn::normalize-day-phrase "11th of April")))
-  (ok (string= (format nil "April 22nd ~d" (current-year))
-               (bn::normalize-day-phrase "the 22nd of April")))
-  (ok (string= "tomorrow" (bn::normalize-day-phrase "tomorrow morning")))
-  (ok (string= "next week Tuesday" (bn::normalize-day-phrase "Tuesday next week")))
-  (ok (string= "2026-09-08" (bn::normalize-day-phrase "2026-09-08")))
-  ;; a weekday next to a month-day is dropped: chronicity would otherwise read
-  ;; "Saturday September 12" as the coming Saturday
-  (ok (string= (format nil "September 12 ~d" (current-year))
-               (bn::normalize-day-phrase "Saturday September 12")))
-  (ok (string= (format nil "September 12 ~d" (current-year))
-               (bn::normalize-day-phrase "Saturday, September 12")))
-  (ok (string= (format nil "Sep 12 ~d" (current-year))
-               (bn::normalize-day-phrase "Sat Sep 12")))
-  (ok (string= (format nil "September 12th ~d" (current-year))
-               (bn::normalize-day-phrase "next Saturday the 12th of September")))
-  (ok (string= "saturday" (bn::normalize-day-phrase "Sat")))
-  ;; "coming" and "upcoming" are filler, as is a "the" then left before the weekday
-  (ok (string= "this tuesday" (bn::normalize-day-phrase "this coming Tues")))
-  (ok (string= "Tuesday" (bn::normalize-day-phrase "the coming Tuesday")))
-  (ok (string= "Tuesday" (bn::normalize-day-phrase "upcoming Tuesday")))
-  (ok (string= "day after tomorrow" (bn::normalize-day-phrase "the day after tomorrow")))
+(deftest day-phrase-reading
+  ;; Pinned to Wednesday April 22 2026.
+  (let ((bn:*now* (local-time:encode-timestamp 0 0 0 12 22 4 2026)))
+    (flet ((reads-as (expected phrase)
+             (let ((day (bn:parse-day phrase)))
+               (ok (equal expected
+                          (and day (local-time:format-timestring
+                                    nil day :format '((:year 4) #\- (:month 2) #\- (:day 2)))))
+                   (format nil "~s reads as ~a" phrase expected)))))
+      (reads-as "2026-04-22" "today")
+      (reads-as "2026-04-22" "tonight")
+      (reads-as "2026-04-23" "tomorrow morning")
+      (reads-as "2026-04-24" "the day after tomorrow")
+      (reads-as "2026-04-25" "in 3 days")
+      (reads-as "2026-04-25" "in three days")
+      (reads-as "2026-04-23" "in 1 day")
+      (reads-as "2026-05-22" "in 30 days")
+      ;; a weekday is the next one after today, abbreviated or possessive
+      (reads-as "2026-04-28" "Tues")
+      (reads-as "2026-04-23" "Thursday's")
+      (reads-as "2026-04-25" "Sat")
+      (reads-as "2026-04-29" "Wednesday")
+      (reads-as "2026-04-28" "next Tuesday")
+      (reads-as "2026-04-28" "this coming Tues")
+      (reads-as "2026-04-28" "the coming Tuesday")
+      (reads-as "2026-04-28" "upcoming Tuesday")
+      (reads-as "2026-04-21" "last Tuesday")
+      ;; ... or that day of a Monday-to-Sunday week
+      (reads-as "2026-04-28" "Tuesday next week")
+      (reads-as "2026-04-28" "next week Tuesday")
+      (reads-as "2026-05-03" "Sunday next week")
+      (reads-as "2026-04-21" "this week Tuesday")
+      ;; month-days, either way round, are this year's even once past
+      (reads-as "2026-04-11" "April 11th")
+      (reads-as "2026-04-11" "Apr. 11")
+      (reads-as "2026-04-11" "11th of April")
+      (reads-as "2026-04-22" "the 22nd of April")
+      (reads-as "2027-04-22" "April 22 2027")
+      (reads-as "2026-04-22" "4/22")
+      (reads-as "2026-04-22" "4/22/26")
+      (reads-as "2026-04-22" "4/22/2026")
+      (reads-as "2026-09-08" "2026-09-08")
+      ;; a weekday next to a month-day is not believed over the date
+      (reads-as "2026-09-12" "Saturday September 12")
+      (reads-as "2026-09-12" "Saturday, September 12")
+      (reads-as "2026-09-12" "Sat Sep 12")
+      (reads-as "2026-09-12" "next Saturday the 12th of September")
+      ;; anything else is unread rather than guessed at
+      (reads-as nil "Tuesday 7")
+      (reads-as nil "in a day")
+      (reads-as nil "in 3 weeks")
+      (reads-as nil "February 30")
+      (reads-as nil "gibberish nonsense")
+      (reads-as nil "")))
   ;; month-day phrases resolve to the current year even when that date has passed
   (let ((req (bn:parse-booking "for pool for MM on January 2 at 8 am to 9 am")))
-    (ok (= (current-year) (chronicity:year-of (bn:booking-request-day-datetime req)))))
+    (ok (= (current-year) (local-time:timestamp-year (bn:booking-request-day-datetime req)))))
   ;; ... and a day-first one resolves at all
   (let ((dt (bn:booking-request-day-datetime
              (bn:parse-booking "MM to the pool on the 22nd of April, 9 am to noon"))))
     (ok dt)
-    (ok (= 4 (and dt (chronicity:month-of dt))))
-    (ok (= 22 (and dt (chronicity:day-of dt))))))
+    (ok (= 4 (and dt (local-time:timestamp-month dt))))
+    (ok (= 22 (and dt (local-time:timestamp-day dt))))))
+
+(deftest clock-reading
+  (loop for (minutes text) in '((420 "7") (450 "7:30") (1020 "5") (720 "12")
+                                (1170 "7.30pm") (1140 "7 p.m.") (1260 "nine o'clock pm")
+                                (540 "nine o’clock") (0 "12 am") (720 "12:00 pm")
+                                (1140 "19:00") (900 "15pm") (720 "noon") (0 "midnight")
+                                (nil "24") (nil "9:60") (nil "TBD") (nil "") (nil nil))
+        do (ok (eql minutes (bn:parse-clock text))
+               (format nil "~s reads as ~a" text minutes))))
 
 (deftest coming-weekday-is-one-date-span
   ;; "this coming Tuesday" is one date span, so "coming" is not left over
@@ -621,8 +662,8 @@ new parser's terms (no articles in destinations, no default day).")
   (ok (string= "7:00 pm"  (bn:format-time-12h 19 0)))
   (ok (string= "11:30 am" (bn:format-time-12h 11 30)))
   (ok (string= "1:05 pm"  (bn:format-time-12h 13 5)))
-  (ok (string= "Monday April 20" (bn:format-booking-day (chronicity:parse "April 20 2026"))))
-  (ok (string= "Thursday January 1" (bn:format-booking-day (chronicity:parse "January 1 2026"))))
+  (ok (string= "Monday April 20" (bn:format-booking-day (bn:parse-day "April 20 2026"))))
+  (ok (string= "Thursday January 1" (bn:format-booking-day (bn:parse-day "January 1 2026"))))
   (ok (= 12 (length bn:*month-names*)))
   (ok (string= "September" (nth 8 bn:*month-names*))))
 
@@ -736,6 +777,9 @@ new parser's terms (no articles in destinations, no default day).")
       (ok (eq :lgh (bn:booking-request-vehicle (revise "take the LGH"))))
       (ok (string= (month-day-string "April 10")
                    (string-downcase (bn:booking-request-day (revise "April 10")))))
+      (multiple-value-bind (req changed) (revise "in 4 days")
+        (ok (equal '(:day) changed))
+        (ok (string= (day-string "in 4 days") (string-downcase (bn:booking-request-day req)))))
       ;; passengers named replace the list; "add" puts them on it
       (ok (equal '("GG") (bn:booking-request-passengers (revise "for gg"))))
       (ok (equal '("BW" "MM" "GG") (bn:booking-request-passengers (revise "add GG"))))

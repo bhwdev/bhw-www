@@ -14,7 +14,7 @@
                 #:trip-dep-col #:trip-ret-col #:trip-sheet-name
                 #:remind-driver #:view-schedule)
   (:import-from #:project-isidore/tests/test-utils #:with-mocked-functions)
-  (:import-from #:chronicity)
+  (:import-from #:local-time)
   (:import-from #:com.inuoe.jzon)
   (:import-from #:dexador)
   (:import-from #:quri)
@@ -538,23 +538,23 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
   (ok (signals (vb::month-abbrev-num "Xyz") 'error)))
 
 (deftest date-key
-  (ok (= 20260420 (vb::date-key (chronicity:parse "April 20 2026"))))
-  (ok (= 20260101 (vb::date-key (chronicity:parse "January 1 2026"))))
-  (ok (= 20251231 (vb::date-key (chronicity:parse "December 31 2025")))))
+  (ok (= 20260420 (vb::date-key (bn:parse-day "April 20 2026"))))
+  (ok (= 20260101 (vb::date-key (bn:parse-day "January 1 2026"))))
+  (ok (= 20251231 (vb::date-key (bn:parse-day "December 31 2025")))))
 
 (deftest parse-week-range
   (testing "single-month"
-    (let ((year (chronicity:year-of (chronicity:parse "today"))))
+    (let ((year (local-time:timestamp-year (bn:today))))
       (multiple-value-bind (start end) (vb::parse-week-range "Apr 20-26")
         (ok (= (+ (* year 10000) 420) start))
         (ok (= (+ (* year 10000) 426) end)))))
   (testing "cross-month"
-    (let ((year (chronicity:year-of (chronicity:parse "today"))))
+    (let ((year (local-time:timestamp-year (bn:today))))
       (multiple-value-bind (start end) (vb::parse-week-range "Mar 30-Apr 5 (Holy wk)")
         (ok (= (+ (* year 10000) 330) start))
         (ok (= (+ (* year 10000) 405) end)))))
   (testing "trailing-whitespace"
-    (let ((year (chronicity:year-of (chronicity:parse "today"))))
+    (let ((year (local-time:timestamp-year (bn:today))))
       (multiple-value-bind (start end) (vb::parse-week-range "Apr 13-19 ")
         (ok (= (+ (* year 10000) 413) start))
         (ok (= (+ (* year 10000) 419) end)))))
@@ -572,28 +572,28 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
   ;; deterministic and never fetches the live tab list.
   (testing "mid-week-match"
     (let* ((vb::*weeks* *sample-weeks*)
-           (year (chronicity:year-of (chronicity:parse "today")))
-           (target (chronicity:parse (format nil "April 22 ~D" year))))
+           (year (local-time:timestamp-year (bn:today)))
+           (target (bn:parse-day (format nil "April 22 ~D" year))))
       (ok (string= "Apr 20-26" (vb::find-week-sheet target)))))
   (testing "boundary-match-start"
     (let* ((vb::*weeks* *sample-weeks*)
-           (year (chronicity:year-of (chronicity:parse "today")))
-           (target (chronicity:parse (format nil "April 20 ~D" year))))
+           (year (local-time:timestamp-year (bn:today)))
+           (target (bn:parse-day (format nil "April 20 ~D" year))))
       (ok (string= "Apr 20-26" (vb::find-week-sheet target)))))
   (testing "boundary-match-end"
     (let* ((vb::*weeks* *sample-weeks*)
-           (year (chronicity:year-of (chronicity:parse "today")))
-           (target (chronicity:parse (format nil "April 26 ~D" year))))
+           (year (local-time:timestamp-year (bn:today)))
+           (target (bn:parse-day (format nil "April 26 ~D" year))))
       (ok (string= "Apr 20-26" (vb::find-week-sheet target)))))
   (testing "cross-month-match"
     (let* ((vb::*weeks* *sample-weeks*)
-           (year (chronicity:year-of (chronicity:parse "today")))
-           (target (chronicity:parse (format nil "April 1 ~D" year))))
+           (year (local-time:timestamp-year (bn:today)))
+           (target (bn:parse-day (format nil "April 1 ~D" year))))
       (ok (string= "Mar 30-Apr 5 (Holy wk)" (vb::find-week-sheet target)))))
   (testing "find-week-sheet-no-match"
     (let* ((vb::*weeks* *sample-weeks*)
-           (year (chronicity:year-of (chronicity:parse "today")))
-           (target (chronicity:parse (format nil "December 25 ~D" year))))
+           (year (local-time:timestamp-year (bn:today)))
+           (target (bn:parse-day (format nil "December 25 ~D" year))))
       (ng (vb::find-week-sheet target)))))
 
 (defun call-with-mock-read-sheet (rows thunk)
@@ -613,7 +613,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
   ;; the sheet lookup is deterministic and never fetches the live tab list.
   (testing "golden-path-multi-passenger"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "X location")
                                 '(:dgh ("12:00 pm" "2:00 pm"))
@@ -632,7 +632,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "single-other-passenger-grammar"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "Pool")
                                 '(:dgh ("8:00 am" "10:00 am"))
@@ -646,7 +646,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "no-other-passengers-clause"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "SHMS")
                                 '(:dgh ("12:35 pm" "2:35 pm"))
@@ -659,7 +659,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "multiple-trips-same-day"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (b1 (make-block (format nil "~A           ~A" day-str day-str)
                              '(:dgh "SHMS")
                              '(:dgh ("12:35 pm" "2:35 pm"))
@@ -683,7 +683,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "driver-not-first-is-not-driver"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "SHMS")
                                 '(:dgh ("8:00 am" "10:00 am"))
@@ -697,7 +697,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "driver-match-case-insensitive"
       (let* ((vb::*weeks* *sample-weeks*)
-             (day-str (vb::format-booking-day (chronicity:parse "April 22")))
+             (day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "SHMS")
                                 '(:dgh ("8:00 am" "10:00 am"))
@@ -716,7 +716,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
                                                   (declare (ignore sheet-name))
                                                   (setf called t)
                                                   nil)))
-          (let* ((year (chronicity:year-of (chronicity:parse "today")))
+          (let* ((year (local-time:timestamp-year (bn:today)))
                  (result (remind-driver
                           "BW" (format nil "December 25 ~D" year))))
             (ok (search "No schedule sheet covers" result))
@@ -790,7 +790,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
       (ok (string= "8-10" e))))
 
   (testing "trip-date-key"
-    (let ((year (chronicity:year-of (chronicity:parse "today"))))
+    (let ((year (local-time:timestamp-year (bn:today))))
       ;; Standard trip-day format: "DayOfWeek MonthName Day"
       (ok (= (+ (* year 10000) 420)
              (vb::trip-date-key (make-trip :day "Monday April 20"))))
@@ -804,7 +804,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "find-week-sheets-in-range"
       (let ((vb::*weeks* *sample-weeks*)
-            (year (chronicity:year-of (chronicity:parse "today"))))
+            (year (local-time:timestamp-year (bn:today))))
         ;; Fully inside one week
         (ok (equal '("Apr 20-26")
                    (vb::find-week-sheets-in-range (+ (* year 10000) 421)
@@ -954,7 +954,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
                                        (ok (search "No trips scheduled" out)))))))
 
   (testing "view-schedule-renders-trips"
-      (let* ((day-str (vb::format-booking-day (chronicity:parse "April 22")))
+      (let* ((day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "SHMS")
                                 '(:dgh ("8:35 am" "10:30 am"))
@@ -972,7 +972,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
   (testing "view-schedule-no-sheet"
       ;; Date out of any configured week → informative message, no fetch.
-      (let* ((year (chronicity:year-of (chronicity:parse "today")))
+      (let* ((year (local-time:timestamp-year (bn:today)))
              (called nil)
              (original (symbol-function 'vb::read-sheet)))
         (unwind-protect
@@ -992,7 +992,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
       ;; Two trips same day, different departure times and vehicles.
       ;; Ensure 8:35 am (DGH) appears before 12:35 pm (LGH) even though
       ;; "12:35 pm" < "8:35 am" under naive string sort.
-      (let* ((day-str (vb::format-booking-day (chronicity:parse "April 22")))
+      (let* ((day-str (vb::format-booking-day (bn:parse-day "April 22")))
              (block (make-block (format nil "~A           ~A" day-str day-str)
                                 '(:dgh "Morning" :lgh "Afternoon")
                                 '(:dgh ("8:35 am" "10:30 am")
@@ -1038,7 +1038,7 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 (deftest phrase-date-range-tests
   ;; Pinned to Wednesday April 22 2026 so the sample sheets "Apr 20-26" and
   ;; "Apr 27-May 3" are the ones in play, whatever today is.
-  (let ((chronicity:*now* (chronicity:make-datetime 2026 4 22 12 0 0))
+  (let ((bn:*now* (local-time:encode-timestamp 0 0 0 12 22 4 2026))
         (vb::*weeks* *sample-weeks*))
     ;; week phrases cover the sheet's Monday-to-Sunday week
     (multiple-value-bind (s e) (vb::phrase-date-range "this week")
@@ -1076,10 +1076,32 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
     (multiple-value-bind (s e) (vb::phrase-date-range "next weekend")
       (ok (= 20260502 (vb::date-key s)))
       (ok (= 20260503 (vb::date-key e))))
-    ;; anything else is left to chronicity
-    (ng (vb::week-phrase-range "Wednesday"))
-    (ng (vb::week-phrase-range "weekly"))
-    (ng (vb::week-phrase-range "the week after next"))
+    ;; anything else is left to PARSE-DAY
+    (ng (vb::period-phrase-range "Wednesday"))
+    (ng (vb::period-phrase-range "weekly"))
+    (ng (vb::period-phrase-range "the week after next"))
+    (ng (vb::period-phrase-range "monthly"))
+    (ng (vb::period-phrase-range "the month after next"))
+    (ng (vb::period-phrase-range "May 5"))
+    ;; a month covers its first to its last day; a month by name is this
+    ;; year's unless the phrase gives one
+    (loop for (p start end) in '(("this month" 20260401 20260430)
+                                 ("the whole month" 20260401 20260430)
+                                 ("all month" 20260401 20260430)
+                                 ("next month" 20260501 20260531)
+                                 ("the following month" 20260501 20260531)
+                                 ("last month" 20260301 20260331)
+                                 ("the rest of the month" 20260422 20260430)
+                                 ("May" 20260501 20260531)
+                                 ("all of May" 20260501 20260531)
+                                 ("Sept." 20260901 20260930)
+                                 ("May 2027" 20270501 20270531)
+                                 ("the rest of April" 20260422 20260430)
+                                 ("the rest of May" 20260501 20260531))
+          do (multiple-value-bind (s e) (vb::phrase-date-range p)
+               (ok (equal start (and s (vb::date-key s))) (format nil "start of ~s" p))
+               (ok (equal end (and e (vb::date-key e))) (format nil "end of ~s" p))
+               (ok (vb:date-range-phrase-p p) (format nil "readable ~s" p))))
     ;; a single day is a one-day window
     (multiple-value-bind (s e) (vb::phrase-date-range "today")
       (ok (= 20260422 (vb::date-key s)))
@@ -1108,6 +1130,9 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
     (multiple-value-bind (s e) (vb::phrase-date-range "the day after tomorrow")
       (ok (= 20260424 (vb::date-key s)))
       (ok (= 20260424 (vb::date-key e))))
+    (multiple-value-bind (s e) (vb::phrase-date-range "in 3 days")
+      (ok (= 20260425 (vb::date-key s)))
+      (ok (= 20260425 (vb::date-key e))))
     (ng (vb::phrase-date-range "gibberish nonsense"))
     (ng (vb:date-range-phrase-p "gibberish nonsense"))
     ;; the /help example: both weeks' sheets are read and the window is labelled
@@ -1118,6 +1143,15 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
         (let ((out (view-schedule "this week and next week")))
           (ok (search "No trips scheduled from Monday April 20 to Sunday May 3" out))
           (ok (equal '("Apr 20-26" "Apr 27-May 3") (reverse sheets-read))))))
+    ;; a month reads every week sheet that overlaps it
+    (let ((sheets-read '()))
+      (with-mocked-functions ((vb::read-sheet (lambda (sheet-name)
+                                                (push sheet-name sheets-read)
+                                                (make-test-sheet))))
+        (let ((out (view-schedule "this month")))
+          (ok (search "No trips scheduled from Wednesday April 1 to Thursday April 30" out))
+          (ok (equal '("Mar 30-Apr 5 (Holy wk)" "Apr 6-12" "Apr 13-19 " "Apr 20-26" "Apr 27-May 3")
+                     (reverse sheets-read))))))
     ;; the phrases that once failed in Slack ("/view the whole week",
     ;; "/view the week") read as this week end to end
     (call-with-mock-read-sheet (make-test-sheet)
@@ -1574,7 +1608,7 @@ rows too high."
 (defun fixture-header ()
   "Sheet header text for April 9 of the current year, whatever weekday that is."
   (let* ((year (nth-value 5 (decode-universal-time (get-universal-time))))
-         (day-str (bn:format-booking-day (chronicity:parse (format nil "April 9 ~d" year)))))
+         (day-str (bn:format-booking-day (bn:parse-day (format nil "April 9 ~d" year)))))
     (format nil "~a           ~a" day-str day-str)))
 
 (defun run-book-natural (text sheet &key registered-initials)
@@ -2150,14 +2184,14 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
     ;; a week present in the spreadsheet but absent from any hardcoded list.
     (let ((vb::*weeks* nil)
           (vb::*week-sheets-cache* nil)
-          (year (chronicity:year-of (chronicity:parse "today"))))
+          (year (local-time:timestamp-year (bn:today))))
       (with-mocked-functions ((vb:sheet-tabs
                                (lambda () '("Aug 31-Sep 6" "Dates" "Sep 7-13"))))
         (ok (string= "Aug 31-Sep 6"
-                     (vb::find-week-sheet (chronicity:parse (format nil "September 4 ~D" year)))))
+                     (vb::find-week-sheet (bn:parse-day (format nil "September 4 ~D" year)))))
         (ok (equal '("Aug 31-Sep 6" "Sep 7-13")
                    (vb::find-week-sheets-in-range (+ (* year 10000) 904) (+ (* year 10000) 908))))
-        (ng (vb::find-week-sheet (chronicity:parse (format nil "December 25 ~D" year))))
+        (ng (vb::find-week-sheet (bn:parse-day (format nil "December 25 ~D" year))))
         ;; fetch-all-trips reads exactly the discovered week sheets
         (let ((reads '()))
           (with-mocked-functions ((vb:read-sheet (lambda (sheet-name)
@@ -2189,7 +2223,7 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
     (ng (vb::trip-departure-universal-time (make-trip :departure "garbage"))))
 
   (testing "passenger-trips-today"
-    (let* ((day-str (bn:format-booking-day (chronicity:parse "today")))
+    (let* ((day-str (bn:format-booking-day (bn:today)))
            (sheet (make-test-sheet
                    (make-block (format nil "~a           ~a" day-str day-str)
                                '(:dgh "SHMS" :lgh "Shrine")
@@ -2215,7 +2249,7 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
   (testing "return-driver-trips-today"
     ;; The return leg has its own driver, the first ret-passenger: DM drives
     ;; the DGH home although BW drove it out.
-    (let* ((day-str (bn:format-booking-day (chronicity:parse "today")))
+    (let* ((day-str (bn:format-booking-day (bn:today)))
            (sheet (make-test-sheet
                    (make-block (format nil "~a           ~a" day-str day-str)
                                '(:dgh "SHMS")
@@ -2280,6 +2314,6 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
   (testing "current-year-key"
     (let ((year (nth-value 5 (decode-universal-time (get-universal-time)))))
       (ok (= (+ (* year 10000) 422)
-             (vb::current-year-date-key (chronicity:parse "April 22 2030"))))
+             (vb::current-year-date-key (bn:parse-day "April 22 2030"))))
       (ok (= (+ (* year 10000) 101)
-             (vb::current-year-date-key (chronicity:parse "January 1 1999")))))))
+             (vb::current-year-date-key (bn:parse-day "January 1 1999")))))))

@@ -146,7 +146,6 @@ Prolog-like query language.")
      (list sbcl-alexandria
            sbcl-bordeaux-threads
            sbcl-cffi
-           sbcl-chronicity
            sbcl-cl+ssl
            sbcl-cl-ppcre
            sbcl-clog-2

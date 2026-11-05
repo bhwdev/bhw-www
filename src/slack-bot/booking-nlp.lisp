@@ -5,9 +5,7 @@
   (:use #:common-lisp)
   (:local-nicknames (#:nlp #:project-isidore/slack-bot/nlp))
   (:import-from #:cl-ppcre)
-  (:import-from #:chronicity
-                #:hour-of #:minute-of #:dow-of #:dow-name
-                #:year-of #:month-of #:day-of)
+  (:import-from #:local-time)
   (:export
    ;; parsing
    #:parse-booking #:revise-booking #:possible-initials
@@ -27,8 +25,9 @@
    #:booking-incomplete #:booking-incomplete-missing #:booking-incomplete-understood
    #:booking-incomplete-text #:booking-incomplete-preamble
    #:missing-piece-hint #:slot-label
-   ;; formatting helpers shared with van-booking
-   #:format-time-12h #:format-booking-day #:normalize-day-phrase #:*month-names*)
+   ;; days and times, shared with van-booking
+   #:*now* #:today #:parse-day #:parse-clock #:month-number
+   #:format-time-12h #:format-booking-day #:*month-names*)
   (:documentation
    "Natural-language understanding for van booking requests.
 
@@ -42,7 +41,7 @@ spaCy-style entity ruler for VEHICLE, TIME, DATE and PASSENGER entities, a cue
 matcher for departure/return/destination cue words, and a slot filler that
 decides which time is the departure and which the return, picks the
 destination from the remaining noun material, and resolves dates and times
-with CHRONICITY.  Whatever cannot be found is listed in
+with PARSE-DAY and PARSE-CLOCK.  Whatever cannot be found is listed in
 BOOKING-REQUEST-MISSING so the caller can ask the user to re-send the request.
 REVISE-BOOKING lays a correction (\"8 to 10 pm\", \"take the LGH\") over a
 request already parsed, for the `edit` answer to a booking's confirmation.
@@ -68,15 +67,25 @@ are missing; its report is ready to post to Slack."))
                     (t hour))))
     (format nil "~D:~2,'0D ~A" h12 minute period)))
 
-(defun format-booking-day (dt)
-  "Format a chronicity datetime DT as \"DayOfWeek MonthName Day\", e.g. \"Tuesday April 7\"."
+(defun format-booking-day (date)
+  "Format DATE, a LOCAL-TIME timestamp, as \"DayOfWeek MonthName Day\", e.g.
+\"Tuesday April 7\"."
   (format nil "~A ~A ~D"
-          (string-capitalize (symbol-name (dow-name (dow-of dt))))
-          (nth (1- (month-of dt)) *month-names*)
-          (day-of dt)))
+          (aref local-time:+day-names+ (local-time:timestamp-day-of-week date))
+          (nth (1- (local-time:timestamp-month date)) *month-names*)
+          (local-time:timestamp-day date)))
+
+(defvar *now* nil
+  "The moment taken for now, a LOCAL-TIME timestamp, or NIL for the clock.
+Relative days (\"tomorrow\", \"Friday\", \"next week\") and the year of a
+month-day written without one are reckoned from it; tests bind it.")
+
+(defun today ()
+  "Midnight at the start of today (see *NOW*), in the local time zone."
+  (local-time:timestamp-minimize-part (or *now* (local-time:now)) :hour))
 
 (defun current-year ()
-  (nth-value 5 (decode-universal-time (get-universal-time))))
+  (local-time:timestamp-year (today)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Lexicons
@@ -246,6 +255,9 @@ trade-off DGH and LGH have always carried.")
        ((:lower "the") (:lower ("coming" "upcoming")) (:regex ,weekday)
         (:lower ,*day-parts* :op "?"))
        ((:regex ,weekday) (:lower "next") (:lower "week"))
+       ;; "in 3 days", "in three days"
+       ((:lower "in") (:regex "^\\d{1,3}$") (:lower ("day" "days")))
+       ((:lower "in") (:lower ,*number-words*) (:lower ("day" "days")))
        ((:lower ,*month-words*) (:lower "." :op "?") (:regex "^\\d{1,2}(?:st|nd|rd|th)?$"))
        ((:regex "^\\d{1,2}(?:st|nd|rd|th)?$") (:lower "of" :op "?") (:lower ,*month-words*))
        ((:regex "^\\d{4}-\\d{2}-\\d{2}$"))
@@ -428,9 +440,35 @@ way the span's data gets :INHERIT-MERIDIEM-FROM, the time that follows."
         ((cl-ppcre:scan "(?i)(?:a\\.?m\\.?|midnight)$" text) :am)
         (t nil)))
 
+(defun small-number (word)
+  "The number WORD writes in digits, or as a word from one to twelve; NIL otherwise."
+  (if (and (plusp (length word)) (every #'digit-char-p word))
+      (parse-integer word)
+      (let ((n (position word *number-words* :test #'string-equal)))
+        (and n (1+ n)))))
+
+(defun parse-clock (text)
+  "Minutes since midnight for the time of day TEXT names -- \"7\", \"7:30\",
+\"7.30pm\", \"7 p.m.\", \"nine o'clock pm\", \"19:00\", \"noon\", \"midnight\"
+-- or NIL.  An hour from 1 to 5 without am or pm is in the afternoon, one from
+6 to 12 is as written, and one from 13 to 23 is on the 24-hour clock whatever
+am or pm says."
+  (let ((s (string-downcase (string-trim " " (or text "")))))
+    (cond ((string= s "noon") 720)
+          ((string= s "midnight") 0)
+          (t (cl-ppcre:register-groups-bind (hour minute meridiem)
+                 ("^(\\d{1,2}|[a-z]+)(?:[:.](\\d{2}))?(?:\\s*o['’]?clock)?\\s*(?:([ap])\\.?m\\.?)?$" s)
+               (let ((h (small-number hour))
+                     (m (if minute (parse-integer minute) 0)))
+                 (when (and h (<= h 23) (< m 60))
+                   (+ m (* 60 (cond ((> h 12) h)
+                                    (meridiem (+ (mod h 12) (if (string= meridiem "p") 12 0)))
+                                    ((<= 1 h 5) (+ h 12))
+                                    (t h)))))))))))
+
 (defun resolve-time-span (span)
   "Return (values MINUTES-SINCE-MIDNIGHT MERIDIEM-SOURCE PHRASE) for a :TIME
-span, or NIL when chronicity cannot read it.  MERIDIEM-SOURCE is :OWN when
+span, or NIL when PARSE-CLOCK cannot read it.  MERIDIEM-SOURCE is :OWN when
 the span says am or pm itself, :INHERITED when it took that from the time it
 ranges to (PROMOTE-RANGE-STARTS), and NIL when it has neither."
   (let* ((text (nlp:span-text span))
@@ -440,14 +478,9 @@ ranges to (PROMOTE-RANGE-STARTS), and NIL when it has neither."
          (phrase (if (and meridiem (not own))
                      (format nil "~a ~a" text (string-downcase (symbol-name meridiem)))
                      text))
-         ;; chronicity reads "9 pm" but not "9 o'clock pm"
-         (dt (ignore-errors
-              (chronicity:parse (cl-ppcre:regex-replace-all "(?i)\\s*o['’]?clock" phrase "")
-                                :context :future))))
-    (when dt
-      (values (+ (* 60 (hour-of dt)) (minute-of dt))
-              (cond (own :own) (meridiem :inherited))
-              phrase))))
+         (minutes (parse-clock phrase)))
+    (when minutes
+      (values minutes (cond (own :own) (meridiem :inherited)) phrase))))
 
 (defun cue-in-window-p (cues label window-start window-end)
   (some (lambda (c) (and (eq (nlp:span-label c) label)
@@ -499,8 +532,6 @@ Returns (values DEP-TIME RET-TIME DEP-PHRASE RET-PHRASE)."
         (and ret-span (resolve-time-span ret-span))
       (when (and dep-min ret-min (eq dep-mer :inherited) (>= dep-min ret-min))
         (setf dep-min (mod (+ dep-min 720) 1440)))
-      (when (and dep-min (not dep-mer) (<= 1 (floor dep-min 60) 5))
-        (incf dep-min 720))
       (when (and dep-min ret-min (not ret-mer) (<= ret-min dep-min))
         (setf ret-min (mod (+ ret-min 720) 1440)))
       (values (and dep-min (format-time-12h (floor dep-min 60) (mod dep-min 60)))
@@ -510,6 +541,8 @@ Returns (values DEP-TIME RET-TIME DEP-PHRASE RET-PHRASE)."
 ;;; Days
 
 (defun month-number (word)
+  "1 to 12 when WORD names a month, in full or by its first three or more
+letters, with or without a period."
   (let ((w (string-downcase (string-right-trim "." word))))
     (loop for name in *month-names*
           for i from 1
@@ -517,73 +550,105 @@ Returns (values DEP-TIME RET-TIME DEP-PHRASE RET-PHRASE)."
                     (string-equal w name :end2 (length w)))
             return i)))
 
-(defun normalize-day-phrase (text)
-  "Rewrite a :DATE span's text into a form chronicity reads reliably:
-possessives, commas, periods, day parts and \"coming\"/\"upcoming\" dropped
-(with a \"the\" then left standing before a bare weekday: \"the coming
-Tuesday\" becomes \"Tuesday\"), weekday abbreviations expanded, slash dates
-spelled out, a day-first month-day turned round (\"22nd of April\" becomes
-\"April 22nd\", the only order chronicity reads), explicit month-day phrases
-anchored to the current year (the sheet only ever covers the current year),
-and a weekday dropped when it accompanies a month-day (\"Saturday September
-12\" becomes \"September 12\": chronicity would otherwise take the weekday
-alone and answer the coming Saturday).  VAN-BOOKING's PHRASE-DATE-RANGE puts `/view` ranges through this
-too, so a day means the same thing in a booking and in a view."
-  (let* ((s (cl-ppcre:regex-replace-all "(?i)'s\\b" text ""))
-         (words (cl-ppcre:split "\\s+" (string-trim " " s)))
-         (words (remove "" (mapcar (lambda (w) (string-trim ".," w)) words)
-                        :test #'string=))
-         (words (mapcar (lambda (w)
-                          (let ((abbr (assoc (string-downcase w) *weekday-abbrevs*
-                                             :test #'string=)))
-                            (if abbr (cdr abbr) w)))
-                        words))
-         (words (remove-if (lambda (w) (member (string-downcase w)
-                                               (append *day-parts* '("coming" "upcoming"))
-                                               :test #'string=))
-                           words))
-         (words (if (and (rest words) (string-equal (first words) "the"))
-                    (rest words)
-                    words))
-         (words (if (some #'month-number words)
-                    (remove-if (lambda (w)
-                                 (member (string-downcase w)
-                                         (append *weekday-names* '("next" "this" "last" "the"))
-                                         :test #'string=))
-                               words)
-                    words))
-         (phrase (format nil "~{~a~^ ~}" words)))
-    ;; "4/22" or "4/22/2026" -> "April 22 2026"
-    (cl-ppcre:register-groups-bind (m d y)
-        ("^(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?$" phrase)
-      (let ((month (parse-integer m)))
-        (when (<= 1 month 12)
-          (setf phrase (format nil "~a ~a ~a" (nth (1- month) *month-names*) d
-                               (cond ((null y) (current-year))
-                                     ((= (length y) 2) (+ 2000 (parse-integer y)))
-                                     (t y)))))))
-    ;; "22nd of April" -> "April 22nd": chronicity reads only the month-first order
-    (cl-ppcre:register-groups-bind (d m)
-        ("(?i)^(\\d{1,2}(?:st|nd|rd|th)?) of (\\S+)$" phrase)
-      (when (month-number m)
-        (setf phrase (format nil "~a ~a" m d))))
-    ;; "Tuesday next week" -> "next week Tuesday"
-    (cl-ppcre:register-groups-bind (wd) ("(?i)^(\\w+) next week$" phrase)
-      (setf phrase (format nil "next week ~a" wd)))
-    ;; explicit month-day without a year -> current year
-    (when (and (some #'month-number words)
-               (some (lambda (w) (cl-ppcre:scan "^\\d{1,2}(?:st|nd|rd|th)?$" w)) words)
-               (not (cl-ppcre:scan "\\d{4}" phrase)))
-      (setf phrase (format nil "~a ~d" phrase (current-year))))
-    phrase))
+(defun weekday-index (word)
+  "0 for Monday to 6 for Sunday when WORD names a weekday, in full or abbreviated."
+  (let ((w (string-downcase word)))
+    (position (or (cdr (assoc w *weekday-abbrevs* :test #'string=)) w)
+              *weekday-names* :test #'string=)))
+
+(defun day-of-month (word)
+  "N when WORD is \"N\", \"Nst\", \"Nnd\", \"Nrd\" or \"Nth\" for an N from 1 to 31."
+  (cl-ppcre:register-groups-bind ((#'parse-integer n))
+      ("(?i)^(\\d{1,2})(?:st|nd|rd|th)?$" word)
+    (and (<= 1 n 31) n)))
+
+(defun make-date (year month day)
+  "Midnight at the start of YEAR-MONTH-DAY, or NIL when there is no such day."
+  (when (and (<= 1 month 12) (<= 1 day (local-time:days-in-month month year)))
+    (local-time:encode-timestamp 0 0 0 0 day month year)))
+
+(defun parse-day (phrase)
+  "The day PHRASE names, as midnight at its start, or NIL.  PHRASE is a :DATE
+span's text or a day of a `/view` range:
+  \"today\", \"tonight\", \"tomorrow\", \"the day after tomorrow\", \"yesterday\"
+  \"in 3 days\", \"in three days\", \"in 1 day\"
+  \"Tuesday\", \"this Tuesday\", \"next Tuesday\", \"the coming Tuesday\"
+                                -> the first Tuesday after today
+  \"last Tuesday\"              -> the last Tuesday before today
+  \"next week Tuesday\", \"Tuesday next week\" (this, last)
+                                -> that day of that Monday-to-Sunday week
+  \"April 22\", \"Apr. 22nd\", \"the 22nd of April\", \"Wed, April 22\",
+  \"April 22 2027\", \"4/22\", \"4/22/27\", \"2027-04-22\"
+                                -> that date, in the current year unless the
+                                   phrase gives one (the sheet only ever
+                                   covers the current year); a weekday
+                                   beside it is not believed over it
+Possessives, commas, periods, the part of a day (\"tomorrow morning\") and
+\"the\", \"of\", \"coming\" and \"upcoming\" are ignored; any other word
+leaves PHRASE unread."
+  (let* ((words (remove-if (lambda (w)
+                             (member w (list* "" "the" "of" "coming" "upcoming" *day-parts*)
+                                     :test #'string-equal))
+                           (mapcar (lambda (w) (string-trim ".," w))
+                                   (cl-ppcre:split "\\s+" (cl-ppcre:regex-replace-all
+                                                           "(?i)['’]s\\b" (or phrase "") "")))))
+         (single (and words (null (rest words)) (first words)))
+         (today (today))
+         (year (local-time:timestamp-year today))
+         ;; Monday is 0, as in *WEEKDAY-NAMES*; LOCAL-TIME counts from Sunday
+         (today-index (mod (+ (local-time:timestamp-day-of-week today) 6) 7))
+         (month (some #'month-number words))
+         (day (some #'day-of-month words))
+         (weekday (some #'weekday-index words))
+         (given-year (find-if (lambda (w) (cl-ppcre:scan "^\\d{4}$" w)) words)))
+    (flet ((days-from-today (n)
+             (local-time:timestamp+ today n :day))
+           (only-words-p (predicate)
+             (every (lambda (w)
+                      (or (funcall predicate w)
+                          (member w '("this" "next" "last") :test #'string-equal)))
+                    words)))
+      (or
+       (and single
+            (or (cl-ppcre:register-groups-bind ((#'parse-integer y m d))
+                    ("^(\\d{4})-(\\d{2})-(\\d{2})$" single)
+                  (make-date y m d))
+                (cl-ppcre:register-groups-bind ((#'parse-integer m d) y)
+                    ("^(\\d{1,2})/(\\d{1,2})(?:/(\\d{2}|\\d{4}))?$" single)
+                  (make-date (cond ((null y) year)
+                                   ((= (length y) 2) (+ 2000 (parse-integer y)))
+                                   (t (parse-integer y)))
+                             m d))))
+       (and month day
+            (only-words-p (lambda (w) (or (month-number w) (day-of-month w) (weekday-index w)
+                                          (equal w given-year))))
+            (make-date (if given-year (parse-integer given-year) year) month day))
+       (let ((key (format nil "~(~{~a~^ ~}~)" words)))
+         (cond ((member key '("today" "tonight") :test #'string=) today)
+               ((string= key "tomorrow") (days-from-today 1))
+               ((string= key "day after tomorrow") (days-from-today 2))
+               ((string= key "yesterday") (days-from-today -1))
+               (t (cl-ppcre:register-groups-bind ((#'small-number n))
+                      ("^in (\\d{1,3}|[a-z]+) days?$" key)
+                    (and n (days-from-today n))))))
+       (and weekday
+            (only-words-p (lambda (w) (or (weekday-index w) (string-equal w "week"))))
+            (let ((last-p (find "last" words :test #'string-equal)))
+              (days-from-today
+               (cond ((find "week" words :test #'string-equal)
+                      (+ (- weekday today-index)
+                         (cond (last-p -7)
+                               ((find "next" words :test #'string-equal) 7)
+                               (t 0))))
+                     (last-p (- (1+ (mod (- today-index weekday 1) 7))))
+                     (t (1+ (mod (- weekday today-index 1) 7)))))))))))
 
 (defun resolve-day-span (span)
-  "Return (values DATETIME DAY-STRING PHRASE) for a :DATE span, or NIL."
+  "Return (values DATE DAY-STRING PHRASE) for a :DATE span, or NIL."
   (let* ((text (nlp:span-text span))
-         (phrase (normalize-day-phrase text))
-         (dt (ignore-errors (chronicity:parse phrase :context :future))))
-    (when dt
-      (values dt (format-booking-day dt) text))))
+         (date (parse-day text)))
+    (when date
+      (values date (format-booking-day date) text))))
 
 ;;; Destination
 

@@ -176,7 +176,7 @@ If CHANNEL evaluates to NIL, error reports are suppressed (only logged)."
 
 *To book a trip*, type `/book` followed by the trip in your own words. Say:
   • *destination* — `for swimming`, `to the dentist`, `the SHMS trip`
-  • *day* — `tomorrow`, `next Tuesday`, `April 22`
+  • *day* — `tomorrow`, `next Tuesday`, `April 22`, `in 3 days`
   • *passengers* — initials, driver first: `for CG and BW`, `with MM, DM & CG`. Lowercase (`for cg and bw`) works for anyone already on the schedule; use capitals for someone new. Say `me` for yourself once you have run `/iam` (see below).
   • *times* out and back — `at 7 pm to 9 pm`, `leaving at 8:30 and back around 11`
   • *vehicle* (optional) — `take the DGH`, `in the LGH`, `use the Chevy`, `the personal car`. If you don't say, I take the first van that is free (DGH, then LGH, then the Chevy).
@@ -194,7 +194,7 @@ I never book over a clash: if the van you asked for is already out at that time,
 If something is missing, I reply with what I understood and ask you to re-send the whole `/book` request with the missing piece added.
 
 *To see the schedule*, type `/view` for today, or add a day or a range:
-  `/view tomorrow`   `/view the rest of the week`   `/view the weekend`   `/view Apr 20 to Apr 26`   `/view Sept 19-22`
+  `/view tomorrow`   `/view the rest of the week`   `/view the weekend`   `/view next month`   `/view Apr 20 to Apr 26`   `/view Sept 19-22`
 
 *Who you are*: type `/iam` and your initials, e.g. `/iam DMM`, and I'll read `me`, `my` and `I` as you from then on — `/book me a van to the dentist tomorrow 9 to 11`, `/book can I get a van for the pool Saturday 8-10`, `/book me and CG to swimming Tuesday 7-9pm`. Type `/iam` on its own to see who I have you down as. I remember it across restarts and through `/unsubscribe`.
 
@@ -910,6 +910,8 @@ Examples:
   /view the rest of the week
   /view this week and next week
   /view the weekend
+  /view next month
+  /view in 3 days
   /view Apr 20 to Apr 26
   /view Sept 19-22
 A range it cannot read gets examples of ones it can."
