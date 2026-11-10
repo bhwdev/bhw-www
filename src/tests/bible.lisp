@@ -1,137 +1,24 @@
 (uiop:define-package #:project-isidore/tests/bible
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
-  (:import-from #:rove #:deftest #:ok #:ng #:signals #:skip #:setup #:teardown)
+  (:import-from #:rove #:deftest #:ok #:signals #:skip #:setup #:teardown)
   (:local-nicknames (#:bible-db #:project-isidore/bible/database)
                     (#:bible #:project-isidore/bible/text)
-                    (#:reader #:project-isidore/bible/reader)
-                    (#:store #:project-isidore/store))
+                    (#:reader #:project-isidore/bible/reader))
   (:documentation
    "Tests for the bible: lookups, links and search over the text, and the
-reader's paths.  Most need the bible's database, which only production has
-(see PROJECT-ISIDORE/BIBLE/DATABASE), so elsewhere they skip; the database
-layer and the search are also tested on a few verses made here."))
+reader's paths.  They need the bible store, which only production has (see
+PROJECT-ISIDORE/BIBLE/DATABASE), so elsewhere they skip."))
 
 (in-package #:project-isidore/tests/bible)
 
 (setup
-  (bible-db:open-database))
+  (bible-db:open-database)
+  (bible:open-search-index))
 
 (teardown
+  (bible:close-search-index)
   (bible-db:close-database))
-
-;;; =====================================================================
-;;; A database of a few verses, made for the test
-;;; =====================================================================
-
-(defparameter +fixture+
-  '(:book-numbers (("Genesis" . 1) ("John" . 50) ("Romans" . 52)
-                   ("I John" . 69) ("1 John" . 69))
-    :chapter-urls (("/bible/1-1-1/1-1-2" . "Genesis 1") ("/bible/50-3-16/50-3-16" . "John 3"))
-    :book-urls (("/bible/1-1-1/1-1-2" . "Genesis") ("/bible/50-3-16/50-15-13" . "John"))
-    :verses ((8 1 0 0 "The book of Genesis." nil nil)
-             (10 1 1 1 "In the beginning God created heaven, and earth." nil
-              "Moses wrote this.  See John 1:1.")
-             (11 1 1 2 "And the earth was void and empty." nil nil)
-             (20 50 3 16 "For God so loved the world, as to give his only begotten Son."
-              "Romans 5:8." "The charity of God.")
-             (21 50 15 13 "Greater love than this no man hath, that a man lay down his life for his friends."
-              nil nil)
-             (30 69 3 16 "In this we have known the charity of God, because he hath laid down his life for us."
-              nil nil)
-             (40 52 3 23 "For all have sinned, and do need the glory of God." nil nil)
-             (41 52 5 8 "But God commendeth his charity towards us." "John 3:16." nil)))
-  "The data WRITE-DATABASE makes the fixture database from.")
-
-(defmacro with-fixture-bible (&body body)
-  "Run BODY with the bible's database the one made from +FIXTURE+, in a
-temporary file, and its lookup tables filled from it, all rebound so that
-the real database, if open, is left as it was."
-  `(let* ((bible-db:*database-path*
-            (uiop:subpathname (uiop:temporary-directory)
-                              (format nil "project-isidore-bible-~36R.sqlite3"
-                                      (random (expt 36 8) (make-random-state t)))))
-          (bible-db:*database* nil)
-          (bible-db:+bible-book-numbers-alist+ nil)
-          (bible-db:+bible-chapter-url-alist+ nil)
-          (bible-db:+bible-book-url-alist+ nil)
-          (bible-db:+bible-heading-to-uid+ nil)
-          (bible-db:+bible-uid-to-heading+ nil))
-     (unwind-protect
-          (progn
-            (bible-db:write-database +fixture+ bible-db:*database-path*)
-            (bible-db:open-database)
-            ,@body)
-       (bible-db:close-database)
-       (uiop:delete-file-if-exists bible-db:*database-path*))))
-
-(defun found (query)
-  "The uids the fixture's search for QUERY finds, best first."
-  (mapcar #'car (bible:search-bible query '(:num-docs 100))))
-
-;; Without a database file there is no bible, rather than an empty one.
-(deftest open-database-without-a-file
-  (let ((bible-db:*database-path* #p"/nonexistent/project-isidore/bible.sqlite3")
-        (bible-db:*database* nil))
-    (ng (bible-db:open-database))
-    (ng (probe-file bible-db:*database-path*))))
-
-(deftest fixture-lookups
-  (with-fixture-bible
-    (ok (= 20 (bible:get-bible-uid 50 3 16)))
-    (ok (string= "John 3:16" (bible:get-heading-text 20)))
-    (ok (bible:valid-bible-uid-p 8))
-    (ng (bible:valid-bible-uid-p 9))
-    (ok (= 69 (bible:bible-book-convert-dwim "1 john")))
-    (ok (string= "I John" (bible:bible-book-convert-dwim 69)))
-    (ok (equal '("/bible/1-1-1/1-1-2" . "Genesis") (first bible-db:+bible-book-url-alist+)))
-    (let ((data (bible:get-bible-verse-data 41)))
-      (ok (string= "Romans 5:8" (getf data :heading)))
-      (ok (string= "John 3:16." (getf data :cross-references)))
-      (ng (getf data :footnotes)))
-    (ng (bible-db:bible-obj-with-id 9))))
-
-;; The application cannot change the bible.
-(deftest fixture-is-read-only
-  (with-fixture-bible
-    (ok (signals (store:execute bible-db:*database* "DELETE FROM verse")))
-    (ok (string= "The book of Genesis." (bible:get-bible-text 8)))))
-
-(deftest fixture-search
-  (with-fixture-bible
-    ;; Required fields: b holds every name of the book but its ordinal, so
-    ;; "john" finds John and 1 John.
-    (ok (equal '(20 30) (found "+b:john +c:3 +v:16")))
-    (ok (equal '(30) (found "+b:john +c:3 +v:16 !t:begotten")))
-    (ok (equal '(30) (found "+b:john +c:3 +v:16 -t:begotten")))
-    ;; Optional words: any of them, best first.
-    (ok (equal '(20 30 41) (sort (found "charity") #'<)))
-    (ok (equal '(20 30) (sort (found "charity !b:romans f:charity") #'<))
-        "an excluded clause filters, an optional one only ranks")
-    (ok (equal '(41) (found "+charity +b:romans")))
-    ;; Prefixes and phrases.
-    (ok (equal '(20 30 41) (sort (found "char*") #'<)))
-    (ok (equal '(21) (found "\"no greater love\""))
-        "stop words are dropped from a phrase too")
-    ;; A verse with every word outranks one with some of them, and a
-    ;; reference to Romans 5:8 is no hit on 5 or 8.
-    (ok (= 40 (first (found "romans 3 23"))))
-    (ok (equal '(41) (found "+romans +c:5 +v:8")))
-    (ok (member 20 (found "x:5:8")))
-    ;; Nothing to search for.
-    (ng (found "the"))
-    (ng (found ""))
-    (ng (found "!charity"))
-    (ng (found "+\"\" ***"))))
-
-(deftest query-parsing
-  (ok (equal '((:must "b" "\"john\"") (:should nil "\"charity\"") (:not "c" "\"2\""))
-             (bible::parse-query "+B:john the charity !c:2")))
-  (ok (equal '((:should nil "\"exact\" *")) (bible::parse-query "exact*")))
-  (ok (equal '((:should nil "\"greater love\"")) (bible::parse-query "\"no greater love\"")))
-  (ok (equal '((:should nil "\"z:a:b\"")) (bible::parse-query "z:a:b"))
-      "an unknown field is part of the word")
-  (ok (null (bible::parse-query "the and of +the * \"\""))))
 
 (defmacro deftest-with-bible (name &body body)
   "A DEFTEST of BODY that is skipped on a machine without the bible store."

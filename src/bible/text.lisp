@@ -4,9 +4,9 @@
 (uiop:define-package #:project-isidore/bible/text
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
+  (:import-from #:montezuma)
   (:import-from #:project-isidore/bible/database
-                #:*database*
-                #:bible-obj-with-id #:search-verses
+                #:bible-obj-with-id
                 #:heading-of #:text-of #:cross-references-of #:footnotes-of
                 #:+bible-book-numbers-alist+
                 #:+bible-chapter-url-alist+
@@ -25,11 +25,14 @@
            #:encode-cross-references-to-html-links
            #:*reference-regex*
            #:make-bible-chapter-url-list
+           #:*search-index-path*
+           #:open-search-index
+           #:close-search-index
            #:search-bible)
   (:documentation
    "The text of the bible: verses by book, chapter and verse, their headings,
 footnotes and cross-references (as HTML links), and full-text search over
-them, in the query syntax the reader documents, with SQLite's FTS5."))
+them with a Montezuma index."))
 
 (in-package #:project-isidore/bible/text)
 
@@ -315,66 +318,39 @@ Example:
                 +bible-chapter-url-alist+))))))))
 
 ;;; Search
-;;;
-;;; The syntax is the one the reader's help documents, which the Montezuma
-;;; index before this took: words, "quoted phrases" and prefixes (word*),
-;;; each optionally limited to a field (b: book, c: chapter, v: verse,
-;;; t: text, f: footnotes, x: cross-references) and marked required (+) or
-;;; excluded (! or -).  Unmarked clauses are optional: they decide the order,
-;;; and, when nothing is required, which verses match at all.  Common
-;;; English words are dropped from it, as Montezuma's analyzer did.
 
-(defparameter *stop-words*
-  '("a" "an" "and" "are" "as" "at" "be" "but" "by" "for" "if" "in" "into" "is"
-    "it" "no" "not" "of" "on" "or" "such" "that" "the" "their" "then" "there"
-    "these" "they" "this" "to" "was" "will" "with")
-  "Words a query ignores: Lucene's English stop words, which Montezuma used.")
+(defvar *search-index-path* #p"/var/local/project-isidore/montezuma/"
+  "The directory of the Montezuma index over the bible, shipped with it.")
 
-(defparameter *query-clause-regex*
-  (cl-ppcre:create-scanner
-   "([+!-]?)(?:([bcvtfxBCVTFX]):)?(?:\"([^\"]*)\"?|([^\\s\"]+))")
-  "One clause of a search query: its mark, its field, and a quoted phrase
-or a word.")
+(defvar *search-index* nil
+  "The open Montezuma index, or NIL before OPEN-SEARCH-INDEX or without one.")
 
-(defun stop-word-p (word)
-  "True when WORD, less any punctuation around it, is one of *STOP-WORDS*."
-  (member (string-trim "'.,;:?!()[]{}" word) *stop-words* :test #'string-equal))
+(defun open-search-index ()
+  "Open the index at *SEARCH-INDEX-PATH*, or return NIL when there is none
+there (Montezuma would create an empty one)."
+  (setf *search-index*
+        (when (uiop:directory-exists-p *search-index-path*)
+          (make-instance 'montezuma:index
+                         :path *search-index-path*
+                         :default-field "*"
+                         ;; A query without a field searches all of these:
+                         ;; book, chapter, verse, text, footnotes and
+                         ;; cross-references (see the reader's syntax help).
+                         :fields '("b" "c" "v" "t" "f" "x")))))
 
-(defun parse-query (query)
-  "The clauses of the search QUERY, as SEARCH-VERSES takes them: each
-(OCCURRENCE FIELD MATCH), where OCCURRENCE is :MUST, :SHOULD or :NOT, FIELD
-is the field's letter or NIL for every field, and MATCH is the FTS5 string
-for the word, phrase or prefix.  Stop words are left out, from phrases too,
-and so is a clause left with no letter or digit."
-  (let ((clauses '()))
-    (cl-ppcre:do-register-groups (mark field phrase word)
-        (*query-clause-regex* query)
-      (let* ((prefixp (and word (> (length word) 1)
-                           (char= #\* (char word (1- (length word))))))
-             (words (if phrase
-                        (remove-if #'stop-word-p (cl-ppcre:split "\\s+" phrase))
-                        (let ((word (remove #\* word)))
-                          (unless (and (not prefixp) (stop-word-p word))
-                            (list word)))))
-             (text (format nil "~{~A~^ ~}" words)))
-        (when (some #'alphanumericp text)
-          (push (list (cond ((string= mark "+") :must)
-                            ((member mark '("!" "-") :test #'string=) :not)
-                            (t :should))
-                      (and field (string-downcase field))
-                      (format nil "\"~A\"~:[~; *~]"
-                              (cl-ppcre:regex-replace-all "\"" text "\"\"")
-                              prefixp))
-                clauses))))
-    (nreverse clauses)))
+(defun close-search-index ()
+  "Close the index if it is open."
+  (when *search-index*
+    (montezuma:close *search-index*))
+  (setf *search-index* nil))
 
 (defun search-bible (query &optional options)
-  "Search the Bible and Haydock's commentary for QUERY, in the syntax above.
-Returns an alist of the bible unique ids of the verses found, best first, to
-their relevance.  OPTIONS is a plist: :NUM-DOCS caps the results (10)."
-  (let ((clauses (parse-query query)))
-    (when (and clauses *database*)
-      (handler-case (search-verses clauses (getf options :num-docs 10))
-        (error (condition)
-          (format *error-output* "search-bible: ~S failed: ~A~%" query condition)
-          nil)))))
+  "Searches the Bible and Haydock's commentary. Returns an association list of
+Bible unique ID's and a relevance score "
+  (let ((results '()))
+    (montezuma:search-each *search-index* query
+                           (lambda (doc score)
+                             (declare (fixnum doc))
+                             (push (cons doc score) results))
+                           options)
+    (nreverse results)))

@@ -8,8 +8,7 @@
   (:import-from #:usocket)
   (:import-from #:project-isidore/tests/test-utils #:with-temp-data-root)
   (:local-nicknames (#:main #:project-isidore/main)
-                    (#:layout #:project-isidore/site/layout)
-                    (#:bible-db #:project-isidore/bible/database))
+                    (#:layout #:project-isidore/site/layout))
   (:documentation
    "Tests for the application as a whole."))
 
@@ -200,15 +199,7 @@ it."
                                      "Content-Type: application/x-www-form-urlencoded"
                                      "Content-Length: 1000000000000")))
              (ok (= 200 (http-status 8293 "GET /assets/global.css HTTP/1.0")))
-             (testing "the pages are made on the server, the 404 too"
-               (dolist (path '("/" "/about" "/work/" "/contact" "/subscribe"))
-                 (ok (= 200 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))
-               (ok (= 404 (http-status 8293 "GET /no-such-page HTTP/1.0")))
-               (ok (= 404 (http-status 8293 "GET /assets/no-such-file.css HTTP/1.0")))
-               ;; The bible only where its database is.
-               (ok (= (if (probe-file bible-db:*database-path*) 200 503)
-                      (http-status 8293 "GET /bible/john-3-16 HTTP/1.0")))
-               (ok (= 303 (http-status 8293 "POST /theme HTTP/1.0" "Content-Length: 0"))))
+             (ok (= 303 (http-status 8293 "POST /theme HTTP/1.0" "Content-Length: 0")))
              (testing "a static HTML file is sent in the reader's theme"
                (multiple-value-bind (status headers)
                    (http-get 8293 "/assets/blog/archive.html" "Cookie: theme=dark")

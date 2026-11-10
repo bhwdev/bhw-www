@@ -18,6 +18,7 @@
                     (#:layout #:project-isidore/site/layout)
                     (#:pages #:project-isidore/site/pages)
                     (#:bible-db #:project-isidore/bible/database)
+                    (#:bible #:project-isidore/bible/text)
                     (#:reader #:project-isidore/bible/reader)
                     (#:bot-db #:project-isidore/slack-bot/database)
                     (#:bot #:project-isidore/slack-bot/bot))
@@ -29,11 +30,9 @@
 Slack bot, served by one CLOG (Hunchentoot) web server.
 
 INITIALIZE-APPLICATION opens each part's database, starts the bot's
-reminder scheduler and the web server.  The bot's endpoints and the pages
-of the site and the reader, which are made whole on the server, are Lack
-middleware in front of CLOG; CLOG itself serves the static files, and is
-there for GUIs, which register their paths with CLOG:SET-ON-NEW-WINDOW.
-Loading the system
+reminder scheduler and the web server, and has each part register its pages;
+the bot's endpoints, and the colour theme's /theme, are Lack middleware in
+front of CLOG.  Loading the system
 does none of this, so loading has no side effects and the build can save the
 image straight after loading it.  APPLICATION-TOPLEVEL is the executable's
 entry point."))
@@ -66,8 +65,8 @@ entry point."))
 
 (defparameter *max-request-octets* (* 1024 1024)
   "The largest request body the server accepts.  Nothing it serves takes an
-upload: Slack's requests are a few kilobytes, the theme toggle's none, and
-a CLOG GUI talks to the server over its websocket.")
+upload: Slack's requests are a few kilobytes, and the browser talks to CLOG
+over its websocket.")
 
 (defun safe-path-p (path)
   "True when PATH, a request's decoded path, is one the site may serve:
@@ -220,19 +219,15 @@ its ETag names the theme too, and it varies with the Cookie header."
                       (t
                        (stream-file 200 validated pathname))))))))))
 
-(defun make-page-server ()
-  "Return a Lack middleware that serves the pages of the site and of the
-bible reader, which are made whole here, and the site's 404 page for any
-path that nothing behind it serves either: CLOG, which has the static files
-and whatever GUIs register with it."
+(defun make-theme-toggle ()
+  "Return a Lack middleware that answers the navbar's theme toggle, a POST
+to /theme (LAYOUT:THEME-TOGGLE-RESPONSE)."
   (lambda (app)
     (lambda (env)
-      (or (pages:handle-request env)
-          (reader:handle-request env)
-          (let ((response (funcall app env)))
-            (if (and (consp response) (eql 404 (first response)))
-                (pages:not-found-response env)
-                response))))))
+      (if (and (eq :post (getf env :request-method))
+               (equal "/theme" (getf env :path-info)))
+          (layout:theme-toggle-response env)
+          (funcall app env)))))
 
 (defun wait-for-port-ready (port &key (host "127.0.0.1") (timeout 5.0) (interval 0.05))
   "Block until the web server on HOST:PORT has fully started, or TIMEOUT
@@ -276,23 +271,25 @@ immediately follows the thread's creation."
 site, the bible reader and the bot's endpoints on PORT, on localhost."
   (terminate-application)
   (bible-db:open-database)
+  (bible:open-search-index)
   (bot-db:open-database)
   (bot:load-config)
   (bot:start-reminder-scheduler)
-  ;; No page of CLOG's own, not even /: the pages are the page server's.
-  (initialize nil
+  (initialize 'pages:on-index-handler
               :host "127.0.0.1"
               :port port
-              :boot-file nil
+              :extended-routing t
               ;; The first is outermost: the guard sees every request first,
               ;; and the file validator, last, sees what CLOG answers.
               :lack-middleware-list (list (make-request-guard)
                                           (bot:make-slack-middleware)
-                                          (make-page-server)
+                                          (make-theme-toggle)
                                           (make-file-validator))
               :static-root (namestring
                             (asdf:system-relative-pathname :project-isidore "./")))
-  ;; CLOG's own JS files (boot.js, jquery), for GUIs
+  (pages:register-routes)
+  (reader:register-routes)
+  ;; CLOG's own JS files (boot.js, jquery)
   (conn:add-plugin-path "^/js/"
                         (merge-pathnames "static-files/"
                                          (asdf:system-source-directory :clog)))
@@ -324,6 +321,7 @@ Idempotent."
   (when (or *server* (is-running-p))
     (ignore-errors (shutdown))
     (setf *server* nil))
+  (bible:close-search-index)
   (bible-db:close-database)
   (bot-db:close-database)
   t)

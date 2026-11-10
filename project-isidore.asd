@@ -19,6 +19,9 @@ Bible reader and a Slack bot that books vans, served by one process."
   :in-order-to ((asdf:test-op (asdf:test-op "project-isidore/tests"))))
 
 (register-system-packages "clog" '(:clog-connection :clog-web))
+;; The engine and its replication transport, without the HTTP API that the
+;; full "graph-db" system adds (guix.scm builds only these two).
+(register-system-packages "graph-db/replication" '(:graph-db))
 
 (asdf:defsystem "project-isidore/tests"
   :class :package-inferred-system

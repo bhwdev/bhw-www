@@ -417,9 +417,8 @@ p.verse  { margin-left:  3%; }
     padding-right: 0.5rem;
     padding-left: 0.18rem;
 }
-/* CSS.  A <summary class="button"> -- the reader's book and chapter
-   pickers -- looks like a button too. */
-button, summary.button {
+/* CSS */
+button {
   background-color: var(--button-bg);
   border: 1px solid var(--button-border);
   border-radius: 8px;
@@ -443,13 +442,11 @@ button, summary.button {
   -webkit-user-select: none;
   width: auto;
 }
-summary.button  { list-style:  none; }
-summary.button::-webkit-details-marker  { display:  none; }
-button:focus-visible, summary.button:focus-visible {
+button:focus-visible {
   box-shadow: var(--button-border) 0 0 0 2px, var(--page-bg) 0 0 0 4px;
   transition: box-shadow .2s;
 }
-button:active, summary.button:active {
+button:active {
   background-color: var(--button-active-bg);
   border-color: var(--button-border);
   transform: scale(.96);
@@ -460,18 +457,6 @@ button:disabled {
   cursor: not-allowed;
   opacity: 1;
 }
-
-/* The bible reader.  Its search help opens from its heading.  Its font
-   menu needs no script: the option checked in a .reader's menu picks the
-   font of the .verses beside it.  A browser without :has() keeps the
-   page's font. */
-details.syntax > summary  { list-style:  none; text-align:  center; cursor:  pointer; }
-details.syntax > summary::-webkit-details-marker  { display:  none; }
-.reader:has(#input-font option[value="Times New Roman"]:checked) .verses  { font-family:  "Times New Roman", Times, serif; }
-.reader:has(#input-font option[value="Arial"]:checked) .verses  { font-family:  Arial, Helvetica, sans-serif; }
-.reader:has(#input-font option[value="Courier New"]:checked) .verses  { font-family:  "Courier New", Courier, monospace; }
-.reader:has(#input-font option[value="Garamond"]:checked) .verses  { font-family:  Garamond, serif; }
-.reader:has(#input-font option[value="Verdana"]:checked) .verses  { font-family:  Verdana, Geneva, sans-serif; }
 
 /* ---------------------------------------------------------------------------
    Source-block syntax highlighting.

@@ -20,25 +20,23 @@ The code is three parts served by one process, each a group of
 package-inferred systems under =src/=:
 
 - =site/= -- the personal website's pages, and the layout every page shares.
-- =bible/= -- the Douay-Rheims reader: its SQLite database (=database=), the
-  text and its full-text search (=text=, on SQLite's FTS5), and its pages
-  (=reader=).
-- =slack-bot/= -- the van-booking bot: its SQLite database (=database=), the
+- =bible/= -- the Douay-Rheims reader: its graph-db store (=database=), the
+  text and its search (=text=), and its pages (=reader=).
+- =slack-bot/= -- the van-booking bot: its graph-db store (=database=), the
   language layers (=nlp=, =booking-nlp=), the schedule
   spreadsheet (=van-booking=, with the Apps Script it talks to in
   =van-booking.gs=), and the Slack endpoints and reminders (=bot=).
 
 =main.lisp= starts them all (=initialize-application=); =store.lisp= is the
-SQLite plumbing the two databases share. The tests mirror this tree under
+graph-db plumbing the two databases share. The tests mirror this tree under
 =src/tests/= and use [[https://github.com/fukamachi/rove][Rove]].
 
-The pages are whole HTML documents made on the server, and nothing on them
-needs JavaScript: the site's and the reader's pages are Lack middleware in
-front of [[https://github.com/rabbibotton/clog][CLOG]], which serves the static files and is there for GUIs, which
-register their paths with =clog:set-on-new-window=. The colour theme is a
-cookie the navbar's toggle sets through =/theme=; the server states it in
-every page, the static blog's included, and links =assets/dark.css= when it
-applies.
+The pages are built by [[https://github.com/rabbibotton/clog][CLOG]] over its websocket (a browser without
+JavaScript sees nothing), and none of them, the static blog's included, runs
+a script of the site's own: what moves on the index page is CSS, and the
+colour theme is a cookie that the navbar's toggle sets by posting to
+=/theme=. CLOG reads it for its pages; the file server writes it into each
+static HTML file it sends, and links =assets/dark.css= when it applies.
 
 1. Clone the repository and enter the development environment,
 
@@ -60,12 +58,9 @@ applies.
 
 3. Load Project Isidore, run its tests & start a local development server.
    Loading opens nothing; =initialize-application= opens the databases. The
-   bible pages and search need the bible's database,
-   =/var/local/project-isidore/bible.sqlite3=, which is not in the
-   repository: without it they answer 503, and the bible tests that need the
-   whole text skip (the rest run on a few verses they make).
-   =bible/database:write-database= makes the file from the plain data
-   =read-export= reads.
+   bible pages and search need the bible store and Montezuma index under
+   =/var/local/project-isidore/=, which are not in the repository, so the
+   bible tests skip without them.
 
    #+begin_src lisp
      CL-USER> (asdf:test-system "project-isidore")
@@ -90,13 +85,13 @@ applies.
 
    #+begin_src bash
      HOME=/var/lib/project-isidore
-     PROJECT_ISIDORE_DATA=/var/lib/project-isidore/  # the bot's database, slack-bot.sqlite3
+     PROJECT_ISIDORE_DATA=/var/lib/project-isidore/  # the bot's store, graph-db's system directory
      SSL_CERT_DIR=/etc/ssl/certs                     # Guix's OpenSSL looks in its own store directory otherwise
      SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
      # and SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, VAN_SCHEDULE_SECRET
    #+end_src
 
-   The bible's database is =/var/local/project-isidore/bible.sqlite3=.
+   The bible store and Montezuma index are in =/var/local/project-isidore/=.
 
 ** Deployment
 

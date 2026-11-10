@@ -1,10 +1,8 @@
 ;;; SPDX-FileCopyrightText: 2026  Ben H. W. <foss@bhw.name>
 ;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-;;; Guix package of Project Isidore.
-;;; It needs a Guix whose sbcl-clog is 2.4 or later (Guix commit fb6e77f):
-;;; src/main.lisp passes INITIALIZE a :LACK-MIDDLEWARE-LIST, which 1.2 lacks.
-;;; This file evaluates to the package:
+;;; Guix package of Project Isidore, and of the dependencies Guix lacks or
+;;; ships too old.  This file evaluates to the package:
 ;;;
 ;;;   guix build -f guix.scm       compiles, tests, and saves bin/project-isidore
 ;;;   guix shell -D -f guix.scm    development environment: SBCL and the inputs
@@ -28,6 +26,96 @@
   ;; editor files in the checkout do not change the source hash.
   (or (git-predicate (current-source-directory))
       (const #t)))
+
+(define-public sbcl-graph-db
+  (let ((commit "7bc038f589ef6512486e30e99b6c3d4581fc8419") ; v4.1.0
+        (revision "0"))
+    (package
+      (name "sbcl-graph-db")
+      (version (git-version "4.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/kraison/vivace-graph")
+               (commit commit)))
+         (file-name (git-file-name "cl-graph-db" version))
+         (sha256
+          (base32 "0r3325z0aw64dg4cbbxd0659k0956pyg3r3q7xaqkp5zaiihwksk"))))
+      (build-system asdf-build-system/sbcl)
+      (arguments
+       ;; The engine and its replication transport only.  The full
+       ;; "graph-db" system adds the HTTP API (rest.lisp: ningle on a
+       ;; Clack server of its own), which Project Isidore does not serve.
+       (list #:asd-systems ''("graph-db/core" "graph-db/replication")
+             ;; The test systems need FiveAM, Drakma and the full system.
+             #:tests? #f))
+      (inputs
+       (list sbcl-alexandria
+             sbcl-bordeaux-threads
+             sbcl-cffi
+             sbcl-cl-fad
+             sbcl-cl-json
+             sbcl-cl-ppcre
+             sbcl-cl-store
+             sbcl-ieee-floats
+             sbcl-iterate
+             sbcl-local-time
+             sbcl-log4cl
+             sbcl-md5
+             sbcl-split-sequence
+             sbcl-usocket
+             sbcl-uuid))
+      (home-page "https://github.com/kraison/vivace-graph")
+      (synopsis "Graph database in Common Lisp (VivaceGraph)")
+      (description
+       "VivaceGraph is an ACID-compliant object graph database written in
+Common Lisp, with user-defined indexes, map-reduce views, replication and a
+Prolog-like query language.")
+      (license license:expat))))
+
+;; CLOG 2.4: src/main.lisp passes INITIALIZE a :LACK-MIDDLEWARE-LIST, which
+;; 1.2 lacks.  Guix has 2.4 since commit fb6e77f (2026-11-09), but the deploy
+;; hook builds with the host's system Guix, its `guix' package, which is
+;; still the 5ceffb6 snapshot of 2026-09-25 with CLOG 1.2.  Use Guix's
+;; sbcl-clog instead once that package is past fb6e77f.  This is v2.4 plus
+;; the commits after it on main.
+(define-public sbcl-clog-2
+  (let ((commit "86d0f190902f3d77132d094d2c4c3e3cc5d241ef")
+        (revision "0"))
+    (package
+      (inherit sbcl-clog)
+      (version (git-version "2.4" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/rabbibotton/clog")
+               (commit commit)))
+         (file-name (git-file-name "cl-clog" version))
+         (sha256
+          (base32 "1s4qcyajwd88haxinsrp7ksb62p359h4y8j88c4h109paghh9p18"))))
+      (arguments
+       (list #:asd-systems ''("clog")))
+      (inputs
+       (list sbcl-alexandria
+             sbcl-atomics
+             sbcl-bordeaux-threads
+             sbcl-cl-isaac
+             sbcl-cl-pass
+             sbcl-cl-ppcre
+             sbcl-cl-sqlite
+             sbcl-cl-template
+             sbcl-clack
+             sbcl-closer-mop
+             sbcl-dbi
+             sbcl-hunchentoot
+             sbcl-lack
+             sbcl-mgl-pax
+             sbcl-parse-float
+             sbcl-quri
+             sbcl-trivial-gray-streams
+             sbcl-websocket-driver)))))
 
 (define-public project-isidore
   (package
@@ -63,13 +151,14 @@
            sbcl-cffi
            sbcl-cl+ssl
            sbcl-cl-ppcre
-           sbcl-cl-sqlite
-           sbcl-clog
+           sbcl-clog-2
            sbcl-dexador
            sbcl-flexi-streams
+           sbcl-graph-db
            sbcl-ironclad
            sbcl-jzon
            sbcl-local-time
+           sbcl-montezuma
            sbcl-quri
            sbcl-slynk
            sbcl-usocket))

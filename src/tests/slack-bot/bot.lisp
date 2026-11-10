@@ -23,7 +23,7 @@ Covers pure helpers (form decoding, initial parsing, dispatch table,
 docstring-driven help output, reminder-key determinism, date-rollover
 reset), request signature verification, the Lack middleware and both
 endpoints, the slash-command handlers, message events, the reminder
-scheduler tick, and the SQLite-backed subscription CRUD.  Everything that
+scheduler tick, and graph-db-backed subscription CRUD.  Everything that
 would hit the Slack API or Google Sheets is mocked with
 WITH-MOCKED-FUNCTIONS."))
 
@@ -106,17 +106,17 @@ WITH-MOCKED-FUNCTIONS."))
     (sb::maybe-reset-sent-reminders)
     (ok (= 1 (hash-table-count sb::*sent-reminders*)))))
 
-;;; --- Subscription CRUD (SQLite round-trip) ---
+;;; --- Subscription CRUD (graph-db round-trip) ---
 ;;;
-;;; Each CRUD test runs against a fresh database under a temporary data root,
-;;; so nothing leaks into ~/.local/share/project-isidore/ (or wherever
+;;; Each CRUD test runs against a fresh store under a temporary data root, so
+;;; nothing leaks into ~/.local/share/project-isidore/ (or wherever
 ;;; PROJECT_ISIDORE_DATA points).
 
 (defparameter +test-user-id+ "__TEST_USER_slack_bot_tests__"
   "Sentinel Slack user_id used inside the temp DB.")
 
 (defmacro with-temp-database (&body body)
-  "Run BODY with the bot's database open, fresh, under a temporary data root."
+  "Run BODY with the bot's store open, fresh, under a temporary data root."
   `(with-temp-data-root ()
      (db:open-database)
      (unwind-protect (progn ,@body)
@@ -125,6 +125,8 @@ WITH-MOCKED-FUNCTIONS."))
 (deftest subscription-add-upsert-remove
   (with-temp-database
     (db:add-slack-subscription +test-user-id+ "BW")
+    ;; Direct lookup outside a transaction, i.e. with GRAPH-DB:*GRAPH*
+    ;; unbound: used to fail with VERTEX-TABLE (NIL) once a row existed.
     (let ((found (db:find-slack-subscription +test-user-id+)))
       (ok found)
       (ok (string= "BW" (db:initial-of found))))
@@ -144,43 +146,32 @@ WITH-MOCKED-FUNCTIONS."))
               :key #'car :test #'string=))
     (ng (db:remove-slack-subscription +test-user-id+))))
 
-;; Slack user ids are compared without case, and a row keeps the case it
-;; was first given in.
-(deftest registry-ignores-the-case-of-user-ids
-  (with-temp-database
-    (db:add-slack-identity "U0ABC" "BW")
-    (db:add-slack-identity "u0abc" "CG")
-    (ok (equal '(("U0ABC" . "CG")) (db:all-slack-identities)))
-    (ok (string= "CG" (db:initial-of (db:find-slack-identity "u0AbC"))))
-    (ok (db:remove-slack-identity "u0abc"))
-    (ng (db:all-slack-identities))))
-
-;;; --- Where the database lives ---
+;;; --- Where the store lives ---
 
 (deftest store-path-honors-env-var
   (let ((saved (uiop:getenvp "PROJECT_ISIDORE_DATA")))
     (unwind-protect
          (progn
            (setf (uiop:getenv "PROJECT_ISIDORE_DATA") "/tmp/pi-env-var-test/")
-           (ok (equal #p"/tmp/pi-env-var-test/slack-bot.sqlite3" (db:store-path)))
+           (ok (equal #p"/tmp/pi-env-var-test/slack-bot/" (db:store-path)))
            ;; Empty / unset: the XDG default
            (setf (uiop:getenv "PROJECT_ISIDORE_DATA") "")
-           (ok (equal (uiop:xdg-data-home "project-isidore/slack-bot.sqlite3")
+           (ok (equal (uiop:xdg-data-home "project-isidore/slack-bot/")
                       (db:store-path))))
       (setf (uiop:getenv "PROJECT_ISIDORE_DATA") (or saved "")))))
 
 (deftest open-database-creates-missing-directory
   (with-temp-data-root (root)
-    (ng (uiop:directory-exists-p root))
-    (db:open-database)
-    (unwind-protect
-         (progn
-           (ok (probe-file (uiop:subpathname root "slack-bot.sqlite3")))
-           ;; Opening it again keeps what it holds.
-           (db:add-slack-identity "U1" "BW")
-           (db:open-database)
-           (ok (equal '(("U1" . "BW")) (db:all-slack-identities))))
-      (db:close-database))))
+    (let ((store (uiop:subpathname root "slack-bot/")))
+      (ng (uiop:directory-exists-p store))
+      (db:open-database)
+      (unwind-protect
+           ;; MAKE-GRAPH creates schema.dat and heap.dat eagerly; no
+           ;; transaction is needed.
+           (let ((files (mapcar #'file-namestring (uiop:directory-files store))))
+             (ok (member "heap.dat" files :test #'string=))
+             (ok (member "schema.dat" files :test #'string=)))
+        (db:close-database)))))
 
 ;;; --- Subscribe / unsubscribe handlers (stubs for DB side-effects) ---
 

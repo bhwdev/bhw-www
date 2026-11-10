@@ -5,44 +5,47 @@
   (:use #:common-lisp)
   (:import-from #:alexandria #:extremum #:iota)
   (:import-from #:cl-ppcre)
+  (:import-from #:clog
+                #:create-a #:create-br #:create-button #:create-div #:create-form
+                #:create-form-element #:create-label #:create-option #:create-p
+                #:create-section #:create-select #:create-table #:create-table-column
+                #:create-table-row #:cursor #:inner-html #:location #:path-name
+                #:requiredp #:set-on-change #:set-on-click #:set-on-new-window
+                #:set-on-submit #:style #:url #:url-rewrite #:value #:window)
   (:import-from #:quri)
-  (:import-from #:project-isidore/bible/database #:*database* #:+bible-book-url-alist+)
-  (:import-from #:project-isidore/site/layout #:escape-html #:page #:html-response)
+  (:import-from #:project-isidore/bible/database #:+bible-book-url-alist+)
+  (:import-from #:project-isidore/site/layout #:escape-html #:with-page-chrome)
   (:local-nicknames (#:bible #:project-isidore/bible/text))
-  (:export #:handle-request)
+  (:export #:register-routes)
   (:documentation
    "The bible reader's pages: /bible/BOOK-CHAPTER-VERSE[/BOOK-CHAPTER-VERSE]
-shows a passage with its commentary in a table, /bible-search?query=QUERY
-searches it.  They are made whole on the server: the book and chapter
-pickers are <details>, the search a plain GET form, and the font menu
-global.css's :has() rules, so none of them needs a script."))
+shows a passage with its commentary in a table, /bible-search searches it."))
 
 (in-package #:project-isidore/bible/reader)
 
 ;;; Error Pages
 
-(defparameter *valid-url-help*
-  "<p>An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/project-isidore/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a></p>"
-  "The error pages' explanation of the reader's URLs.")
+(defun render-400-page (obj)
+  "Render 400 Bad Request content into OBJ."
+  (create-section obj :h1 :content "1883 Haydock Douay Rheims Bible")
+  (create-section obj :h4 :content "Error Code 400 - Bad Request")
+  (create-p obj :content "Please validate the URL. Resource exists but invalid arguments passed.")
+  (create-p obj :content
+            "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/project-isidore/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>"))
 
-(defun bad-request-page ()
-  "The content of the 400 Bad Request page."
-  (format nil "<h1>1883 Haydock Douay Rheims Bible</h1>
-<h4>Error Code 400 - Bad Request</h4>
-<p>Please validate the URL. Resource exists but invalid arguments passed.</p>
-~A" *valid-url-help*))
-
-(defun negative-range-page (invalid-range)
-  "The content of the page for a reversed range.  INVALID-RANGE is the
+(defun render-negative-range-page (obj invalid-range)
+  "Render 416 Range Not Specifiable content into OBJ.  INVALID-RANGE is the
 beginning and ending references as the URL wrote them, so they are escaped."
   (let* ((bi (escape-html (first invalid-range)))
          (ei (escape-html (second invalid-range)))
          (corrected-link (format nil "/bible/~A/~A/" ei bi)))
-    (format nil "<h1>1883 Haydock Douay Rheims Bible</h1>
-<h4>Error Code 416 - Range Not Specifiable</h4>
-<p>Please validate the URL. The beginning input <code>~A</code> subtracted from the ending input <code>~A</code> results in a negative interval range. Perhaps swapping the values will provide a valid URL: <a href=\"~A\">~A</a></p>
-~A"
-            bi ei corrected-link corrected-link *valid-url-help*)))
+    (create-section obj :h1 :content "1883 Haydock Douay Rheims Bible")
+    (create-section obj :h4 :content "Error Code 416 - Range Not Specifiable")
+    (create-p obj :content
+              (format nil "Please validate the URL. The beginning input <code>~A</code> subtracted from the ending input <code>~A</code> results in a negative interval range. Perhaps swapping the values will provide a valid URL: <a href=\"~A\">~A</a>"
+                      bi ei corrected-link corrected-link))
+    (create-p obj :content
+              "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/project-isidore/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>")))
 
 ;;; Bible Route Handling
 
@@ -124,140 +127,216 @@ indicating an error condition:
 
 ;;; Bible Content Rendering
 
-(defparameter *fonts* '("Times New Roman" "Arial" "Courier New" "Garamond" "Verdana")
-  "The fonts the reader's menu offers besides the page's own.  global.css
-has a :has() rule for each, which applies it to the .verses beside the menu.")
+(defun make-toggle (body button content)
+  "Wire a click toggle: clicking BUTTON toggles visibility of CONTENT.
+BUTTON and CONTENT are CLOG objects."
+  (declare (ignore body))
+  (let ((visible nil))
+    (set-on-click button
+                  (lambda (obj)
+                    (declare (ignore obj))
+                    (setf visible (not visible))
+                    (setf (style content "display")
+                          (if visible "block" "none"))))))
 
-(defun font-menu ()
-  "The font menu, which restyles the .verses in the same .reader."
-  (format nil "<div class=\"font-dropdown-menu\"><label>Font: <select id=\"input-font\" class=\"input\"><option value=\"\" selected>Default</option>~{<option value=\"~A\">~:*~A</option>~}</select></label></div>"
-          *fonts*))
+(defun wire-font-selector (body select target)
+  "Wire a <select> CLOG element to change font-family of TARGET."
+  (declare (ignore body))
+  (set-on-change select
+                 (lambda (obj)
+                   (setf (style target "font-family")
+                         (value obj)))))
 
-(defun link-list (summary links)
-  "A <details> whose SUMMARY opens the list of LINKS, (url . text) pairs."
-  (format nil "<details class=\"toggle\"><summary class=\"button\">~A</summary><div style=\"overflow:auto;\">~{~A~}</div></details>"
-          summary
-          (loop for (url . text) in links
-                collect (format nil "<div style=\"width:200px;float:left\"><a href=\"~A\">~A</a></div>"
-                                (escape-html url) (escape-html text)))))
+(defun create-font-dropdown (parent)
+  "Create a font dropdown selector. Returns the select element."
+  (let ((container (create-div parent :class "font-dropdown-menu")))
+    (let ((sel (create-select container :html-id "input-font"
+                                        :class "input")))
+      (create-option sel :content "Times New Roman"
+                         :value "Times New Roman"
+                         :selected t)
+      (dolist (font-name '("Arial" "Courier New" "Garamond" "Verdana"))
+        (create-option sel :content font-name :value font-name))
+      sel)))
 
-(defun search-form (&optional (query ""))
-  "The search form, a GET of /bible-search, filled with QUERY."
-  (format nil "<form class=\"bible-search\" action=\"/bible-search\" method=\"get\" style=\"text-align:center;\"><label>Search: <input type=\"text\" name=\"query\" size=\"50\" required value=\"~A\"></label> <input type=\"submit\" value=\"Submit\"></form>"
-          (escape-html query)))
+(defun render-bible-content (obj uid-list)
+  "Render Bible verse table into OBJ for the given UID-LIST."
+  (let ((table (create-table obj :html-id "main-content")))
+    (dolist (bible-uid uid-list)
+      (let* ((data (bible:get-bible-verse-data bible-uid))
+             (row (create-table-row table :style "line-height: 1.5em;"))
+             (heading-cell (create-table-column row))
+             (text-cell (create-table-column row))
+             (footnotes-cell (create-table-column row :style "width:55%"))
+             (xref-text (getf data :cross-references))
+             (fn-text (getf data :footnotes))
+             (int-ch (getf data :internal-chapter)))
+        (setf (inner-html heading-cell) (getf data :heading))
+        (let ((xref (when xref-text
+                      (bible:encode-cross-references-to-html-links
+                       xref-text bible-uid int-ch))))
+          (setf (inner-html text-cell)
+                (format nil "~A~@[<br><br>~A~]"
+                        (getf data :text)
+                        xref)))
+        (when fn-text
+          (setf (inner-html footnotes-cell)
+                (bible:encode-cross-references-to-html-links
+                 fn-text bible-uid int-ch)))))))
 
-(defun verse-row (bible-uid &key score)
-  "The table row of the verse BIBLE-UID: its relevance SCORE when given,
-heading, text with its cross-references, and footnotes.  The text and
-commentary are the database's own HTML."
-  (let* ((data (bible:get-bible-verse-data bible-uid))
-         (int-ch (getf data :internal-chapter))
-         (xref-text (getf data :cross-references))
-         (fn-text (getf data :footnotes)))
-    (format nil "<tr style=\"line-height: 1.5em;\">~@[<td>~D</td>~]<td>~A</td><td>~A~@[<br><br>~A~]</td><td style=\"width:~D%\">~@[~A~]</td></tr>"
-            (and score (floor score 0.01))
-            (escape-html (getf data :heading))
-            (getf data :text)
-            (and xref-text
-                 (bible:encode-cross-references-to-html-links xref-text bible-uid int-ch))
-            (if score 50 55)
-            (and fn-text
-                 (bible:encode-cross-references-to-html-links fn-text bible-uid int-ch)))))
-
-(defun passage-page (uid-list)
-  "The content of the page of the verses UID-LIST."
-  (format nil "<h1>1883 Haydock Douay Rheims Bible</h1>
-<h4>Presents commentary in a tabular format for ease of reading. <a href=\"/assets/blog/tabular-douay-rheims.html\">Click to learn more.</a></h4>
-~A
-<br>
-~A
-<br>
-~A
-<div class=\"reader\">
-~A
-<div class=\"verses\"><table id=\"main-content\">~{~A~}</table></div>
-</div>"
-          (link-list "Select Book" +bible-book-url-alist+)
-          (link-list "Select Chapter" (bible:make-bible-chapter-url-list uid-list))
-          (search-form)
-          (font-menu)
-          (mapcar #'verse-row uid-list)))
-
-(defun bible-response (env)
-  "The response to a GET of /bible or /bible/...: the passage the path
-names, the first chapter of Genesis for /bible itself."
-  (let* ((path (getf env :path-info))
-         (result (if (string= (string-right-trim "/" path) "/bible")
-                     (iota 31 :start 8)
-                     (resolve-bible-path path))))
-    (flet ((respond (content &optional (status 200))
-             (html-response (page env :title "1883 Haydock Douay Rheims Bible" :content content)
-                            :status status)))
-      (cond ((eq result :bad-request)
-             (respond (bad-request-page) 400))
+(defun on-bible-handler (body)
+  "Bible page handler. Parses path, builds book/chapter toggles, search form,
+font selector, and verse table via CLOG."
+  (let ((path (path-name (location body))))
+    (with-page-chrome body
+      (lambda (main)
+        (let ((result (if (string= path "/bible")
+                          (iota 31 :start 8)
+                          (resolve-bible-path path))))
+          (cond
+            ((eq result :bad-request)
+             (render-400-page main))
             ((and (listp result) (eq (car result) :negative-range))
-             (respond (negative-range-page (cadr result)) 400))
+             (render-negative-range-page main (cadr result)))
             (t
-             (respond (passage-page result)))))))
+             (let ((uid-list result))
+               (create-section main :h1 :content "1883 Haydock Douay Rheims Bible")
+               (create-section main :h4
+                               :content "Presents commentary in a tabular format for ease of reading. <a href=\"/assets/blog/tabular-douay-rheims.html\">Click to learn more.</a>")
+               ;; Book selector
+               (let ((book-btn (create-button main :content "Select Book"))
+                     (book-links (create-div main :style "overflow:auto;display:none;")))
+                 (make-toggle body book-btn book-links)
+                 (dolist (pair +bible-book-url-alist+)
+                   (destructuring-bind (link . link-text) pair
+                     (create-a (create-div book-links :style "width:200px;float:left")
+                               :content link-text :link link))))
+               (create-br main)
+               ;; Chapter selector
+               (let ((chapter-btn (create-button main :content "Select Chapter"))
+                     (chapter-links (create-div main :style "overflow:auto;display:none;")))
+                 (make-toggle body chapter-btn chapter-links)
+                 (dolist (pair (bible:make-bible-chapter-url-list uid-list))
+                   (destructuring-bind (link . link-text) pair
+                     (create-a (create-div chapter-links :style "width:200px;float:left")
+                               :content link-text :link link))))
+               (create-br main)
+               ;; Search form
+               (let ((form-div (create-div main :style "text-align:center;")))
+                 (let ((form (create-form form-div)))
+                   (create-label form :content "Search: ")
+                   (let ((query-input (create-form-element form :text :name "query" :size 50)))
+                     (setf (requiredp query-input) t)
+                     (create-form-element form :submit :value "Submit")
+                     (set-on-submit form
+                                    (lambda (f)
+                                      (declare (ignore f))
+                                      (let ((q (value query-input)))
+                                        (setf (url (location body))
+                                              (format nil "/bible-search?query=~A" (quri:url-encode q)))))))))
+               ;; Font selector + verse table
+               (let ((font-sel (create-font-dropdown main))
+                     (table-area (create-div main)))
+                 (wire-font-selector body font-sel table-area)
+                 (render-bible-content table-area uid-list))))))))))
+
+
 
 ;;; Bible Search
 
-(defparameter *query-syntax*
-  "<h2>1. FIELDS</h2><p>Each sentence of the Bible has the following metadata stored in fields,</p><li>(b) The book.</li><li>(c) The chapter number.</li><li>(v) The verse number.</li><li>(t) The text itself.</li><li>(f) If applicable, the footnote (Haydock) commentary.</li><li>(x) If applicable, the listed cross-references.</li><li>(implicit) All of the above fields.</li><h2>2. OPERATOR</h2><p>The fields are combined with Boolean OPERATOR(s),</p><li>(+) AND,</li><li>(implicit) OR</li><li>(!) NOT</li><p>Lastly, a particular predefined set of operations,</p><li>(*) TRUNCATE</li><p>The asterisk serves as the truncation (or wildcard) operator. Unlike the other operators, it should be appended to the word to be affected. Words match if they begin with the word preceding the * operator.</p><h2>3. FORM</h2><p>A query takes the form of,</p><p>[OPERATOR FIELD : EXPRESSION]</p><p>where EXPRESSION may be affixed with an asterisk character. Mixing of explicit and implicit forms as well as multiple forms are allowed. E.g.</p><li>charity</li><li>charity cymbal</li><li>loved much</li><li>mercy +b:matthew</li><li>broad path destruction narrow</li><li>principalities !c:2</li><li>compare 'exact*' with 'exacteth'</li><li>no greater love lay down</li><li>romans 3 23</li><li>+b:john +c:3 +v:15</li>"
-  "The search's help, from the syntax the query parser in
-PROJECT-ISIDORE/BIBLE/TEXT takes.")
+(defun extract-query-param (url param)
+  "Extract the value of PARAM from URL query string. Returns NIL if not found."
+  (let ((query-start (position #\? url)))
+    (when query-start
+      (let* ((query-string (subseq url (1+ query-start)))
+             (decoded (quri:url-decode query-string))
+             (parts (cl-ppcre:split (format nil "~A=" param) decoded :limit 2)))
+        (when (= 2 (length parts))
+          ;; Strip any trailing &param=value pairs
+          (let ((val (second parts)))
+            (let ((amp (position #\& val)))
+              (if amp (subseq val 0 amp) val))))))))
 
-(defun query-parameter (env)
-  "The query parameter of the request ENV's query string, or NIL."
-  (let ((query-string (getf env :query-string)))
-    (when query-string
-      (ignore-errors
-       (cdr (assoc "query" (quri:url-decode-params query-string :lenient t)
-                   :test #'string=))))))
+(defun render-search-results (obj query)
+  "Render Bible search results for QUERY into OBJ. Clears OBJ first."
+  (setf (inner-html obj) "")
+  (let ((table (create-table obj :html-id "main-content")))
+    (dolist (result (bible:search-bible query '(:num-docs 100)))
+      (destructuring-bind (bible-uid . score) result
+        (let* ((data (bible:get-bible-verse-data bible-uid))
+               (row (create-table-row table :style "line-height: 1.5em;"))
+               (score-cell (create-table-column row))
+               (heading-cell (create-table-column row))
+               (text-cell (create-table-column row))
+               (footnotes-cell (create-table-column row :style "width:50%"))
+               (xref-text (getf data :cross-references))
+               (fn-text (getf data :footnotes))
+               (int-ch (getf data :internal-chapter)))
+          (setf (inner-html score-cell)
+                (write-to-string (floor score 0.01)))
+          (setf (inner-html heading-cell)
+                (getf data :heading))
+          (let ((xref (when xref-text
+                        (bible:encode-cross-references-to-html-links
+                         xref-text bible-uid int-ch))))
+            (setf (inner-html text-cell)
+                  (format nil "~A~@[<br><br>~A~]"
+                          (getf data :text)
+                          xref)))
+          (when fn-text
+            (setf (inner-html footnotes-cell)
+                  (bible:encode-cross-references-to-html-links
+                   fn-text bible-uid int-ch))))))))
 
-(defun search-response (env)
-  "The response to a GET of /bible-search: the search form, and when the
-query string has a query, the verses it finds."
-  (let ((query (query-parameter env)))
-    (html-response
-     (page env
-           :title (if query
-                      (format nil "~A - Bible search" query)
-                      "Bible search")
-           :content (format nil "<h1>1883 Haydock Douay Rheims Bible</h1>
-<details class=\"syntax\"><summary><h2>Query Syntax (click to toggle)</h2></summary><div>~A</div></details>
-<p><a href=\"/bible/1-1-1/1-1-31\" style=\"text-align:center;display:block;\">Return to tabular view.</a></p>
-<div class=\"reader\">
-~A
-~A
-<div class=\"verses\"><table id=\"main-content\">~{~A~}</table></div>
-</div>"
-                            *query-syntax*
-                            (font-menu)
-                            (search-form (or query ""))
-                            (when query
-                              (loop for (bible-uid . score)
-                                      in (bible:search-bible query '(:num-docs 100))
-                                    collect (verse-row bible-uid :score score))))))))
+(defun on-bible-search-handler (body)
+  "Bible search page handler. Builds syntax help, search form with CLOG-native
+submission and url-rewrite for shareable URLs."
+  (let ((url (url (location body))))
+    (with-page-chrome body
+      (lambda (main)
+        (create-section main :h1 :content "1883 Haydock Douay Rheims Bible")
+        ;; Query syntax toggle
+        (let ((syntax-heading (create-section main :h2
+                                              :content "Query Syntax (click to toggle)"))
+              (syntax-div (create-div main :style "display:none;")))
+          (setf (style syntax-heading "text-align") "center")
+          (setf (cursor syntax-heading) :pointer)
+          (make-toggle body syntax-heading syntax-div)
+          (setf (inner-html syntax-div)
+                "<h2>1. FIELDS</h2><p>Each sentence of the Bible has the following metadata stored in fields,</p><li>(b) The book.</li><li>(c) The chapter number.</li><li>(v) The verse number.</li><li>(t) The text itself.</li><li>(f) If applicable, the footnote (Haydock) commentary.</li><li>(x) If applicable, the listed cross-references.</li><li>(implicit) All of the above fields.</li><h2>2. OPERATOR</h2><p>The fields are combined with Boolean OPERATOR(s),</p><li>(+) AND,</li><li>(implicit) OR</li><li>(!) NOT</li><p>Lastly, a particular predefined set of operations,</p><li>(*) TRUNCATE</li><p>The asterisk serves as the truncation (or wildcard) operator. Unlike the other operators, it should be appended to the word to be affected. Words match if they begin with the word preceding the * operator.</p><h2>3. FORM</h2><p>A query takes the form of,</p><p>[OPERATOR FIELD : EXPRESSION]</p><p>where EXPRESSION may be affixed with an asterisk character. Mixing of explicit and implicit forms as well as multiple forms are allowed. E.g.</p><li>charity</li><li>charity cymbal</li><li>loved much</li><li>mercy +b:matthew</li><li>broad path destruction narrow</li><li>principalities !c:2</li><li>compare 'exact*' with 'exacteth'</li><li>no greater love lay down</li><li>romans 3 23</li><li>+b:john +c:3 +v:15</li>"))
+        ;; Return to tabular view link
+        (create-p main :content "<a href=\"/bible/1-1-1/1-1-31\" style=\"text-align:center;display:block;\">Return to tabular view.</a>")
+        ;; Font selector
+        (let ((font-sel (create-font-dropdown main)))
+          ;; Search form
+          (let ((form-div (create-div main :style "text-align:center;")))
+            (let ((form (create-form form-div)))
+              (create-label form :content "Search: ")
+              (let ((query-input (create-form-element form :text
+                                                      :name "query" :size 50)))
+                (setf (requiredp query-input) t)
+                (create-form-element form :submit :value "Submit")
+                ;; Results area (created after form, natural DOM order)
+                (let ((results-area (create-div main)))
+                  ;; Wire font selector to results
+                  (wire-font-selector body font-sel results-area)
+                  (set-on-submit form
+                                 (lambda (f)
+                                   (declare (ignore f))
+                                   (let ((q (value query-input)))
+                                     (url-rewrite (window body)
+                                                  (format nil "/bible-search?query=~A"
+                                                          (quri:url-encode q)))
+                                     (render-search-results results-area q))))
+                  ;; Auto-search if URL had query param
+                  (let ((existing-query (extract-query-param url "query")))
+                    (when existing-query
+                      (setf (value query-input) existing-query)
+                      (render-search-results results-area existing-query))))))))))))
 
-(defun unavailable-response (env)
-  "The 503 response for a reader page on a machine without the bible."
-  (html-response (page env :title "1883 Haydock Douay Rheims Bible"
-                           :content "<h1>1883 Haydock Douay Rheims Bible</h1>
-<p>The bible is not available on this server at the moment.</p>")
-                 :status 503))
 
-(defun handle-request (env)
-  "The response to the request ENV when it is a GET (or HEAD) of the
-reader's pages: /bible, /bible/... or /bible-search.  Otherwise NIL."
-  (let ((path (getf env :path-info)))
-    (when (member (getf env :request-method) '(:get :head))
-      (let ((handler (cond ((or (string= path "/bible")
-                                (uiop:string-prefix-p "/bible/" path))
-                            #'bible-response)
-                           ((string= path "/bible-search")
-                            #'search-response))))
-        (when handler
-          (if *database*
-              (funcall handler env)
-              (unavailable-response env)))))))
+(defun register-routes ()
+  "Serve the reader's pages.  /bible takes the rest of the path as the
+passage, which needs CLOG's :EXTENDED-ROUTING."
+  (set-on-new-window 'on-bible-handler :path "/bible")
+  (set-on-new-window 'on-bible-search-handler :path "/bible-search"))
