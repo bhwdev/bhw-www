@@ -7,17 +7,20 @@ systems under `src/`:
 
 - `site/` -- the personal website (`pages`) and the frame every page shares
   (`layout`).
-- `bible/` -- the Douay-Rheims reader: its graph-db store (`database`), text,
-  links and Montezuma search (`text`), pages (`reader`).
-- `slack-bot/` -- the van-booking bot: its graph-db store (`database`),
+- `bible/` -- the Douay-Rheims reader: its SQLite database (`database`),
+  text, links and FTS5 search (`text`), pages (`reader`).
+- `slack-bot/` -- the van-booking bot: its SQLite database (`database`),
   `nlp` / `booking-nlp`, the schedule spreadsheet
   (`van-booking`, through the Apps Script in `van-booking.gs`), and the Slack
   endpoints and reminder scheduler (`bot`).
 
 `main.lisp` is the composition root: `initialize-application` opens the
-stores, starts the scheduler and CLOG, and has each part register its routes.
-Loading the system opens and starts nothing. `store.lisp` is the graph-db
-plumbing the stores share (one system directory per process).
+stores, starts the scheduler and CLOG. The site's and reader's pages are
+whole HTML made on the server (no JavaScript; `site/layout` is the frame and
+the theme cookie) and, like the bot's endpoints, Lack middleware in front of
+CLOG, which serves the static files and is kept for GUIs
+(`clog:set-on-new-window`). Loading the system opens and starts nothing.
+`store.lisp` is the SQLite plumbing the stores share.
 
 Packages `:use` only `common-lisp`; everything else comes in through
 `:import-from` or `:local-nicknames`. Tests are Rove, under `src/tests/`

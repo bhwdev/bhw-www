@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2026-11-02 Mon 19:53 -->
+<!-- 2026-11-10 Tue 13:07 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Installation of Spacemacs on Windows via WSL2</title>
@@ -9,39 +9,6 @@
 <meta name="generator" content="Org Mode">
 
                       <link rel="stylesheet" type="text/css" href="../global.css"/>
-                      <script src="../theme.js"></script>
-<script>
-  window.MathJax = {
-    tex: {
-      ams: {
-        multlineWidth: '85%'
-      },
-      tags: 'ams',
-      tagSide: 'right',
-      tagIndent: '.8em'
-    },
-    chtml: {
-      scale: 1.0,
-      displayAlign: 'center',
-      displayIndent: '0em'
-    },
-    svg: {
-      scale: 1.0,
-      displayAlign: 'center',
-      displayIndent: '0em'
-    },
-    output: {
-      font: 'mathjax-modern',
-      displayOverflow: 'overflow'
-    }
-  };
-</script>
-
-<script
-  id="MathJax-script"
-  async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
 </head>
 <body>
 <div id="preamble" class="status">
@@ -59,15 +26,15 @@
                                             <li><a href="/contact">Contact</a></li>
                                           </ul>
                                         </nav>
-                                        <button type="button" class="theme-toggle" aria-label="Colour theme"></button>
+                                        <form class="theme-form" method="post" action="/theme"><button type="submit" class="theme-toggle" title="Switch the colour theme" aria-label="Switch the colour theme"></button></form>
                                       </div>
                                     </div>
                                     <h1 class="title">Installation of Spacemacs on Windows via WSL2</h1>
                                     <p class="subtitle">A step by step guided installation tutorial with context</p> <br/>
                                     <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-09-11 Fri 00:53</p>
 </div>
-<div id="content" class="content">
-<div class="abstract" id="orgdfafd2a">
+<div id="content" class="has-sidenotes content">
+<div class="abstract" id="org7ce9d43">
 <p>
 
 </p>
@@ -82,7 +49,7 @@ capabilities of GNU Emacs from within Windows OS.
 <hr/>
 </p>
 <nav id="table-of-contents" role="doc-toc">
-<h2>Table of Contents</h2>
+<h2><a href="#table-of-contents">&#8689;</a>Table of Contents</h2>
 <div id="text-table-of-contents" role="doc-toc">
 <ul>
 <li><a href="#Introduction">1. Introduction</a></li>
@@ -133,13 +100,16 @@ capabilities of GNU Emacs from within Windows OS.
 </div>
 </nav>
 <div id="outline-container-Introduction" class="outline-2">
-<h2 id="Introduction"><span class="section-number-2">1.</span> Introduction</h2>
+<h2 id="Introduction"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">1.</span> Introduction</h2>
 <div class="outline-text-2" id="text-Introduction">
 <p>
 <span class="dropcap">I</span>s it possible to judge whether
 or not a piece of music is objectively good, perfect and beautiful? The word
 &ldquo;objectively&rdquo; must sound a bit old fashioned, after all, every man is doing what
-is right in his own eyes in these times<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>. But we can be reasonably certain
+is right in his own eyes in these times<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup><span class="sidenote" role="note"><sup class="sidenote-number">1</sup> <span class="footpara">Judges 21:24 DRA. What would medieval Thomists think of the word
+&ldquo;self-actualization&rdquo;? Can man remake himself in his own image anymore than a
+creature can be the first cause of itself, to reduce his potential to actual in
+such a manner?</span></span>. But we can be reasonably certain
 that a song which has been well loved generation after generation has a quality
 absent from a yet untested, recently released album. Yes, I&rsquo;m talking about
 Emacs here. 40 odd years is a terribly long time in the world of software. We
@@ -172,7 +142,7 @@ older version and are unable to upgrade.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.688817" class="outline-2">
-<h2 id="ID-20260901T134924.688817"><span class="section-number-2">2.</span> Install WSL &amp; Emacs</h2>
+<h2 id="ID-20260901T134924.688817"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">2.</span> Install WSL &amp; Emacs</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 <a href="https://learn.microsoft.com/en-us/windows/wsl/">The official WSL documentation</a> is now much more polished than when this tutorial
@@ -211,7 +181,7 @@ shell,
 </div>
 </div>
 <div id="outline-container-Install-Spacemacs" class="outline-2">
-<h2 id="Install-Spacemacs"><span class="section-number-2">3.</span> Install Spacemacs</h2>
+<h2 id="Install-Spacemacs"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">3.</span> Install Spacemacs</h2>
 <div class="outline-text-2" id="text-Install-Spacemacs">
 <p>
 Enter the following in your WSL terminal to install Spacemacs. We do this in two
@@ -251,11 +221,12 @@ created for Emacs in your Windows start menu.
 </p>
 </div>
 <div id="outline-container-Fixing-the-Font" class="outline-4">
-<h4 id="Fixing-the-Font"><span class="section-number-4">3.0.1.</span> Fixing the Font</h4>
+<h4 id="Fixing-the-Font"><a href="#table-of-contents">&#8689;</a><span class="section-number-4">3.0.1.</span> Fixing the Font</h4>
 <div class="outline-text-4" id="text-Fixing-the-Font">
 <p>
 If you get a message informing you that &ldquo;adobe source code pro&rdquo; cannot be
-found, you can install it with the following WSL bash commands<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></sup>, or
+found, you can install it with the following WSL bash commands<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></sup><span class="sidenote" role="note"><sup class="sidenote-number">2</sup> <span class="footpara"><a href="https://askubuntu.com/questions/193072/how-to-use-the-adobe-source-code-pro-font">Software installation - How to use the Adobe Source Code Pro font? - Ask
+Ubuntu</a></span></span>, or
 manually after having consulted: <a href="https://wiki.debian.org/Fonts#Manually">Fonts - Debian Wiki</a>
 </p>
 
@@ -283,7 +254,7 @@ needed to display the correct font.
 </div>
 </div>
 <div id="outline-container-How-WSL-Ubuntu-files-are-treated-by-Windows" class="outline-2">
-<h2 id="How-WSL-Ubuntu-files-are-treated-by-Windows"><span class="section-number-2">4.</span> How WSL (Ubuntu) files are treated by Windows</h2>
+<h2 id="How-WSL-Ubuntu-files-are-treated-by-Windows"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">4.</span> How WSL (Ubuntu) files are treated by Windows</h2>
 <div class="outline-text-2" id="text-How-WSL-Ubuntu-files-are-treated-by-Windows">
 <p>
 <b>DO NOT</b> access the WSL linux files under @appdata/canonical etc. in the Windows
@@ -306,7 +277,7 @@ To access your linux files, in your WSL bash terminal enter in
 </ol>
 </div>
 <div id="outline-container-Further-Reading" class="outline-3">
-<h3 id="Further-Reading"><span class="section-number-3">4.1.</span> Further Reading</h3>
+<h3 id="Further-Reading"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">4.1.</span> Further Reading</h3>
 <div class="outline-text-3" id="text-Further-Reading">
 <ul class="org-ul">
 <li><a href="https://devblogs.microsoft.com/commandline/whats-new-for-wsl-in-windows-10-version-1903/">What&rsquo;s new for WSL in Windows 10 version 1903? | Windows Command Line</a></li>
@@ -320,7 +291,7 @@ Line</a></li>
 </div>
 </div>
 <div id="outline-container-Symlink-to-your-Windows-folders" class="outline-3">
-<h3 id="Symlink-to-your-Windows-folders"><span class="section-number-3">4.2.</span> Symlink to your Windows folders</h3>
+<h3 id="Symlink-to-your-Windows-folders"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">4.2.</span> Symlink to your Windows folders</h3>
 <div class="outline-text-3" id="text-Symlink-to-your-Windows-folders">
 <p>
 Author has created symbolic links to make filesystem navigation more
@@ -340,7 +311,7 @@ simple. Without symbolic links, your Windows files are accessible through
 </div>
 </div>
 <div id="outline-container-Getting-Comfortable-with-Spacemacs" class="outline-2">
-<h2 id="Getting-Comfortable-with-Spacemacs"><span class="section-number-2">5.</span> Getting Comfortable with Spacemacs</h2>
+<h2 id="Getting-Comfortable-with-Spacemacs"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">5.</span> Getting Comfortable with Spacemacs</h2>
 <div class="outline-text-2" id="text-Getting-Comfortable-with-Spacemacs">
 <p>
 A couple of first steps to get yourself grounded. Makre sure you take
@@ -367,7 +338,7 @@ support works out of the box. Now let&rsquo;s get started.
 </ol>
 </div>
 <div id="outline-container-Prerequisite-familiarity-with-basic-vim-operations" class="outline-3">
-<h3 id="Prerequisite-familiarity-with-basic-vim-operations"><span class="section-number-3">5.1.</span> Prerequisite: familiarity with basic vim operations</h3>
+<h3 id="Prerequisite-familiarity-with-basic-vim-operations"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">5.1.</span> Prerequisite: familiarity with basic vim operations</h3>
 <div class="outline-text-3" id="text-Prerequisite-familiarity-with-basic-vim-operations">
 <p>
 If are new or want a brushup, access the built in tutorial via &ldquo;SPC h T v&rdquo; in
@@ -390,7 +361,7 @@ languages. A marriage made in heaven as far as I&rsquo;m concerned.
 </div>
 </div>
 <div id="outline-container-Watch-and-Learn" class="outline-3">
-<h3 id="Watch-and-Learn"><span class="section-number-3">5.2.</span> Watch and Learn</h3>
+<h3 id="Watch-and-Learn"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">5.2.</span> Watch and Learn</h3>
 <div class="outline-text-3" id="text-Watch-and-Learn">
 <p>
 In terms of time efficiency, depth of content covered, and ease of
@@ -412,7 +383,7 @@ information is the placement of custom user layers and snippets in the
 </div>
 </div>
 <div id="outline-container-Do-and-Explore" class="outline-3">
-<h3 id="Do-and-Explore"><span class="section-number-3">5.3.</span> Do and Explore</h3>
+<h3 id="Do-and-Explore"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">5.3.</span> Do and Explore</h3>
 <div class="outline-text-3" id="text-Do-and-Explore">
 <p>
 Spacemacs places it&rsquo;s help commands under &ldquo;SPC h&rdquo;, so give those a try. A
@@ -432,7 +403,7 @@ is also accessible here (or in Emacs, &ldquo;SPC h r&rdquo;).</a>
 </div>
 </div>
 <div id="outline-container-Customize" class="outline-3">
-<h3 id="Customize"><span class="section-number-3">5.4.</span> Customize</h3>
+<h3 id="Customize"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">5.4.</span> Customize</h3>
 <div class="outline-text-3" id="text-Customize">
 <p>
 Lastly here is a step by step example to install <a href="https://github.com/Wilfred/helpful">the &ldquo;helpful&rdquo; package.</a> This is
@@ -550,7 +521,7 @@ variable. Save, &ldquo;SPC f s&rdquo; and reload &ldquo;SPC f e R&rdquo;.
 </div>
 </div>
 <div id="outline-container-Conclusion" class="outline-2">
-<h2 id="Conclusion"><span class="section-number-2">6.</span> Conclusion</h2>
+<h2 id="Conclusion"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">6.</span> Conclusion</h2>
 <div class="outline-text-2" id="text-Conclusion">
 <p>
 The universality and power of vim&rsquo;s modal editing combined with the endless
@@ -593,11 +564,11 @@ org-babel. I hope this tutorial has helped you, and have a wonderful day.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.724292" class="outline-2">
-<h2 id="ID-20260901T134924.724292"><span class="section-number-2">7.</span> Troubleshooting</h2>
+<h2 id="ID-20260901T134924.724292"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">7.</span> Troubleshooting</h2>
 <div class="outline-text-2" id="text-7">
 </div>
 <div id="outline-container-ID-20260901T134924.729568" class="outline-3">
-<h3 id="ID-20260901T134924.729568"><span class="section-number-3">7.1.</span> Emacs with Lucid Toolkit has no dark theme for the window frame</h3>
+<h3 id="ID-20260901T134924.729568"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">7.1.</span> Emacs with Lucid Toolkit has no dark theme for the window frame</h3>
 <div class="outline-text-3" id="text-7-1">
 <p>
 Why do none of the options for enabling dark mode as a WSLg seem to affect
@@ -717,7 +688,7 @@ Is this jank? Absolutely.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.733024" class="outline-3">
-<h3 id="ID-20260901T134924.733024"><span class="section-number-3">7.2.</span> Emacs GUI session is killed upon waking from sleep</h3>
+<h3 id="ID-20260901T134924.733024"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">7.2.</span> Emacs GUI session is killed upon waking from sleep</h3>
 <div class="outline-text-3" id="text-7-2">
 <p>
 <a href="https://github.com/microsoft/wslg/issues/294">microsoft/wslg#294 GUI session get killed on waking from sleep</a>
@@ -725,7 +696,7 @@ Is this jank? Absolutely.
 </div>
 </div>
 <div id="outline-container-Performance-tips-and-tricks" class="outline-3">
-<h3 id="Performance-tips-and-tricks"><span class="section-number-3">7.3.</span> Performance tips and tricks</h3>
+<h3 id="Performance-tips-and-tricks"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">7.3.</span> Performance tips and tricks</h3>
 <div class="outline-text-3" id="text-Performance-tips-and-tricks">
 <p>
 In the Lisp programming language family, <a href="https://dl.acm.org/doi/pdf/10.1145/3386324">Emacs Lisp</a> is a derivative of Maclisp
@@ -759,7 +730,7 @@ and <code>timer-idle-list</code>.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.740601" class="outline-3">
-<h3 id="ID-20260901T134924.740601"><span class="section-number-3">7.4.</span> Storage Issues</h3>
+<h3 id="ID-20260901T134924.740601"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">7.4.</span> Storage Issues</h3>
 <div class="outline-text-3" id="text-7-4">
 <p>
 <a href="https://github.com/microsoft/WSL/issues/4699#issuecomment-1411209537">Prompt WSL to release disk space back to host Windows OS.</a>
@@ -767,7 +738,7 @@ and <code>timer-idle-list</code>.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.744784" class="outline-3">
-<h3 id="ID-20260901T134924.744784"><span class="section-number-3">7.5.</span> Window Management</h3>
+<h3 id="ID-20260901T134924.744784"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">7.5.</span> Window Management</h3>
 <div class="outline-text-3" id="text-7-5">
 <p>
 <a href="https://github.com/microsoft/wslg/issues/22">microsoft/wslg#22 WSLg windows do not work with window-snapping (to sides or &hellip;</a>
@@ -776,7 +747,7 @@ and <code>timer-idle-list</code>.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.748058" class="outline-2">
-<h2 id="ID-20260901T134924.748058"><span class="section-number-2">8.</span> Legacy Windows 10 Installation</h2>
+<h2 id="ID-20260901T134924.748058"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">8.</span> Legacy Windows 10 Installation</h2>
 <div class="outline-text-2" id="text-8">
 <ol class="org-ol">
 <li><p>
@@ -795,7 +766,7 @@ Check that you meet the requirements for running WSL2. &ldquo;Win + r&rdquo;, ty
 </ol>
 </div>
 <div id="outline-container-Install-Microsoft-Windows-Subsystem-for-Linux-WSL-Your-Linux-Distribution" class="outline-3">
-<h3 id="Install-Microsoft-Windows-Subsystem-for-Linux-WSL-Your-Linux-Distribution"><span class="section-number-3">8.1.</span> Install Microsoft Windows Subsystem for Linux (WSL) &amp; Your Linux Distribution</h3>
+<h3 id="Install-Microsoft-Windows-Subsystem-for-Linux-WSL-Your-Linux-Distribution"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">8.1.</span> Install Microsoft Windows Subsystem for Linux (WSL) &amp; Your Linux Distribution</h3>
 <div class="outline-text-3" id="text-Install-Microsoft-Windows-Subsystem-for-Linux-WSL-Your-Linux-Distribution">
 <p>
 First, install the Microsoft Windows Subsystem for Linux version 2. Unless
@@ -872,7 +843,7 @@ username and password for your superuser account.
 </div>
 </div>
 <div id="outline-container-Install-X-Server" class="outline-3">
-<h3 id="Install-X-Server"><span class="section-number-3">8.2.</span> Install X Server</h3>
+<h3 id="Install-X-Server"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">8.2.</span> Install X Server</h3>
 <div class="outline-text-3" id="text-Install-X-Server">
 <p>
 This is the software that allows Linux to display GUI elements. You have
@@ -927,7 +898,7 @@ below.
 </div>
 </div>
 <div id="outline-container-ID-20260901T134924.759039" class="outline-3">
-<h3 id="ID-20260901T134924.759039"><span class="section-number-3">8.3.</span> Install Emacs</h3>
+<h3 id="ID-20260901T134924.759039"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">8.3.</span> Install Emacs</h3>
 <div class="outline-text-3" id="text-8-3">
 <p>
 Spacemacs is a preset configuration of Emacs, so we must first make sure Emacs
@@ -951,7 +922,7 @@ Now we are ready to proceed to <a href="#Install-Spacemacs">3</a>
 </div>
 </div>
 <div id="outline-container-Bonus-Why-is-my-GUI-Spacemacs-interrupted-by-Sleep" class="outline-3">
-<h3 id="Bonus-Why-is-my-GUI-Spacemacs-interrupted-by-Sleep"><span class="section-number-3">8.4.</span> Why is my GUI Spacemacs interrupted by Sleep?</h3>
+<h3 id="Bonus-Why-is-my-GUI-Spacemacs-interrupted-by-Sleep"><a href="#table-of-contents">&#8689;</a><span class="section-number-3">8.4.</span> Why is my GUI Spacemacs interrupted by Sleep?</h3>
 <div class="outline-text-3" id="text-Bonus-Why-is-my-GUI-Spacemacs-interrupted-by-Sleep">
 <div class="org-src-container">
 <pre class="src src-bash"><code><span class="org-comment-delimiter"># </span><span class="org-comment">Allows us to open links in Spacemacs to our Windows 10 browser</span>
@@ -1019,7 +990,7 @@ because input is unavailable. &ndash; <a href="https://wiki.x2go.org/doku.php/do
 </div>
 </div>
 <div id="outline-container-Sources-and-Credits" class="outline-2">
-<h2 id="Sources-and-Credits"><span class="section-number-2">9.</span> Sources and Credits</h2>
+<h2 id="Sources-and-Credits"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">9.</span> Sources and Credits</h2>
 <div class="outline-text-2" id="text-Sources-and-Credits">
 <ul class="org-ul">
 <li><a href="http://mdr78.github.io/2019/07/01/windows-spacemacs-install.html">The definitive guide to installing Spacemacs on Windows</a></li>
@@ -1029,7 +1000,7 @@ because input is unavailable. &ndash; <a href="https://wiki.x2go.org/doku.php/do
 </div>
 </div>
 <div id="footnotes">
-<h2 class="footnotes">Footnotes: </h2>
+<h2 class="footnotes"><a href="#table-of-contents">&#8689;</a>Footnotes: </h2>
 <div id="text-footnotes">
 
 <div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
@@ -1048,16 +1019,7 @@ Ubuntu</a>
 </div>
 </div></div>
 <div id="postamble" class="status">
-<script>
-                              const headers = Array.from( document.querySelectorAll('h2, h3, h4, h5, h6') );
-
-                              headers.forEach( header => {
-                                header.insertAdjacentHTML('afterbegin',
-                                 '<a href="#table-of-contents">&#8689;</a>'
-                                );
-                              });
-                              </script>
-                              <hr/>
+<hr/>
                               <footer>
                                 <div class="copyright-container">
                                     Comments? Corrections? <a href="https://bhw.name/contact"> Please do reach out.</a><a href="https://bhw.name/assets/blog/atom.xml"> RSS Feed. </a><a href="https://bhw.name/subscribe"> Mailing List. </a><br/>

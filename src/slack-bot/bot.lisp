@@ -79,7 +79,7 @@ of message without a command that is acted on -- or `/book y`, for a
 channel whose messages do not reach the bot.  `/view` takes a day or a range
 of days.
 
-A persistent /subscribe registry (graph-db-backed via
+A persistent /subscribe registry (in SQLite, through
 project-isidore/slack-bot/database)
 plus an in-process scheduler thread DMs subscribers *REMINDER-LEAD-MINUTES*
 before the departure of each trip they are on, driving or riding, and before

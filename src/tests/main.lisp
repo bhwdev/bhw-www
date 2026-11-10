@@ -8,7 +8,8 @@
   (:import-from #:usocket)
   (:import-from #:project-isidore/tests/test-utils #:with-temp-data-root)
   (:local-nicknames (#:main #:project-isidore/main)
-                    (#:layout #:project-isidore/site/layout))
+                    (#:layout #:project-isidore/site/layout)
+                    (#:bible-db #:project-isidore/bible/database))
   (:documentation
    "Tests for the application as a whole."))
 
@@ -92,6 +93,62 @@ it."
         (setf (gethash "transfer-encoding" headers) "chunked")
         (ok (= 411 (status :path-info "/slack/events" :headers headers)))))))
 
+;; The theme comes from its cookie, defaulting to parchment; the toggle
+;; cycles it and sends the reader back to a path on this site only.
+(deftest colour-theme
+  (flet ((env (&rest headers)
+           (let ((table (make-hash-table :test #'equal)))
+             (loop for (name value) on headers by #'cddr
+                   do (setf (gethash name table) value))
+             (list :headers table))))
+    (ok (equal "light" (layout:theme-preference (env))))
+    (ok (equal "dark" (layout:theme-preference (env "cookie" "a=1; theme=dark; b=2"))))
+    (ok (equal "auto" (layout:theme-preference (env "cookie" "theme=auto"))))
+    (ok (equal "light" (layout:theme-preference (env "cookie" "theme=purple"))))
+    (ok (equal "light" (layout:theme-preference (env "cookie" "xtheme=dark"))))
+    (flet ((toggle (&rest headers)
+             (destructuring-bind (status headers body)
+                 (layout:theme-toggle-response (apply #'env headers))
+               (declare (ignore body))
+               (list status (getf headers :location)
+                     (subseq (getf headers :set-cookie) 0
+                             (position #\; (getf headers :set-cookie)))))))
+      (ok (equal '(303 "/" "theme=dark") (toggle)))
+      (ok (equal '(303 "/bible/john-3-16?query=x" "theme=auto")
+                 (toggle "cookie" "theme=dark"
+                         "referer" "https://www.bhw.name/bible/john-3-16?query=x")))
+      (ok (equal '(303 "/" "theme=light") (toggle "cookie" "theme=auto" "referer" "javascript:alert(1)")))
+      (ok (equal "/x" (second (toggle "referer" "https://elsewhere.example/x")))
+          "a foreign page's path is taken as a path here"))))
+
+;; A static HTML file is given the theme the way a page made here states it.
+(deftest theme-injection
+  (let ((html "<!DOCTYPE html>
+<HTML lang=\"en\"><head><title>x</title></head><body><p>&lt;html&gt; </head></p></body></html>"))
+    (ok (string= "<!DOCTYPE html>
+<HTML data-theme-pref=\"light\" lang=\"en\"><head><title>x</title></head><body><p>&lt;html&gt; </head></p></body></html>"
+                 (layout:inject-theme html "light")))
+    (ok (search "<link rel=\"stylesheet\" href=\"/assets/dark.css\"></head><body>"
+                (layout:inject-theme html "dark")))
+    (ok (search "media=\"(prefers-color-scheme: dark)\"></head><body>"
+                (layout:inject-theme html "auto")))))
+
+;; The greeting's characters share keyframes by how long they stay, and the
+;; slideshow opens on its first slide.
+(deftest index-animations
+  (multiple-value-bind (html css)
+      (project-isidore/site/pages::typewriter '("Hi" "Yo!") :per-character 1/10 :hold 1/2 :pause 1)
+    (ok (search "<span class=\"greeting-static\">Hi</span>" html))
+    (ok (= 5 (count-if (lambda (i) (string= "<span style" html :start2 i :end2 (min (length html) (+ i 11))))
+                       (loop for i below (length html) collect i))))
+    ;; Hi: H shows 0.0-0.7, i 0.1-0.7; Yo!: Y 0.7-2.5, o 0.8-2.5, ! 0.9-2.5.
+    (ok (search "animation: none 2.50s" css))
+    (dolist (window '("tw60 " "tw70 " "tw160 " "tw170 " "tw180 "))
+      (ok (search (format nil "@keyframes ~A" window) css) window)))
+  (multiple-value-bind (html css) (project-isidore/site/pages::slideshow)
+    (ok (search "animation-delay:-1s" html))
+    (ok (search "animation: slide 36s" css))))
+
 ;; If-None-Match is compared weakly, and may list several tags.
 (deftest etag-matching
   (let ((etag "\"0123abcd\""))
@@ -143,6 +200,27 @@ it."
                                      "Content-Type: application/x-www-form-urlencoded"
                                      "Content-Length: 1000000000000")))
              (ok (= 200 (http-status 8293 "GET /assets/global.css HTTP/1.0")))
+             (testing "the pages are made on the server, the 404 too"
+               (dolist (path '("/" "/about" "/work/" "/contact" "/subscribe"))
+                 (ok (= 200 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))
+               (ok (= 404 (http-status 8293 "GET /no-such-page HTTP/1.0")))
+               (ok (= 404 (http-status 8293 "GET /assets/no-such-file.css HTTP/1.0")))
+               ;; The bible only where its database is.
+               (ok (= (if (probe-file bible-db:*database-path*) 200 503)
+                      (http-status 8293 "GET /bible/john-3-16 HTTP/1.0")))
+               (ok (= 303 (http-status 8293 "POST /theme HTTP/1.0" "Content-Length: 0"))))
+             (testing "a static HTML file is sent in the reader's theme"
+               (multiple-value-bind (status headers)
+                   (http-get 8293 "/assets/blog/archive.html" "Cookie: theme=dark")
+                 (ok (= 200 status))
+                 (ok (equal "Cookie" (cdr (assoc "vary" headers :test #'string=))))
+                 (let ((etag (cdr (assoc "etag" headers :test #'string=))))
+                   (ok (cl-ppcre:scan "^\"[0-9a-f]{32}-dark\"$" etag))
+                   (ok (= 304 (http-get 8293 "/assets/blog/archive.html" "Cookie: theme=dark"
+                                        (format nil "If-None-Match: ~A" etag))))
+                   (ok (= 200 (http-get 8293 "/assets/blog/archive.html"
+                                        (format nil "If-None-Match: ~A" etag)))
+                       "another theme is another entity"))))
              (testing "a file is revalidated by its ETag, never by its 1970 write date"
                (let ((length (with-open-file (in (asdf:system-relative-pathname
                                                   :project-isidore "assets/global.css")

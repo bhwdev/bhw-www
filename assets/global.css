@@ -11,8 +11,8 @@
    was white on #b3b3b3 (2.10:1), the worst ratio in the file.
 
    Parchment is the theme whatever the system prefers.  The warm dark palette
-   below applies only when theme.js has set data-theme="dark" on <html>,
-   because the reader chose dark, or chose "auto" and the system is dark.
+   (assets/dark.css) applies only when the reader chose dark, or chose "auto"
+   and the system is dark: the server links it, from the theme cookie.
    An earlier version followed prefers-color-scheme directly, with a
    Solarized (blue) palette, so every reader with a dark OS lost the
    parchment without asking.
@@ -105,71 +105,8 @@
   --syn-regexp: #a03060;
 }
 
-/* Warm dark: sepia browns, the parchment inverted rather than replaced.
-   Screen only, so a page printed in dark mode still prints on white. */
-@media screen {
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-
-    --page-bg: #211b14;
-    --text: #dccfb6;
-    --heading: #e0a07a;
-    --title-fg: #f0e6d0;
-    --link: #e8a77f;
-    --link-visited: #c4ab8c;
-    --link-hover: #f6cfae;
-    --selection-bg: #5a4630;
-    --rule: #4d3f30;
-    --rule-soft: #1a150f;
-    --table-rule: #77654f;
-    --table-rule-soft: #4d3f30;
-    --table-stripe: #2a2219;
-
-    --chrome-bg: #2a2219;
-    --chrome-fg: #f0e6d0;
-    --chrome-fg-dim: #a8987f;
-    --chrome-hover: #3b3024;
-    --burger: #f0e6d0;
-    --menu-bg: #2a2219;
-    --menu-fg: #f0e6d0;
-    --menu-hover-bg: #3b3024;
-    --menu-hover-fg: #e8a87c;
-
-    --code-bg: #2b241b;
-    --code-fg: #dccfb6;
-    --badge-bg: #77654f;
-    --badge-fg: #ffffff;
-    --inline-code-bg: #2e261d;
-    --inline-code-border: #4d3f30;
-    --inline-code-fg: #dccfb6;
-    --kbd-bg: #3b3024;
-    --tag-bg: #3b3024;
-    --tag-fg: #dccfb6;
-    --tag-border: #77654f;
-    --mark-bg: #6b5300;
-    --inlinetask-bg: #3a3120;
-    --timestamp-kwd: #a9c49a;
-    --note-hover: #3b3024;
-
-    --button-bg: #3b3024;
-    --button-fg: #f0e6d0;
-    --button-border: #a8987f;
-    --button-active-bg: #4d3f30;
-    --button-disabled: #6e6050;
-
-    /* Gruvbox's accents, which were made for a brown-black ground. */
-    --syn-comment: #a89984;
-    --syn-string: #b8bb26;
-    --syn-keyword: #fb7a5e;
-    --syn-builtin: #fe8019;
-    --syn-function: #fabd2f;
-    --syn-variable: #83a598;
-    --syn-constant: #d3869b;
-    --syn-type: #8ec07c;
-    --syn-warning: #ff6b5a;
-    --syn-regexp: #e7a0c0;
-  }
-}
+/* The warm dark palette is assets/dark.css, which a page links after this
+   file when its reader chose dark, or "auto" with a dark system. */
 
 @font-face { font-family: Cinzel; font-style: normal; font-weight: 400; font-display: swap; src: local(''), url('/assets/cinzel-v11-latin-regular.woff2') format('woff2'); }
 @font-face { font-family: RoyalInitialen; font-style: normal; font-weight: 400; font-display: swap; src: local(''), url('/assets/RoyalInitialen.woff2') format('woff2'); }
@@ -208,10 +145,14 @@
       bold; cursor:  pointer; transition:  all 0.3s ease-out; } .navbar nav li:hover  { background:  var(--menu-hover-bg); } .navbar nav li:hover a  { color:  var(--menu-hover-fg); transition:  all 0.3s ease-out; } .navbar nav li a  { font-family:  'Cinzel', 'Times New Roman', serif; color:  var(--menu-fg); } }
 @media (min-width: 768px)  { .navbar nav ul  { margin:  0; padding:  0; display:  flex; justify-content:  space-around; text-align:  center; list-style:  none; } .navbar nav li  { flex:  1; } .navbar nav li a  { display:  block; padding:  0 8px; font-size:  16px; font-weight:  400; font-family:  'Cinzel'; line-height:  60px; color:
       var(--chrome-fg); text-decoration:  none; } .navbar nav li.active  { background:  #555; } .navbar nav li:hover  { background:  var(--chrome-hover); } .navbar label  { display:  none; } }
-/* The theme switch, cycled by theme.js: parchment, dark, automatic.  The
-   glyph shows the current choice; VS15 (U+FE0E) keeps the sun and moon from
-   turning into emoji.  Hidden when the script has not run, since it would
-   do nothing. */
+/* The theme switch: a form that posts to /theme, which cycles the theme
+   cookie through parchment, dark and automatic and sends the reader back.
+   The glyph shows the current choice, which the server states as
+   data-theme-pref; VS15 (U+FE0E) keeps the sun and moon from turning into
+   emoji.  Hidden where the server has not stated it (a file served some
+   other way), since the choice would not show.  The form takes no box of
+   its own, so the button sits in the navbar's flex row. */
+.theme-form  { display:  contents; }
 .theme-toggle  { display:  none; }
 :root[data-theme-pref] .navbar .theme-toggle  { display:  block; flex:  none; margin:  0 8px; padding:  0 12px;
      border:  0; border-radius:  0; background:  none; color:  var(--chrome-fg);
@@ -476,8 +417,9 @@ p.verse  { margin-left:  3%; }
     padding-right: 0.5rem;
     padding-left: 0.18rem;
 }
-/* CSS */
-button {
+/* CSS.  A <summary class="button"> -- the reader's book and chapter
+   pickers -- looks like a button too. */
+button, summary.button {
   background-color: var(--button-bg);
   border: 1px solid var(--button-border);
   border-radius: 8px;
@@ -501,11 +443,13 @@ button {
   -webkit-user-select: none;
   width: auto;
 }
-button:focus-visible {
+summary.button  { list-style:  none; }
+summary.button::-webkit-details-marker  { display:  none; }
+button:focus-visible, summary.button:focus-visible {
   box-shadow: var(--button-border) 0 0 0 2px, var(--page-bg) 0 0 0 4px;
   transition: box-shadow .2s;
 }
-button:active {
+button:active, summary.button:active {
   background-color: var(--button-active-bg);
   border-color: var(--button-border);
   transform: scale(.96);
@@ -516,6 +460,18 @@ button:disabled {
   cursor: not-allowed;
   opacity: 1;
 }
+
+/* The bible reader.  Its search help opens from its heading.  Its font
+   menu needs no script: the option checked in a .reader's menu picks the
+   font of the .verses beside it.  A browser without :has() keeps the
+   page's font. */
+details.syntax > summary  { list-style:  none; text-align:  center; cursor:  pointer; }
+details.syntax > summary::-webkit-details-marker  { display:  none; }
+.reader:has(#input-font option[value="Times New Roman"]:checked) .verses  { font-family:  "Times New Roman", Times, serif; }
+.reader:has(#input-font option[value="Arial"]:checked) .verses  { font-family:  Arial, Helvetica, sans-serif; }
+.reader:has(#input-font option[value="Courier New"]:checked) .verses  { font-family:  "Courier New", Courier, monospace; }
+.reader:has(#input-font option[value="Garamond"]:checked) .verses  { font-family:  Garamond, serif; }
+.reader:has(#input-font option[value="Verdana"]:checked) .verses  { font-family:  Verdana, Geneva, sans-serif; }
 
 /* ---------------------------------------------------------------------------
    Source-block syntax highlighting.
@@ -564,8 +520,9 @@ button:disabled {
    viewport less its scrollbar, so 50% + half the column is exactly the
    column's left edge.
 
-   Org puts the footnotes at the end of the page, so theme.js copies each
-   into a .sidenote beside its reference.  Every copy is a right float with
+   Org puts the footnotes at the end of the page, so the blog's export
+   (bhw-org-publish.el in project-carlo) copies each into a .sidenote beside
+   its first reference.  Every copy is a right float with
    a negative margin wider than itself: it sits on the reference's line,
    clear:right stacks a note under the one before rather than over it, and
    since its margin box has no width the text keeps the whole column -- the
@@ -574,8 +531,10 @@ button:disabled {
    page's edge, so the notes, like the contents, stay clear of page-wide
    code.  A float's percentages are of its paragraph, so the notes' width
    is in vw, which counts a classic scrollbar; the 1rem at the edge takes
-   up the difference.  theme.js marks #content .has-sidenotes once every
-   note has a copy, and only then is the list at the end hidden.
+   up the difference.  The export marks #content .has-sidenotes when every
+   note has a copy, and only then is the list at the end hidden.  A note
+   and its reference light up together while either is under the pointer
+   or the reference has focus: the note follows the reference's <sup>.
    --------------------------------------------------------------------------- */
 .sidenote  { display:  none; }
 @media screen and (min-width: 1440px)  {
@@ -609,7 +568,9 @@ button:disabled {
        --text-align:  start; --line-height:  1.4; text-align:  start;
        line-height:  var(--line-height); }
   #content.has-sidenotes #footnotes  { display:  none; }
-  .sidenote.is-current, #content .footref.is-current  {
+  .sidenote:hover, sup:hover + .sidenote, sup:has(.footref:focus) + .sidenote,
+  #content sup:hover > .footref, #content sup:has(+ .sidenote:hover) > .footref,
+  #content .footref:focus  {
        background-color:  var(--note-hover);
        box-shadow:  0 0 0 .25em var(--note-hover); }
 }

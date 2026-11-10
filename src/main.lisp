@@ -10,13 +10,14 @@
   (:import-from #:cl-ppcre)
   (:import-from #:clog #:initialize #:is-running-p #:shutdown)
   (:import-from #:dexador)
+  (:import-from #:flexi-streams)
   (:import-from #:ironclad)
   (:import-from #:slynk)
   (:import-from #:usocket)
   (:local-nicknames (#:conn #:clog-connection)
+                    (#:layout #:project-isidore/site/layout)
                     (#:pages #:project-isidore/site/pages)
                     (#:bible-db #:project-isidore/bible/database)
-                    (#:bible #:project-isidore/bible/text)
                     (#:reader #:project-isidore/bible/reader)
                     (#:bot-db #:project-isidore/slack-bot/database)
                     (#:bot #:project-isidore/slack-bot/bot))
@@ -28,8 +29,11 @@
 Slack bot, served by one CLOG (Hunchentoot) web server.
 
 INITIALIZE-APPLICATION opens each part's database, starts the bot's
-reminder scheduler and the web server, and has each part register its pages;
-the bot's endpoints are Lack middleware in front of CLOG.  Loading the system
+reminder scheduler and the web server.  The bot's endpoints and the pages
+of the site and the reader, which are made whole on the server, are Lack
+middleware in front of CLOG; CLOG itself serves the static files, and is
+there for GUIs, which register their paths with CLOG:SET-ON-NEW-WINDOW.
+Loading the system
 does none of this, so loading has no side effects and the build can save the
 image straight after loading it.  APPLICATION-TOPLEVEL is the executable's
 entry point."))
@@ -62,8 +66,8 @@ entry point."))
 
 (defparameter *max-request-octets* (* 1024 1024)
   "The largest request body the server accepts.  Nothing it serves takes an
-upload: Slack's requests are a few kilobytes, and the browser talks to CLOG
-over its websocket.")
+upload: Slack's requests are a few kilobytes, the theme toggle's none, and
+a CLOG GUI talks to the server over its websocket.")
 
 (defun safe-path-p (path)
   "True when PATH, a request's decoded path, is one the site may serve:
@@ -157,7 +161,8 @@ names it with 304."
 (defun make-file-validator ()
   "Return a Lack middleware, to run after every other, that has a browser
 revalidate each file the static server sends, every time it uses its copy,
-by an entity tag of the file's contents.
+by an entity tag of the file's contents, and that puts the reader's colour
+theme into each HTML file.
 
 The files are in the Guix store, where every write date is 1970-01-01
 00:00:01 UTC.  Lack's file server and Hunchentoot each send that as
@@ -171,7 +176,11 @@ each file the server answers with (a 200 whose body is a pathname) itself,
 with an ETag (FILE-ETAG) and Cache-Control: no-cache in place of
 Last-Modified.  An If-None-Match that names the ETag gets a 304 with the
 same Content-Type, lest Hunchentoot's default text/html replace the cached
-copy's."
+copy's.
+
+An HTML file -- the Org blog's pages -- goes out with the theme the
+request's cookie names (LAYOUT:INJECT-THEME), as the pages made here do, so
+its ETag names the theme too, and it varies with the Cookie header."
   (lambda (app)
     (lambda (env)
       (let ((headers (getf env :headers)))
@@ -183,15 +192,47 @@ copy's."
                         (pathnamep (third response))))
               response
               (let* ((pathname (third response))
-                     (etag (file-etag pathname))
+                     (theme (and (member (pathname-type pathname) '("html" "htm")
+                                         :test #'equalp)
+                                 (layout:theme-preference env)))
+                     (etag (if theme
+                               (format nil "\"~A-~A\"" (string-trim "\"" (file-etag pathname)) theme)
+                               (file-etag pathname)))
                      (validated (list* :etag etag :cache-control "no-cache"
-                                       (alexandria:remove-from-plist
-                                        (second response)
-                                        :last-modified :etag :cache-control)))
+                                       (append
+                                        (and theme (list :vary "Cookie"))
+                                        (alexandria:remove-from-plist
+                                         (second response)
+                                         :last-modified :etag :cache-control :vary))))
                      (if-none-match (and headers (gethash "if-none-match" headers))))
-                (if (and if-none-match (etag-matches-p if-none-match etag))
-                    (list 304 (alexandria:remove-from-plist validated :content-length) '())
-                    (stream-file 200 validated pathname)))))))))
+                (cond ((and if-none-match (etag-matches-p if-none-match etag))
+                       (list 304 (alexandria:remove-from-plist validated :content-length) '()))
+                      (theme
+                       (let ((body (flexi-streams:string-to-octets
+                                    (layout:inject-theme
+                                     (uiop:read-file-string pathname :external-format :utf-8)
+                                     theme)
+                                    :external-format :utf-8)))
+                         (list 200
+                               (list* :content-length (length body)
+                                      (alexandria:remove-from-plist validated :content-length))
+                               body)))
+                      (t
+                       (stream-file 200 validated pathname))))))))))
+
+(defun make-page-server ()
+  "Return a Lack middleware that serves the pages of the site and of the
+bible reader, which are made whole here, and the site's 404 page for any
+path that nothing behind it serves either: CLOG, which has the static files
+and whatever GUIs register with it."
+  (lambda (app)
+    (lambda (env)
+      (or (pages:handle-request env)
+          (reader:handle-request env)
+          (let ((response (funcall app env)))
+            (if (and (consp response) (eql 404 (first response)))
+                (pages:not-found-response env)
+                response))))))
 
 (defun wait-for-port-ready (port &key (host "127.0.0.1") (timeout 5.0) (interval 0.05))
   "Block until the web server on HOST:PORT has fully started, or TIMEOUT
@@ -235,24 +276,23 @@ immediately follows the thread's creation."
 site, the bible reader and the bot's endpoints on PORT, on localhost."
   (terminate-application)
   (bible-db:open-database)
-  (bible:open-search-index)
   (bot-db:open-database)
   (bot:load-config)
   (bot:start-reminder-scheduler)
-  (initialize 'pages:on-index-handler
+  ;; No page of CLOG's own, not even /: the pages are the page server's.
+  (initialize nil
               :host "127.0.0.1"
               :port port
-              :extended-routing t
+              :boot-file nil
               ;; The first is outermost: the guard sees every request first,
               ;; and the file validator, last, sees what CLOG answers.
               :lack-middleware-list (list (make-request-guard)
                                           (bot:make-slack-middleware)
+                                          (make-page-server)
                                           (make-file-validator))
               :static-root (namestring
                             (asdf:system-relative-pathname :project-isidore "./")))
-  (pages:register-routes)
-  (reader:register-routes)
-  ;; CLOG's own JS files (boot.js, jquery)
+  ;; CLOG's own JS files (boot.js, jquery), for GUIs
   (conn:add-plugin-path "^/js/"
                         (merge-pathnames "static-files/"
                                          (asdf:system-source-directory :clog)))
@@ -284,7 +324,6 @@ Idempotent."
   (when (or *server* (is-running-p))
     (ignore-errors (shutdown))
     (setf *server* nil))
-  (bible:close-search-index)
   (bible-db:close-database)
   (bot-db:close-database)
   t)

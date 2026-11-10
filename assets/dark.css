@@ -1,0 +1,70 @@
+/* The dark palette: global.css's custom properties, warm dark.  A page
+   links this file after global.css when its reader chose the dark theme,
+   and under the media query (prefers-color-scheme: dark) when they chose
+   "auto" (see src/site/layout.lisp); for parchment, the default, it is not
+   linked at all. */
+/* Warm dark: sepia browns, the parchment inverted rather than replaced.
+   Screen only, so a page printed in dark mode still prints on white. */
+@media screen {
+  :root {
+    color-scheme: dark;
+
+    --page-bg: #211b14;
+    --text: #dccfb6;
+    --heading: #e0a07a;
+    --title-fg: #f0e6d0;
+    --link: #e8a77f;
+    --link-visited: #c4ab8c;
+    --link-hover: #f6cfae;
+    --selection-bg: #5a4630;
+    --rule: #4d3f30;
+    --rule-soft: #1a150f;
+    --table-rule: #77654f;
+    --table-rule-soft: #4d3f30;
+    --table-stripe: #2a2219;
+
+    --chrome-bg: #2a2219;
+    --chrome-fg: #f0e6d0;
+    --chrome-fg-dim: #a8987f;
+    --chrome-hover: #3b3024;
+    --burger: #f0e6d0;
+    --menu-bg: #2a2219;
+    --menu-fg: #f0e6d0;
+    --menu-hover-bg: #3b3024;
+    --menu-hover-fg: #e8a87c;
+
+    --code-bg: #2b241b;
+    --code-fg: #dccfb6;
+    --badge-bg: #77654f;
+    --badge-fg: #ffffff;
+    --inline-code-bg: #2e261d;
+    --inline-code-border: #4d3f30;
+    --inline-code-fg: #dccfb6;
+    --kbd-bg: #3b3024;
+    --tag-bg: #3b3024;
+    --tag-fg: #dccfb6;
+    --tag-border: #77654f;
+    --mark-bg: #6b5300;
+    --inlinetask-bg: #3a3120;
+    --timestamp-kwd: #a9c49a;
+    --note-hover: #3b3024;
+
+    --button-bg: #3b3024;
+    --button-fg: #f0e6d0;
+    --button-border: #a8987f;
+    --button-active-bg: #4d3f30;
+    --button-disabled: #6e6050;
+
+    /* Gruvbox's accents, which were made for a brown-black ground. */
+    --syn-comment: #a89984;
+    --syn-string: #b8bb26;
+    --syn-keyword: #fb7a5e;
+    --syn-builtin: #fe8019;
+    --syn-function: #fabd2f;
+    --syn-variable: #83a598;
+    --syn-constant: #d3869b;
+    --syn-type: #8ec07c;
+    --syn-warning: #ff6b5a;
+    --syn-regexp: #e7a0c0;
+  }
+}
