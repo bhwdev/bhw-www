@@ -11,9 +11,9 @@
   (:import-from #:clog #:initialize #:is-running-p #:shutdown)
   (:import-from #:dexador)
   (:import-from #:flexi-streams)
+  (:import-from #:hunchentoot)
   (:import-from #:ironclad)
   (:import-from #:slynk)
-  (:import-from #:usocket)
   (:local-nicknames (#:conn #:clog-connection)
                     (#:layout #:project-isidore/site/layout)
                     (#:pages #:project-isidore/site/pages)
@@ -27,12 +27,13 @@
            #:application-toplevel)
   (:documentation
    "Project Isidore's one process: the personal site, the bible reader and the
-Slack bot, served by one CLOG (Hunchentoot) web server.
+Slack bot, served by one web server: SITE-ACCEPTOR, the Hunchentoot acceptor
+of the fork of CLOG in clog/.
 
 INITIALIZE-APPLICATION opens each part's database, starts the bot's
 reminder scheduler and the web server, and has each part register its pages;
-the bot's endpoints, and the colour theme's /theme, are Lack middleware in
-front of CLOG.  Loading the system
+SITE-ACCEPTOR answers the bot's endpoints and the colour theme's /theme
+before CLOG sees the request.  Loading the system
 does none of this, so loading has no side effects and the build can save the
 image straight after loading it.  APPLICATION-TOPLEVEL is the executable's
 entry point."))
@@ -41,25 +42,6 @@ entry point."))
 
 (defvar *server* nil
   "Non-NIL when the CLOG web server is running.")
-
-;; Override CLOG-CONNECTION::RANDOM-HEX-STRING to draw from ironclad on
-;; every platform, as upstream already does on Windows; remove it once
-;; Guix's CLOG includes rabbibotton/clog#458.  Elsewhere upstream draws
-;; from a shared cl-isaac context, which fails three ways.  From cl-isaac
-;; 1.0.8 on, RAND64 (RAND32 off x86-64) underflows its typed RANDCNT slot
-;; at the end of each 256-word block and signals a TYPE-ERROR before
-;; reaching its reset branch, so the PRNG stays wedged: CLOG can no
-;; longer mint connection IDs, and fresh browser sessions never receive
-;; the bootstrap frame.  Lack patched cl-isaac's RAND32 and RAND64 until
-;; fukamachi/lack@f3302ce, which dropped cl-isaac.  The context has no
-;; lock, though connections arrive on separate threads.  And it is
-;; seeded at load time, so a saved image such as bin/project-isidore
-;; restores the same state on every start and issues the same connection
-;; IDs -- the handles a reconnecting browser presents to resume its
-;; session.
-(defun conn::random-hex-string ()
-  "Generate a cryptographic 128-bit random hex string for connection IDs."
-  (ironclad:byte-array-to-hex-string (ironclad:random-data 16)))
 
 ;;; Request guard
 
@@ -73,39 +55,74 @@ over its websocket.")
 '/'-separated segments of letters, digits and -_.~, none of them empty or
 beginning with a dot or a tilde.
 
-CLOG hands any path no page claims to Lack's file server, which drops the
-leading slash and merges the rest into the static root as an SBCL namestring.
-That rejects \"..\" but not the forms that make the result absolute or
-point elsewhere: \"//etc/passwd\" (also \"/%2Fetc/passwd\") reads
-/etc/passwd, \"/~/x\" the server's home directory, and \"/SYS:SRC;...\"
-a logical pathname.  Dot-segments are refused too, so a checkout's .git
-is not served."
+Any other path is refused before CLOG or the bot sees it.  The fork of
+CLOG's file server applies the same rule to the files it sends
+\(CLOG-CONNECTION::STATIC-FILE); upstream CLOG hands such a path to Lack's
+file server, which merges it into the static root as an SBCL namestring, so
+that \"//etc/passwd\" (also \"/%2Fetc/passwd\") reads /etc/passwd, \"/~/x\"
+the server's home directory, and \"/SYS:SRC;...\" a logical pathname.
+Dot-segments are refused too, so a checkout's .git is not served."
   (and (stringp path)
        (cl-ppcre:scan "^(?:/[A-Za-z0-9_-][A-Za-z0-9_.~-]*)*/?$" path)
        t))
 
-(defun make-request-guard ()
-  "Return a Lack middleware, to run before every other, that answers 400 to
-a path that is not SAFE-PATH-P, 411 to a body without a Content-Length, and
-413 to one longer than *MAX-REQUEST-OCTETS*.
+(defun guard-response (env)
+  "The response refusing the request plist ENV, or NIL to let it through:
+400 to a path that is not SAFE-PATH-P, 411 to a body without a
+Content-Length, and 413 to one longer than *MAX-REQUEST-OCTETS*.
 
-The body limits protect handlers that size a buffer from Content-Length or
-read the body whole before anything is authenticated: CLOG makes a string
-of Content-Length characters for any form POST to one of its pages, so a
-single request declaring a huge length exhausts the heap and kills the
-process, and the Slack endpoints read the body before checking its
-signature."
-  (lambda (app)
-    (lambda (env)
-      (let ((length (getf env :content-length))
-            (headers (getf env :headers)))
-        (cond ((not (safe-path-p (getf env :path-info)))
-               '(400 (:content-type "text/plain") ("Bad Request")))
-              ((and headers (gethash "transfer-encoding" headers))
-               '(411 (:content-type "text/plain") ("Length Required")))
-              ((and length (not (<= 0 length *max-request-octets*)))
-               '(413 (:content-type "text/plain") ("Payload Too Large")))
-              (t (funcall app env)))))))
+The body limits protect what sizes a buffer from Content-Length or reads
+the body whole before anything is authenticated: Hunchentoot reads a body it
+has not been asked for into an array of Content-Length octets before it
+replies, as it does a form posted to one of CLOG's pages, so a single request
+declaring a huge length would exhaust the heap and kill the process; and the
+Slack endpoints read the body before checking its signature."
+  (let ((length (getf env :content-length))
+        (headers (getf env :headers)))
+    (cond ((not (safe-path-p (getf env :path-info)))
+           '(400 (:content-type "text/plain") ("Bad Request")))
+          ((and headers (gethash "transfer-encoding" headers))
+           '(411 (:content-type "text/plain") ("Length Required")))
+          ((and length (not (<= 0 length *max-request-octets*)))
+           '(413 (:content-type "text/plain") ("Payload Too Large"))))))
+
+;;; Requests and responses as data
+;;;
+;;; The guard, the bot's endpoints and the theme toggle take a request as a
+;;; plist and return a response as a list, so that they, and their tests,
+;;; need no server: REQUEST-ENV and REPLY convert at the edge.
+
+(defun request-env (request)
+  "The Hunchentoot REQUEST as a plist, without its body: :REQUEST-METHOD (a
+keyword), :PATH-INFO (the decoded path), :CONTENT-LENGTH (an integer, or NIL)
+and :HEADERS (a hash table of lowercase names)."
+  (list :request-method (hunchentoot:request-method request)
+        :path-info (hunchentoot:script-name request)
+        :content-length (let ((value (hunchentoot:header-in :content-length request)))
+                          (and value (parse-integer value :junk-allowed t)))
+        :headers (let ((headers (make-hash-table :test #'equal)))
+                   (loop for (name . value) in (hunchentoot:headers-in request)
+                         do (setf (gethash (string-downcase name) headers) value))
+                   headers)))
+
+(defun reply (response)
+  "Make RESPONSE, a list (STATUS HEADERS BODY) with HEADERS a plist and BODY
+a list of strings, the reply to the current request, and return the body for
+Hunchentoot to send, with its Content-Length."
+  (destructuring-bind (status headers body) response
+    (setf (hunchentoot:return-code*) status)
+    (loop for (name value) on headers by #'cddr
+          do (case name
+               (:content-type (setf (hunchentoot:content-type*) value))
+               (:content-length)
+               (t (setf (hunchentoot:header-out name) value))))
+    (format nil "~{~A~}" body)))
+
+(defun theme-toggle-p (env)
+  "True when the request plist ENV is the navbar's theme toggle, a POST to
+/theme (LAYOUT:THEME-TOGGLE-RESPONSE)."
+  (and (eq :post (getf env :request-method))
+       (equal "/theme" (getf env :path-info))))
 
 ;;; Static files
 
@@ -142,133 +159,112 @@ If-None-Match use: a W/ in front of either tag is ignored."
                      :key #'opaque :test #'string=))
          t)))
 
-(defun stream-file (status headers pathname)
-  "A Lack response of STATUS and HEADERS whose body is the contents of the
-file PATHNAME, sent 64 KiB at a time.  A pathname body would not do: Clack's
-Hunchentoot handler gives it to HUNCHENTOOT:HANDLE-STATIC-FILE, which adds
-the file's write date as Last-Modified and answers an If-Modified-Since that
-names it with 304."
-  (lambda (responder)
-    (let ((writer (funcall responder (list status headers)))
+(defun send-file (pathname)
+  "Send the contents of the file PATHNAME as the reply's body, with its
+Content-Length, 64 KiB at a time, and return NIL.  Not
+HUNCHENTOOT:HANDLE-STATIC-FILE, which adds the file's write date as
+Last-Modified and answers an If-Modified-Since that names it with 304."
+  (with-open-file (in pathname :element-type '(unsigned-byte 8))
+    (setf (hunchentoot:content-length*) (file-length in))
+    (let ((out (hunchentoot:send-headers))
           (buffer (make-array 65536 :element-type '(unsigned-byte 8))))
-      (with-open-file (in pathname :element-type '(unsigned-byte 8))
-        (loop for end = (read-sequence buffer in)
-              while (plusp end)
-              do (funcall writer buffer :end end)))
-      (funcall writer nil :close t))))
+      (loop for end = (read-sequence buffer in)
+            while (plusp end)
+            do (write-sequence buffer out :end end))
+      (finish-output out)))
+  nil)
 
-(defun make-file-validator ()
-  "Return a Lack middleware, to run after every other, that has a browser
-revalidate each file the static server sends, every time it uses its copy,
-by an entity tag of the file's contents, and that puts the reader's colour
-theme into each HTML file.
+;;; The web server
+
+(defclass site-acceptor (conn:clog-acceptor)
+  ()
+  (:documentation "The web server: CLOG's, which serves the pages and files,
+with the request guard, the bot's endpoints and the theme toggle answered
+first, and files sent with entity tags."))
+
+(defmethod hunchentoot:acceptor-dispatch-request ((acceptor site-acceptor) request)
+  "Answer REQUEST with the guard's refusal, the bot's or the theme toggle's
+response, or else as CLOG does.  A refusal neither reads the body nor keeps
+the connection, whose unread body would be taken for the next request."
+  (let* ((env (request-env request))
+         (refusal (guard-response env)))
+    (cond (refusal
+           ;; Taken as a stream, the body is not read when the reply goes out.
+           (hunchentoot:raw-post-data :request request :want-stream t)
+           (setf (hunchentoot:aux-request-value 'close-connection request) t)
+           (reply refusal))
+          ((bot:slack-request-p env)
+           (reply (bot:slack-response
+                   (if (getf env :content-length)
+                       (list* :raw-body (hunchentoot:raw-post-data :request request
+                                                                   :want-stream t)
+                              env)
+                       env))))
+          ((theme-toggle-p env)
+           (reply (layout:theme-toggle-response env)))
+          (t
+           (call-next-method)))))
+
+;; Hunchentoot asks this as it sends the reply, to decide whether to keep
+;; the connection; a refused request has it answer no.
+(defmethod hunchentoot:acceptor-persistent-connections-p :around ((acceptor site-acceptor))
+  (and (not (and (boundp 'hunchentoot:*request*)
+                 hunchentoot:*request*
+                 (hunchentoot:aux-request-value 'close-connection)))
+       (call-next-method)))
+
+(defmethod conn:serve-static-file ((acceptor site-acceptor) pathname)
+  "Send the file PATHNAME, which a browser is to revalidate every time it
+uses its copy, by an entity tag of the file's contents, and with the
+reader's colour theme put into it if it is HTML.
 
 The files are in the Guix store, where every write date is 1970-01-01
-00:00:01 UTC.  Lack's file server and Hunchentoot each send that as
-Last-Modified and answer 304 to an If-Modified-Since naming it, so a browser
-kept its copy of a file through every deploy: with no Cache-Control, a
+00:00:01 UTC.  Hunchentoot's file server, as Lack's did, sends that as
+Last-Modified and answers 304 to an If-Modified-Since naming it, so a browser
+would keep its copy of a file through every deploy: with no Cache-Control, a
 Last-Modified that old leaves a copy fresh for over five years (a tenth of
-its age, RFC 9111 section 4.2.2), and asking again only got the 304.
+its age, RFC 9111 section 4.2.2), and asking again only gets the 304.
 
-So this middleware hides If-Modified-Since from the file server, and sends
-each file the server answers with (a 200 whose body is a pathname) itself,
-with an ETag (FILE-ETAG) and Cache-Control: no-cache in place of
-Last-Modified.  An If-None-Match that names the ETag gets a 304 with the
-same Content-Type, lest Hunchentoot's default text/html replace the cached
-copy's.
+So this sends each file with an ETag (FILE-ETAG) and Cache-Control: no-cache
+in place of Last-Modified, and ignores If-Modified-Since.  An If-None-Match
+that names the ETag gets a 304 with the same Content-Type, lest Hunchentoot's
+default text/html replace the cached copy's.
 
 An HTML file -- the Org blog's pages -- goes out with the theme the
 request's cookie names (LAYOUT:INJECT-THEME), as the pages made here do, so
 its ETag names the theme too, and it varies with the Cookie header."
-  (lambda (app)
-    (lambda (env)
-      (let ((headers (getf env :headers)))
-        (when headers
-          (remhash "if-modified-since" headers))
-        (let ((response (funcall app env)))
-          (if (not (and (consp response)
-                        (eql 200 (first response))
-                        (pathnamep (third response))))
-              response
-              (let* ((pathname (third response))
-                     (theme (and (member (pathname-type pathname) '("html" "htm")
-                                         :test #'equalp)
-                                 (layout:theme-preference env)))
-                     (etag (if theme
-                               (format nil "\"~A-~A\"" (string-trim "\"" (file-etag pathname)) theme)
-                               (file-etag pathname)))
-                     (validated (list* :etag etag :cache-control "no-cache"
-                                       (append
-                                        (and theme (list :vary "Cookie"))
-                                        (alexandria:remove-from-plist
-                                         (second response)
-                                         :last-modified :etag :cache-control :vary))))
-                     (if-none-match (and headers (gethash "if-none-match" headers))))
-                (cond ((and if-none-match (etag-matches-p if-none-match etag))
-                       (list 304 (alexandria:remove-from-plist validated :content-length) '()))
-                      (theme
-                       (let ((body (flexi-streams:string-to-octets
-                                    (layout:inject-theme
-                                     (uiop:read-file-string pathname :external-format :utf-8)
-                                     theme)
-                                    :external-format :utf-8)))
-                         (list 200
-                               (list* :content-length (length body)
-                                      (alexandria:remove-from-plist validated :content-length))
-                               body)))
-                      (t
-                       (stream-file 200 validated pathname))))))))))
-
-(defun make-theme-toggle ()
-  "Return a Lack middleware that answers the navbar's theme toggle, a POST
-to /theme (LAYOUT:THEME-TOGGLE-RESPONSE)."
-  (lambda (app)
-    (lambda (env)
-      (if (and (eq :post (getf env :request-method))
-               (equal "/theme" (getf env :path-info)))
-          (layout:theme-toggle-response env)
-          (funcall app env)))))
-
-(defun wait-for-port-ready (port &key (host "127.0.0.1") (timeout 5.0) (interval 0.05))
-  "Block until the web server on HOST:PORT has fully started, or TIMEOUT
-seconds elapse.  Returns T on success, NIL on timeout.
-
-CLOG's INITIALIZE returns as soon as clack:clackup hands back a handler
-struct, but the underlying hunchentoot acceptor finishes START in a separate
-thread, in two steps: START-LISTENING binds the socket, so the port accepts
-connections, and only then does EXECUTE-ACCEPTOR store the listener thread in
-the taskmaster's ACCEPTOR-PROCESS slot.  If TERMINATE-APPLICATION runs between
-those steps, clack's BT2:DESTROY-THREAD cleanup calls HUNCHENTOOT:STOP, whose
-SHUTDOWN reads the still-unbound slot and signals UNBOUND-SLOT in that thread,
-and an unhandled error in any thread of a non-interactive SBCL, such as the
-test suite's, terminates the whole process.  So this waits for both signs:
-the port accepting connections and a \"hunchentoot-listener-HOST:PORT\"
-thread existing, plus one more INTERVAL for the slot assignment that
-immediately follows the thread's creation."
-  (let ((deadline (+ (get-internal-real-time)
-                     (* timeout internal-time-units-per-second)))
-        (listener-name (format nil "hunchentoot-listener-~A:~A" host port)))
-    (flet ((port-ready-p ()
-             (handler-case
-                 (let ((sock (usocket:socket-connect host port)))
-                   (usocket:socket-close sock)
-                   t)
-               (error () nil)))
-           (listener-thread-p ()
-             (find listener-name (bordeaux-threads:all-threads)
-                   :key #'bordeaux-threads:thread-name :test #'equal))
-           (expired-p ()
-             (> (get-internal-real-time) deadline)))
-      (loop until (and (port-ready-p) (listener-thread-p))
-            do (when (expired-p)
-                 (return-from wait-for-port-ready nil))
-               (sleep interval))
-      (sleep interval)
-      t)))
+  (let* ((request hunchentoot:*request*)
+         (theme (and (member (pathname-type pathname) '("html" "htm") :test #'equalp)
+                     (layout:theme-preference (request-env request))))
+         (etag (if theme
+                   (format nil "\"~A-~A\"" (string-trim "\"" (file-etag pathname)) theme)
+                   (file-etag pathname)))
+         (if-none-match (hunchentoot:header-in :if-none-match request)))
+    (setf (hunchentoot:content-type*) (if theme
+                                           "text/html; charset=utf-8"
+                                           (conn:file-content-type pathname))
+          (hunchentoot:header-out :etag) etag
+          (hunchentoot:header-out :cache-control) "no-cache")
+    (when theme
+      (setf (hunchentoot:header-out :vary) "Cookie"))
+    (cond ((and if-none-match (etag-matches-p if-none-match etag))
+           (setf (hunchentoot:return-code*) hunchentoot:+http-not-modified+)
+           nil)
+          (theme
+           (flexi-streams:string-to-octets
+            (layout:inject-theme (uiop:read-file-string pathname :external-format :utf-8)
+                                 theme)
+            :external-format :utf-8))
+          (t
+           (send-file pathname)))))
 
 (defun initialize-application (&key (port 8080))
   "Open the databases, start the Slack bot's reminder scheduler and serve the
-site, the bible reader and the bot's endpoints on PORT, on localhost."
+site, the bible reader and the bot's endpoints on PORT, on localhost.
+
+No static root: the files the site serves are under /assets/ (and
+/favicon.ico), and CLOG serves its own; the checkout's other files, its
+source, are not served."
   (terminate-application)
   (bible-db:open-database)
   (bible:open-search-index)
@@ -279,20 +275,10 @@ site, the bible reader and the bot's endpoints on PORT, on localhost."
               :host "127.0.0.1"
               :port port
               :extended-routing t
-              ;; The first is outermost: the guard sees every request first,
-              ;; and the file validator, last, sees what CLOG answers.
-              :lack-middleware-list (list (make-request-guard)
-                                          (bot:make-slack-middleware)
-                                          (make-theme-toggle)
-                                          (make-file-validator))
-              :static-root (namestring
-                            (asdf:system-relative-pathname :project-isidore "./")))
+              :acceptor-class 'site-acceptor
+              :static-root nil)
   (pages:register-routes)
   (reader:register-routes)
-  ;; CLOG's own JS files (boot.js, jquery)
-  (conn:add-plugin-path "^/js/"
-                        (merge-pathnames "static-files/"
-                                         (asdf:system-source-directory :clog)))
   (conn:add-plugin-path "^/assets/"
                         (namestring (asdf:system-relative-pathname :project-isidore "./")))
   (conn:add-plugin-path "^/favicon\\.ico"
@@ -311,7 +297,6 @@ https://www.gnu.org/licenses/agpl-3.0.html for License details.
 Homepage: https://www.bhw.name/assets/blog/project-isidore-doc.html
 Source code repository: https://github.com/bhwdev/project-isidore
 Navigate to http://localhost:~A to continue... ~%" port)
-  (wait-for-port-ready port)
   t)
 
 (defun terminate-application ()
@@ -350,6 +335,13 @@ hook, which runs when the saved image starts."
 (defun application-toplevel ()
   "The executable's entry point: serve on $PORT (default 8080) until SIGINT.
 On the default port a Slynk server on localhost:4005 allows a remote REPL."
+  ;; CLOG runs each page's handler, and each event's, in a thread of its own,
+  ;; and with *BREAK-ON-ERROR* (its default) lets an error there reach the
+  ;; debugger, which the executable has disabled: SBCL then exits, and one
+  ;; failing page takes the whole server down.  Off, CLOG catches the error
+  ;; and prints it.  A REPL that calls INITIALIZE-APPLICATION keeps the
+  ;; debugger.
+  (setf conn:*break-on-error* nil)
   (let ((port (let ((env (uiop:getenvp "PORT")))
                 (if env (parse-integer env) 8080))))
     (when (= 8080 port)

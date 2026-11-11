@@ -1,0 +1,85 @@
+#+TITLE: CLOG, Project Isidore's fork
+
+[[https://github.com/rabbibotton/clog][CLOG]], the Common Lisp Omnificent GUI, by David Botton (BSD 3-Clause,
+see =LICENSE=), cut down to its core, served by Hunchentoot alone, and with
+plain JavaScript in the browser in place of jQuery and jQuery UI. Forked
+from upstream's =main= at commit =86d0f190902f3d77132d094d2c4c3e3cc5d241ef=
+(2.4 and the commits after it). Its system definition is =../clog.asd=,
+beside =project-isidore.asd= so that ASDF finds both in the same place; the
+system and its packages keep upstream's names.
+
+* What is kept
+
+- =clog-connection=: the connection to the browser, with a new server layer
+  (below).
+- =clog=: the DOM and event API -- objects, elements, forms, window,
+  document, location, navigator, styles, canvas, multimedia, panels, trees,
+  presentations, data binding.
+- =clog-gui=: the desktop GUI abstraction (windows, menus, dialogs).
+- =static-files/=: =boot.js= and =w3.css=: what the boot page and CLOG-GUI
+  load.
+
+Upstream's source files are unchanged except where noted below, so a later
+upstream commit can be compared file by file.
+
+* What is left out
+
+| Upstream                                     | Dependencies it brings          |
+|----------------------------------------------+---------------------------------|
+| MGL-PAX sections and =clog-docs.lisp=         | mgl-pax, 3bmd, colorize, Python |
+| =clog-dbi.lisp=, =clog-web-dbi.lisp=, =clog-auth= | cl-dbi (+ drivers), sqlite, cl-pass |
+| SQL writers in =clog-data.lisp=               | --                              |
+| =clog-web.lisp=, =clog-web-themes.lisp=       | cl-template                     |
+| =clog-webgl.lisp=                             | --                              |
+| =clog-helpers.lisp=, =asdf-ext.lisp=, tools/  | the builder's                   |
+| Clack server, Lack application, static files | clack, lack, websocket-driver   |
+| Connection IDs from cl-isaac, script IDs     | cl-isaac, atomics               |
+| =clog-jquery.lisp= (=clog-jquery=, =jquery-*=) | jQuery, jQuery UI (static files) |
+
+The packages export what upstream's do, minus the names of the parts left
+out and of MGL-PAX's sections. The exports are plain =defpackage= lists in
+=source/clog.lisp=, =source/clog-connection.lisp= and =source/clog-gui.lisp=,
+grouped as upstream's sections were; CLOG's manual is upstream's.
+
+* What is changed
+
+- *No jQuery*: the scripts CLOG sends the browser call the DOM directly, and
+  =boot.js= has the few helpers that need more than a call (=clog_on=,
+  =clog_off= and =clog_trigger= for events; =clog_box= and =clog_set_box=
+  for sizes, measured as jQuery measures them; =clog_css=, =clog_make=,
+  =clog_position=, =clog_offset=, =clog_class=, =clog_field=, ...). Event
+  handlers keep jQuery's contract: called with the event and the data of a
+  triggered event, and =return false= cancels the event and stops it.
+  =property= maps attribute names to DOM properties as jQuery's =prop= did
+  (=tabindex= to =tabIndex=, ...). CLOG-GUI's =:client-movement= drags and
+  resizes windows with pointer events (=clog_draggable=, =clog_resizable=),
+  where upstream uses jQuery UI, so it works with touch too, and
+  =clog-gui-initialize= no longer takes =:jquery-ui= and =:jquery-ui-css=.
+  Differences from jQuery: HTML set with =inner-html= or created from a string
+  does not run its =<script>= elements; =remove-from-dom= keeps an element's
+  handlers, as =detach-from-dom= does; =previous-sibling= works (upstream
+  calls a jQuery method that does not exist).
+- *Server*: =clog-connection-websockets.lisp= has =clog-acceptor=, a
+  Hunchentoot acceptor, in place of upstream's Lack application under Clack.
+  It serves what upstream's does, in the same order: boot pages, the compiled
+  =boot.js=, the websocket at =/clog=, plugin paths, the static root, then
+  CLOG's own =static-files/=, which upstream serves only as the default static
+  root. =initialize= takes =:acceptor-class= (a subclass of =clog-acceptor=)
+  and =:acceptor-initargs= in place of =:server=, =:lack-middleware-list= and
+  the SSL keys: an application extends the server with methods on its
+  subclass (=hunchentoot:acceptor-dispatch-request=, =serve-static-file=), and
+  gets TLS by also inheriting from =hunchentoot:ssl-acceptor=.
+- *Websockets*: =clog-websocket.lisp= implements the server side of RFC 6455
+  on Hunchentoot, in the request's own thread, in place of websocket-driver.
+- *Static files*: a path names a file only if each segment is letters,
+  digits and =-_.~=, not starting with a dot or tilde; Lack's file server let
+  an absolute path, =~= or a logical host escape the root.
+- *Boot page*: the compiled one loads =boot.js= alone (upstream's also loads
+  jQuery from the jQuery CDN), and drops the template slots upstream leaves in
+  its =<noscript>= for a boot function to fill. Form data posted to a boot
+  page is escaped for the script it is written into (upstream writes it raw);
+  uploaded files are kept in memory, as Hunchentoot deletes its temporary
+  files when the request ends.
+- *IDs*: connection IDs come from Ironclad's PRNG (upstream uses a shared,
+  unlocked cl-isaac context, which a saved image restores, and whose 1.0.8
+  =rand-bits-64= wedges); script IDs from a counter under a lock.

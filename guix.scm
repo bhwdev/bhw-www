@@ -1,8 +1,8 @@
 ;;; SPDX-FileCopyrightText: 2026  Ben H. W. <foss@bhw.name>
 ;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-;;; Guix package of Project Isidore, and of the dependencies Guix lacks or
-;;; ships too old.  This file evaluates to the package:
+;;; Guix package of Project Isidore, and of the dependency Guix lacks
+;;; (graph-db).  This file evaluates to the package:
 ;;;
 ;;;   guix build -f guix.scm       compiles, tests, and saves bin/project-isidore
 ;;;   guix shell -D -f guix.scm    development environment: SBCL and the inputs
@@ -74,100 +74,102 @@ Common Lisp, with user-defined indexes, map-reduce views, replication and a
 Prolog-like query language.")
       (license license:expat))))
 
-;; CLOG 2.4: src/main.lisp passes INITIALIZE a :LACK-MIDDLEWARE-LIST, which
-;; 1.2 lacks.  Guix has 2.4 since commit fb6e77f (2026-11-09), but the deploy
-;; hook builds with the host's system Guix, its `guix' package, which is
-;; still the 5ceffb6 snapshot of 2026-09-25 with CLOG 1.2.  Use Guix's
-;; sbcl-clog instead once that package is past fb6e77f.  This is v2.4 plus
-;; the commits after it on main.
-(define-public sbcl-clog-2
-  (let ((commit "86d0f190902f3d77132d094d2c4c3e3cc5d241ef")
-        (revision "0"))
-    (package
-      (inherit sbcl-clog)
-      (version (git-version "2.4" revision commit))
-      (source
-       (origin
-         (method git-fetch)
-         (uri (git-reference
-               (url "https://github.com/rabbibotton/clog")
-               (commit commit)))
-         (file-name (git-file-name "cl-clog" version))
-         (sha256
-          (base32 "1s4qcyajwd88haxinsrp7ksb62p359h4y8j88c4h109paghh9p18"))))
-      (arguments
-       (list #:asd-systems ''("clog")))
-      (inputs
-       (list sbcl-alexandria
-             sbcl-atomics
-             sbcl-bordeaux-threads
-             sbcl-cl-isaac
-             sbcl-cl-pass
-             sbcl-cl-ppcre
-             sbcl-cl-sqlite
-             sbcl-cl-template
-             sbcl-clack
-             sbcl-closer-mop
-             sbcl-dbi
-             sbcl-hunchentoot
-             sbcl-lack
-             sbcl-mgl-pax
-             sbcl-parse-float
-             sbcl-quri
-             sbcl-trivial-gray-streams
-             sbcl-websocket-driver)))))
+;; Guix's CFFI writes the build's GCC into toolchain/c-toolchain.lisp, for
+;; groveling, which keeps all of GCC (about 260 MiB) in the closure of any
+;; program that loads CFFI, though nothing in this one compiles C.  This
+;; names the program instead, which CFFI then finds in PATH (`guix shell -D'
+;; has it).  Grafted (see WITH-CFFI/NO-GCC), which a replacement allows
+;; only if it has every file of the original: this one differs in one line.
+(define sbcl-cffi/no-gcc
+  (package
+    (inherit sbcl-cffi)
+    (arguments
+     (substitute-keyword-arguments (package-arguments sbcl-cffi)
+       ((#:phases phases)
+        #~(modify-phases #$phases
+            (add-before 'copy-source 'unpin-gcc
+              (lambda _
+                (substitute* "toolchain/c-toolchain.lisp"
+                  (("\"/gnu/store/[^\"]*/bin/gcc\"") "\"gcc\""))))
+            ;; SUBSTITUTE* is silent when its pattern matches nothing.
+            (add-after 'create-asdf-configuration 'check-no-gcc
+              (lambda _
+                (let ((gcc (dirname (dirname (which "gcc")))))
+                  (when (zero? (system* "grep" "-rqF" gcc #$output))
+                    (error "the output still refers to" gcc)))))))))))
+
+;; A package with its dependencies on SBCL-CFFI/NO-GCC, grafted.  The graft
+;; keeps the derivations, and so the substitutes, of the store items built on
+;; Guix's CFFI, and copies them with their references rewritten to SBCL-CFFI/
+;; NO-GCC; a build with `--no-grafts' brings Guix's CFFI, and GCC, back.
+(define with-cffi/no-gcc
+  (let ((cffi (package
+                (inherit sbcl-cffi)
+                (replacement sbcl-cffi/no-gcc))))
+    (package-mapping (lambda (package)
+                       (if (eq? package sbcl-cffi) cffi package))
+                     (lambda (package)
+                       (eq? package sbcl-cffi))
+                     #:deep? #t)))
 
 (define-public project-isidore
-  (package
-    (name "project-isidore")
-    (version "2.0.0")
-    (source (local-file "." "project-isidore-checkout"
-                        #:recursive? #t
-                        #:select? vcs-file?))
-    (build-system asdf-build-system/sbcl)
-    (arguments
-     (list
-      #:asd-systems ''("project-isidore")
-      #:phases
-      #~(modify-phases %standard-phases
-          ;; 'build compiled the system and 'check ran its tests, each in a
-          ;; process of its own; this one loads the system alone and saves
-          ;; the executable.  Loading it starts nothing and opens nothing:
-          ;; INITIALIZE-APPLICATION does that when the program runs.  (The
-          ;; name must be lower case: BUILD-PROGRAM names an ASDF system
-          ;; after it.)
-          (add-after 'create-asdf-configuration 'build-program
-            (lambda* (#:key outputs #:allow-other-keys)
-              (build-program
-               (string-append #$output "/bin/project-isidore")
-               outputs
-               #:dependencies '("project-isidore")
-               #:entry-program '((project-isidore/main:application-toplevel))))))))
-    (native-inputs
-     (list sbcl-rove))
-    (inputs
-     (list sbcl-alexandria
-           sbcl-bordeaux-threads
-           sbcl-cffi
-           sbcl-cl+ssl
-           sbcl-cl-ppcre
-           sbcl-clog-2
-           sbcl-dexador
-           sbcl-flexi-streams
-           sbcl-graph-db
-           sbcl-ironclad
-           sbcl-jzon
-           sbcl-local-time
-           sbcl-montezuma
-           sbcl-quri
-           sbcl-slynk
-           sbcl-usocket))
-    (home-page "https://www.bhw.name/blog/project-isidore-doc.html")
-    (synopsis "Personal web application")
-    (description
-     "Project Isidore is a personal web application: a website, a Douay-Rheims
+  (with-cffi/no-gcc
+   (package
+     (name "project-isidore")
+     (version "2.0.0")
+     (source (local-file "." "project-isidore-checkout"
+                         #:recursive? #t
+                         #:select? vcs-file?))
+     (build-system asdf-build-system/sbcl)
+     (arguments
+      (list
+       #:asd-systems ''("project-isidore")
+       #:phases
+       #~(modify-phases %standard-phases
+           ;; 'build compiled the system and 'check ran its tests, each in a
+           ;; process of its own; this one loads the system alone and saves
+           ;; the executable.  Loading it starts nothing and opens nothing:
+           ;; INITIALIZE-APPLICATION does that when the program runs.  (The
+           ;; name must be lower case: BUILD-PROGRAM names an ASDF system
+           ;; after it.)
+           (add-after 'create-asdf-configuration 'build-program
+             (lambda* (#:key outputs #:allow-other-keys)
+               (build-program
+                (string-append #$output "/bin/project-isidore")
+                outputs
+                #:dependencies '("project-isidore")
+                #:entry-program '((project-isidore/main:application-toplevel))))))))
+     (native-inputs
+      (list sbcl-rove))
+     (inputs
+      ;; With those of the fork of CLOG in clog/ (clog.asd): cl-base64,
+      ;; closer-mop, hunchentoot, parse-float, trivial-gray-streams.
+      (list sbcl-alexandria
+            sbcl-bordeaux-threads
+            sbcl-cffi
+            sbcl-cl+ssl
+            sbcl-cl-base64
+            sbcl-cl-ppcre
+            sbcl-closer-mop
+            sbcl-dexador
+            sbcl-flexi-streams
+            sbcl-graph-db
+            sbcl-hunchentoot
+            sbcl-ironclad
+            sbcl-jzon
+            sbcl-local-time
+            sbcl-montezuma
+            sbcl-parse-float
+            sbcl-quri
+            sbcl-slynk
+            sbcl-trivial-gray-streams
+            sbcl-usocket))
+     (home-page "https://www.bhw.name/blog/project-isidore-doc.html")
+     (synopsis "Personal web application")
+     (description
+      "Project Isidore is a personal web application: a website, a Douay-Rheims
 Bible reader with search, and a Slack bot that books vans, served by one
 process.")
-    (license license:agpl3+)))
+     (license license:agpl3+))))
 
 project-isidore

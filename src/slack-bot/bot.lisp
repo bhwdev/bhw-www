@@ -49,14 +49,16 @@
                 #:add-slack-identity
                 #:remove-slack-identity
                 #:initial-of)
-  (:export #:make-slack-middleware
+  (:export #:slack-request-p
+           #:slack-response
            #:load-config
            #:start-reminder-scheduler
            #:stop-reminder-scheduler)
   (:documentation
    "Slack bot integration for van booking.
 
-Provides a Lack middleware that serves two endpoints:
+Serves two endpoints (SLACK-REQUEST-P, SLACK-RESPONSE), through
+PROJECT-ISIDORE/MAIN's web server:
 
   POST /slack/commands — Slash commands /book, /view, /iam, /subscribe,
                          /unsubscribe, /help.
@@ -731,7 +733,13 @@ synchronously or ignored."
                                    (funcall handler
                                             (message-command-params event command args)))))))))))
 
-;;; Lack Middleware
+;;; Endpoints
+;;;
+;;; A request is a plist -- :REQUEST-METHOD, :PATH-INFO, :HEADERS (a hash
+;;; table of lowercase names), :CONTENT-LENGTH, :RAW-BODY (a binary stream) --
+;;; and a response a list (STATUS HEADERS BODY), HEADERS a plist and BODY a
+;;; list of strings: PROJECT-ISIDORE/MAIN converts them from and to
+;;; Hunchentoot's request and reply, and the tests make them directly.
 
 (defparameter *max-body-octets* (* 1024 1024)
   "The longest request body READ-BODY-STRING reads; Slack's are a few
@@ -739,7 +747,7 @@ kilobytes.  The body is read before its signature can be checked, so this
 bounds what an unauthenticated POST can make the bot hold in memory.")
 
 (defun read-body-string (env)
-  "Read the raw request body from a Lack/Clack ENV plist into a UTF-8 string,
+  "Read the raw request body from the request plist ENV into a UTF-8 string,
 or return NIL when there is none or it is longer than *MAX-BODY-OCTETS*."
   (let ((stream (getf env :raw-body)))
     (when stream
@@ -753,24 +761,25 @@ or return NIL when there is none or it is longer than *MAX-BODY-OCTETS*."
           (flexi-streams:octets-to-string buffer :end end :external-format :utf-8))))))
 
 (defun json-response (status hash-table)
-  "Return a Lack response triplet with JSON content."
+  "Return a response (STATUS HEADERS BODY) with JSON content."
   (list status
         '(:content-type "application/json")
         (list (com.inuoe.jzon:stringify hash-table))))
 
-(defun make-slack-middleware ()
-  "Return a Lack middleware that intercepts POST /slack/events and
-POST /slack/commands. All other requests pass through to the wrapped app."
-  (lambda (app)
-    (lambda (env)
-      (cond
-        ((not (eq :post (getf env :request-method)))
-         (funcall app env))
-        ((string= "/slack/events" (getf env :path-info))
-         (handle-slack-request env))
-        ((string= "/slack/commands" (getf env :path-info))
-         (handle-slash-command env))
-        (t (funcall app env))))))
+(defun slack-request-p (env)
+  "True when the request plist ENV is for one of the bot's endpoints: a POST
+to /slack/events or /slack/commands.  Decided on the method and path alone,
+before the body is read."
+  (and (eq :post (getf env :request-method))
+       (member (getf env :path-info) '("/slack/events" "/slack/commands")
+               :test #'equal)
+       t))
+
+(defun slack-response (env)
+  "The response to the request plist ENV, which SLACK-REQUEST-P accepts."
+  (if (equal "/slack/events" (getf env :path-info))
+      (handle-slack-request env)
+      (handle-slash-command env)))
 
 (defun handle-slack-request (env)
   "Handle an incoming Slack Events API request.

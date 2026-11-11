@@ -7,7 +7,6 @@
   (:import-from #:clog
                 #:attribute #:create-child #:create-div #:document-element
                 #:head-element #:html-document #:property)
-  (:import-from #:clog-web #:clog-web-initialize)
   (:import-from #:quri)
   (:export #:with-page-chrome
            #:escape-html
@@ -139,7 +138,6 @@ so that it needs no script."
   "Set up a page with navbar, main content area, and footer, in the colour
 theme the reader's cookie names.  CONTENT-FN is called with the main content
 div as argument."
-  (clog-web-initialize body)
   (let* ((document (html-document body))
          (theme (cookie-theme (property document "cookie")))
          (dark (dark-stylesheet theme)))

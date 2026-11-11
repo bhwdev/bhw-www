@@ -80,17 +80,15 @@ it."
   (ok (string= "/bible/genesis-1-1" (layout:escape-html "/bible/genesis-1-1"))))
 
 (deftest request-guard
-  (let ((handler (funcall (main::make-request-guard)
-                          (lambda (env) (declare (ignore env)) '(200 () ("app"))))))
-    (flet ((status (&rest env) (first (funcall handler env))))
-      (ok (= 200 (status :path-info "/about")))
-      (ok (= 200 (status :path-info "/slack/events" :content-length 1024)))
-      (ok (= 400 (status :path-info "//etc/passwd")))
-      (ok (= 413 (status :path-info "/about" :content-length (1+ main::*max-request-octets*))))
-      (ok (= 413 (status :path-info "/about" :content-length -1)))
-      (let ((headers (make-hash-table :test #'equal)))
-        (setf (gethash "transfer-encoding" headers) "chunked")
-        (ok (= 411 (status :path-info "/slack/events" :headers headers)))))))
+  (flet ((status (&rest env) (first (or (main::guard-response env) '(200)))))
+    (ok (= 200 (status :path-info "/about")))
+    (ok (= 200 (status :path-info "/slack/events" :content-length 1024)))
+    (ok (= 400 (status :path-info "//etc/passwd")))
+    (ok (= 413 (status :path-info "/about" :content-length (1+ main::*max-request-octets*))))
+    (ok (= 413 (status :path-info "/about" :content-length -1)))
+    (let ((headers (make-hash-table :test #'equal)))
+      (setf (gethash "transfer-encoding" headers) "chunked")
+      (ok (= 411 (status :path-info "/slack/events" :headers headers))))))
 
 ;; The theme comes from its cookie, defaulting to parchment; the toggle
 ;; cycles it and sends the reader back to a path on this site only.
@@ -175,7 +173,7 @@ it."
         (ng (string= tag (main::file-etag b)))))))
 
 ;; The application starts and stops cleanly, under a data root of its own,
-;; and serves nothing outside its static root.  Port 8293, as 8080 is the
+;; and serves no file of the checkout outside assets/.  Port 8293, as 8080 is the
 ;; production server's.
 (deftest can-app-init-and-exit
     (with-temp-data-root ()
@@ -183,6 +181,18 @@ it."
       (unwind-protect
            (progn
              (ok (= 200 (http-status 8293 "GET /assets/global.css HTTP/1.0")))
+             ;; CLOG's own file, which its boot page loads
+             (ok (= 200 (http-status 8293 "GET /js/boot.js HTTP/1.0")))
+             (ok (= 404 (http-status 8293 "GET /js/jquery.min.js HTTP/1.0")) "no jQuery")
+             ;; No static root: the checkout's files outside assets/ are not served.
+             (dolist (path '("/guix.scm" "/clog.asd" "/project-isidore.asd" "/README.org"))
+               (ok (= 404 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))
+             ;; and its websocket, which answers a version it does not
+             ;; speak without opening a session
+             (ok (= 426 (http-status 8293 "GET /clog HTTP/1.1" "Host: localhost"
+                                     "Upgrade: websocket" "Connection: Upgrade"
+                                     "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+                                     "Sec-WebSocket-Version: 8")))
              ;; Without the guard each of these is a file outside the static
              ;; root: an absolute path (this system's own .asd), the home
              ;; directory, and the checkout's .gitignore.

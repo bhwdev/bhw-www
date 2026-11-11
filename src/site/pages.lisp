@@ -8,7 +8,6 @@
                 #:create-img #:create-list-item #:create-p #:create-section
                 #:create-style-block #:create-unordered-list #:head-element
                 #:html-document #:location #:path-name #:set-on-new-window #:title)
-  (:import-from #:clog-web #:clog-web-initialize)
   (:import-from #:project-isidore/site/layout #:escape-html #:with-page-chrome)
   (:export #:on-index-handler
            #:register-routes)
@@ -109,7 +108,6 @@ the spans share a few keyframes and differ in their delays."
 
 (defun on-index-handler (body)
   "Index page with background slideshow and typewriter greeting. No navbar."
-  (clog-web-initialize body)
   (create-child (head-element (html-document body))
                 "<link rel='stylesheet' href='/assets/global.css' type='text/css'>")
   (setf (title (html-document body)) "BHW.name")

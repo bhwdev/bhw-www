@@ -16,11 +16,27 @@ systems under `src/`:
 
 `main.lisp` is the composition root: `initialize-application` opens the
 stores, starts the scheduler and CLOG, and has each part register its routes.
-Loading the system opens and starts nothing. `store.lisp` is the graph-db
-plumbing the stores share (one system directory per process). Pages run no
-script of the site's own (CLOG's own runtime aside): the colour theme is a
-cookie set by POST /theme (`site/layout`), and the index's slideshow and
+Loading the system opens and starts nothing. The executable turns off
+CLOG's `*break-on-error*`, as an error in a page's thread would otherwise
+exit the process; there is no static root, so only `assets/` (and the
+favicon) of the checkout is served. The web server is `site-acceptor`
+there, a Hunchentoot acceptor subclassing the CLOG fork's `clog-acceptor`: it
+answers the request guard, the Slack endpoints and POST /theme before CLOG,
+and sends files with ETags (its `serve-static-file` method). Those handlers
+take a request plist and return `(status headers body)`; `request-env` and
+`reply` convert, so they are tested without a server. `store.lisp` is the
+graph-db plumbing the stores share (one system directory per process). Pages
+run no script of the site's own (CLOG's own runtime aside): the colour theme
+is a cookie set by POST /theme (`site/layout`), and the index's slideshow and
 greeting are CSS.
+
+`clog/` is a fork of CLOG (system `clog`, `clog.asd` at the root beside
+`project-isidore.asd`): its core and CLOG-GUI, without MGL-PAX, CL-DBI,
+Clack, Lack, websocket-driver or jQuery, on Hunchentoot with its own RFC 6455
+websockets (`clog-websocket.lisp`); the scripts it sends the browser are plain
+DOM calls and the helpers in `clog/static-files/js/boot.js`.
+`clog/README.org` lists what was cut and changed from upstream's commit; its
+tests are `src/tests/clog.lisp`.
 
 Packages `:use` only `common-lisp`; everything else comes in through
 `:import-from` or `:local-nicknames`. Tests are Rove, under `src/tests/`
@@ -36,6 +52,11 @@ mirroring `src/`.
   file with the host's Guix (README.org, "Deployment").
 - `guix shell -D -f guix.scm`: the development environment. Its cache follows
   `guix.scm`'s mtime, so it is never stale.
+- `guix.scm` grafts a CFFI without GCC (`with-cffi/no-gcc`): `--no-grafts`
+  brings GCC back. Only a variant with every file of the original can be
+  grafted: ASDF configurations link into each other's, and a graft leaves
+  links to missing files dangling. The CLOG fork's dependencies are the
+  package's own inputs.
 
 ## cl-mcp
 

@@ -12,9 +12,10 @@ otherwise noted.
 ** Development Quick Start
 
 Prerequisite(s): [[https://guix.gnu.org/][GNU Guix]], which provides [[http://www.sbcl.org/][SBCL]] and every Common Lisp dependency.
-=guix.scm= defines the package, including the dependencies Guix lacks, and
-its inputs are the development environment. Production builds it with the
-host's own Guix (see "Deployment").
+=guix.scm= defines the package, including the dependency Guix lacks
+(graph-db) and, grafted, a CFFI without its reference to GCC. Its inputs are
+the development environment. Production builds it with the host's own Guix
+(see "Deployment").
 
 The code is three parts served by one process, each a group of
 package-inferred systems under =src/=:
@@ -32,10 +33,12 @@ graph-db plumbing the two databases share. The tests mirror this tree under
 =src/tests/= and use [[https://github.com/fukamachi/rove][Rove]].
 
 The pages are built by [[https://github.com/rabbibotton/clog][CLOG]] over its websocket (a browser without
-JavaScript sees nothing), and none of them, the static blog's included, runs
-a script of the site's own: what moves on the index page is CSS, and the
-colour theme is a cookie that the navbar's toggle sets by posting to
-=/theme=. CLOG reads it for its pages; the file server writes it into each
+JavaScript sees nothing): a fork of it in =clog/=, its core and CLOG-GUI
+served by Hunchentoot alone, without the documentation, database, Clack and
+Lack layers or jQuery (=clog/README.org=). None of the pages, the static blog's
+included, runs a script of the site's own: what moves on the index page is
+CSS, and the colour theme is a cookie that the navbar's toggle sets by
+posting to =/theme=. CLOG reads it for its pages; the file server writes it into each
 static HTML file it sends, and links =assets/dark.css= when it applies.
 
 1. Clone the repository and enter the development environment,

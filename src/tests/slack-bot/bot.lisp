@@ -21,7 +21,7 @@
 
 Covers pure helpers (form decoding, initial parsing, dispatch table,
 docstring-driven help output, reminder-key determinism, date-rollover
-reset), request signature verification, the Lack middleware and both
+reset), request signature verification, the endpoint routing and both
 endpoints, the slash-command handlers, message events, the reminder
 scheduler tick, and graph-db-backed subscription CRUD.  Everything that
 would hit the Slack API or Google Sheets is mocked with
@@ -224,14 +224,14 @@ WITH-MOCKED-FUNCTIONS."))
     (format nil "v0=~(~{~2,'0X~}~)" (coerce (ironclad:hmac-digest hmac) 'list))))
 
 (defun body-env (string &rest plist)
-  "A minimal Lack ENV plist whose raw body is STRING (UTF-8)."
+  "A minimal request plist whose raw body is STRING (UTF-8)."
   (list* :raw-body
          (flexi-streams:make-in-memory-input-stream
           (flexi-streams:string-to-octets string :external-format :utf-8))
          plist))
 
 (defun signed-env (path body &key (secret "testsecret") signature extra-headers)
-  "A Lack ENV for a Slack POST to PATH with BODY, signed with SECRET (or a
+  "A request plist for a Slack POST to PATH with BODY, signed with SECRET (or a
 literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
   (let ((ts (princ-to-string (unix-now)))
         (headers (make-hash-table :test #'equal)))
@@ -320,21 +320,28 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
                     "/view" "/subscribe" "/unsubscribe" "/help"))
     (ok (search needle sb::+help-text+) (format nil "help mentions ~a" needle))))
 
-(deftest middleware-routing
-  (let* ((app-calls '())
-         (app (lambda (env) (push (getf env :path-info) app-calls) '(200 () ("app"))))
-         (handler (funcall (sb:make-slack-middleware) app)))
-    ;; GET passes through, even on the slack paths
-    (ok (equal '(200 () ("app"))
-               (funcall handler '(:request-method :get :path-info "/slack/events"))))
-    ;; POST elsewhere passes through
-    (ok (equal '(200 () ("app"))
-               (funcall handler (body-env "x" :request-method :post :path-info "/other"))))
-    (ok (equal '("/other" "/slack/events") app-calls))
-    ;; POST to the slack paths is handled here: no body -> 400
-    (ok (= 400 (first (funcall handler '(:request-method :post :path-info "/slack/events")))))
-    (ok (= 400 (first (funcall handler '(:request-method :post :path-info "/slack/commands")))))
-    (ok (= 2 (length app-calls)))))
+(deftest endpoint-routing
+  ;; GET is not the bot's, even on the slack paths; nor is a POST elsewhere
+  (ng (sb:slack-request-p '(:request-method :get :path-info "/slack/events")))
+  (ng (sb:slack-request-p (body-env "x" :request-method :post :path-info "/other")))
+  (ok (sb:slack-request-p '(:request-method :post :path-info "/slack/events")))
+  (ok (sb:slack-request-p '(:request-method :post :path-info "/slack/commands")))
+  ;; each path reaches its handler: with no body, 400
+  (ok (= 400 (first (sb:slack-response
+                     '(:request-method :post :path-info "/slack/events")))))
+  (ok (= 400 (first (sb:slack-response
+                     '(:request-method :post :path-info "/slack/commands")))))
+  (let ((sb::*slack-signing-secret* "testsecret"))
+    (ok (search "Unknown command: /bogus"
+                (first (third (sb:slack-response
+                               (signed-env "/slack/commands"
+                                           "command=%2Fbogus&user_id=U1&channel_id=C1"))))))
+    (ok (string= "abc"
+                 (gethash "challenge"
+                          (com.inuoe.jzon:parse
+                           (first (third (sb:slack-response
+                                          (signed-env "/slack/events"
+                                                      "{\"type\":\"url_verification\",\"challenge\":\"abc\"}"))))))))))
 
 (deftest events-endpoint
   (let ((sb::*slack-signing-secret* "testsecret"))
