@@ -172,6 +172,19 @@ it."
           (write-string "body { color: blue; }" out))
         (ng (string= tag (main::file-etag b)))))))
 
+;; graph-db spells a stored symbol with its package's name, and the stores on
+;; the VPS were written before the 2026-11-12 rename: these are records of
+;; their type registry (system/type-registry.log), which it reads with READ.
+(deftest stores-written-before-the-rename
+  (dolist (record '("(:SYMBOL PROJECT-ISIDORE/BIBLE/DATABASE:BIBLE-METADATA :PARENT :VERTEX :ID 1)"
+                    "(:SYMBOL PROJECT-ISIDORE/BIBLE/DATABASE:BIBLE :PARENT :VERTEX :ID 2)"
+                    "(:SYMBOL PROJECT-ISIDORE/SLACK-BOT/DATABASE:SLACK-SUBSCRIPTION :PARENT :VERTEX :ID 3)"
+                    "(:SYMBOL PROJECT-ISIDORE/SLACK-BOT/DATABASE:SLACK-IDENTITY :PARENT :VERTEX :ID 4)"))
+    (let ((symbol (getf (read-from-string record) :symbol)))
+      (ok (member (package-name (symbol-package symbol))
+                  '("BHW/BIBLE/DATABASE" "BHW/SLACK-BOT/DATABASE") :test #'string=)
+          record))))
+
 ;; The application starts and stops cleanly, under a data root of its own,
 ;; and serves no file of the checkout outside assets/.  Port 8293, as 8080 is the
 ;; production server's.

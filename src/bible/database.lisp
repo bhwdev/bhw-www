@@ -2,6 +2,9 @@
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
 (uiop:define-package #:bhw/bible/database
+  ;; Its name before the 2026-11-12 rename: graph-db spells a stored
+  ;; symbol with its package's name, and the stores were written then.
+  (:nicknames #:project-isidore/bible/database)
   (:use #:common-lisp)
   (:import-from #:graph-db)
   (:local-nicknames (#:store #:bhw/store))
