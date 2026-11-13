@@ -413,7 +413,8 @@ result or if time out DEFAULT-ANSWER. (Internal)"))
                                       (format nil "; clog_off(~A,'~A')"
                                               (script-id obj)
                                               event))
-                                    (when cancel-event "; return false")))
+                                    (cond ((stringp cancel-event) cancel-event)
+                                          (cancel-event "; return false"))))
                 (setf (gethash hook cd) handler))
               (t
                 (unbind-event-script obj event)
@@ -501,6 +502,17 @@ PROPERTY takes too, as jQuery's prop does.  (Private)")
 
 (defmethod focus ((obj clog-obj))
   (execute obj "focus()"))
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; scroll-into-view ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+(defgeneric scroll-into-view (clog-obj)
+  (:documentation "Scroll what holds CLOG-OBJ no further than brings it
+into view."))
+
+(defmethod scroll-into-view ((obj clog-obj))
+  (execute obj "scrollIntoView({block:'nearest',inline:'nearest'})"))
 
 ;;;;;;;;;;
 ;; blur ;;
@@ -1374,8 +1386,15 @@ nil will unbind on-key-press also."))
 (defgeneric set-on-key-down (clog-obj on-key-down-handler
                              &key one-time disable-default)
   (:documentation "Set the ON-KEY-DOWN-HANDLER for CLOG-OBJ. If
-disable-default is t default key bindings in browser will not occur.
+disable-default is t default key bindings in browser will not occur; if
+it is a list of key values (\"ArrowUp\", \" \"), only those keys' do not,
+and only when pressed without Ctrl, Alt or Meta.
 If ON-KEY-DOWN-HANDLER is nil unbind the event."))
+
+(defun cancel-keys-script (keys)
+  "The end of an event script that cancels the event for the key values KEYS."
+  (format nil "; if (!e.ctrlKey && !e.altKey && !e.metaKey && [~{'~A'~^,~}].indexOf(e.key) >= 0) return false"
+          (mapcar #'escape-string keys)))
 
 (defmethod set-on-key-down ((obj clog-obj) handler
                             &key (one-time nil) (disable-default nil))
@@ -1384,7 +1403,9 @@ If ON-KEY-DOWN-HANDLER is nil unbind the event."))
                (lambda (data)
                  (funcall handler obj (parse-keyboard-event data))))
              :one-time one-time
-             :cancel-event disable-default
+             :cancel-event (if (consp disable-default)
+                               (cancel-keys-script disable-default)
+                               disable-default)
              :call-back-script keyboard-event-script))
 
 ;;;;;;;;;;;;;;;;;;;

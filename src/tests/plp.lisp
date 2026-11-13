@@ -156,6 +156,72 @@ CCLI Song #43192. CCLI License #0000."
      ebbs out life's little day.                                   with Thee at hand to bless."
   "A page set in two columns.")
 
+(deftest marks-for-the-musicians
+  (testing "a mark is left out, sung words in parentheses are not"
+    (ok (equal "Abide with me" (song:sung-line "Abide with me (x2)")))
+    (ok (equal "O abide with me" (song:sung-line "O abide with me (V1, V2, Ref.)")))
+    (ok (equal "Abide on" (song:sung-line "Abide (Ref. x2) on")))
+    (ok (equal "" (song:sung-line "(Pre-Chorus, Refrain 1)")))
+    (ok (equal "" (song:sung-line "(Repeat last two lines)")))
+    (ok (equal "Abide" (song:sung-line "Abide (Ref. x2, Bridge 2,")) "one left open")
+    (ok (equal "Abide (with me)" (song:sung-line "Abide (with me)")))
+    (ok (equal "Abide (to the end)" (song:sung-line "Abide (to the end)")))
+    (ok (equal "(echo)" (song:sung-line "(echo)"))))
+  (testing "a song is read without them"
+    (let ((song (song:parse-song
+                 (format nil "Title: T~%Order: 1 T~%~%1.~%Abide with me (x2)~%(Ref.)~%~%Tag:~%(x4)~%"))))
+      (ok (null (song:song-problems song)) "nor is it in the order")
+      (ok (equal '(("Abide with me"))
+                 (song:section-slides (first (song:song-sections song)))))
+      (ok (equal '("1") (mapcar #'song:slide-key (song:song-deck song)))
+          "a section of marks only is none")))
+  (testing "a deck does not show the marks of a song stored with them"
+    (let ((song (song:make-song
+                 :title "T"
+                 :sections '((:kind :verse :number 1 :label "Verse"
+                              :slides (("Abide with me (x2)" "(V1, Ref.)")))))))
+      (ok (equal '("Abide with me") (song:slide-lines (first (song:song-deck song))))))))
+
+(deftest a-structure-suggested
+  (testing "words under no label: what is sung twice is the refrain"
+    (multiple-value-bind (parts places)
+        (song:outline (format nil "Abide with me~%fast falls the eventide (x2)~%~%Help of the helpless~%~%Swift to its close~%~%Help of the helpless!~%"))
+      (ok (equal '(:verse :refrain :verse) (mapcar #'song:section-kind parts)))
+      (ok (equal '(0 1 2 1) places))
+      (ok (equal '(("Abide with me" "fast falls the eventide"))
+                 (song:section-slides (first parts))))
+      (let ((song (song:outline-song parts places :title " Abide " :writers "")))
+        (ok (equal "Abide" (song:song-title song)))
+        (ok (null (song:song-writers song)))
+        (ok (equal '("1" "R" "2" "R") (song:song-order song)))
+        (ok (null (song:song-problems song)))
+        (ok (equal '("1" "R" "2" "R") (mapcar #'song:slide-key (song:song-deck song)))))
+      (testing "a part is given another kind"
+        (let ((song (song:outline-song (list (first parts)
+                                             (song:relabel (second parts) :bridge)
+                                             (third parts))
+                                       places)))
+          (ok (equal '("1" "B" "2" "B") (song:song-order song)))))))
+  (testing "labels are kept, and a label alone sings its part again"
+    (multiple-value-bind (parts places)
+        (song:outline (format nil "[Verse 1]~%Abide with me~%~%Chorus:~%Help of the helpless~%~%Intro~%G D Em~%~%Verse 2~%Swift to its close~%~%Chorus~%~%Bridge~%I need thy presence~%"))
+      (ok (equal '(:verse :refrain :verse :bridge) (mapcar #'song:section-kind parts)))
+      (ok (equal '(1 nil 2 nil) (mapcar #'song:section-number parts)))
+      (ok (equal '(0 1 2 1 3) places))
+      (ok (equal '("1" "R" "2" "R" "B")
+                 (song:song-order (song:outline-song parts places))))))
+  (testing "a song sung straight through needs no order"
+    (multiple-value-bind (parts places) (song:outline (format nil "a~%~%b~%"))
+      (ok (null (song:song-order (song:outline-song parts places))))))
+  (ok (null (song:outline "")))
+  (testing "the card above and below, in rows of three"
+    (ok (eql 4 (console:row-step 1 8 3 1)))
+    (ok (eql 1 (console:row-step 4 8 3 -1)))
+    (ok (eql 1 (console:row-step 1 8 3 -1)) "none above")
+    (ok (eql 7 (console:row-step 5 8 3 1)) "the last row is short")
+    (ok (eql 7 (console:row-step 7 8 3 1)) "none below")
+    (ok (eql 0 (console:row-step 0 0 3 1)))))
+
 (deftest chord-lines
   (ok (import:chord-line-p "   G        D       Em"))
   (ok (import:chord-line-p "C   G/B  Asus4 - A7   (Bm7)  D2"))
@@ -374,6 +440,10 @@ CCLI Song #43192. CCLI License #0000."
           (ok (equal '("B" 1) (showing)) "no pre-chorus: nothing moves")
           (dotimes (i 5) (live:press-key room "PageDown"))
           (ok (equal '("R2" 1) (showing)) "the last slide holds")
+          (ok (live:press-key room "ArrowUp"))
+          (ok (equal '("B" 1) (showing)) "up is back")
+          (ok (live:press-key room "ArrowDown"))
+          (ok (equal '("R2" 1) (showing)) "down is on")
           (ng (live:press-key room "x") "not a key of the map")
           (ng (live:press-key room "Shift")))
         (testing "black and waiting"

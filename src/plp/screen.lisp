@@ -71,7 +71,8 @@ its longest line allows across and what the number of lines allows down.
 A letter is taken to be six tenths as wide as it is tall (bold Verdana,
 the widest of the stylesheet's faces, averages a little under that), and a
 line to take a height and a quarter; the slide is left nine tenths of the
-width and seven tenths of the height."
+width and seven tenths of the height.  A line of wide letters that is set
+longer than that all the same wraps (the stylesheet) and is not cut."
   (let ((characters (max 14 (reduce #'max lines :key #'length :initial-value 0)))
         (count (max 2 (length lines))))
     (format nil "min(~,2Fvw, ~,2Fvh)" (/ 150 characters) (/ 56 count))))

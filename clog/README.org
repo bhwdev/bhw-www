@@ -83,3 +83,8 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
 - *IDs*: connection IDs come from Ironclad's PRNG (upstream uses a shared,
   unlocked cl-isaac context, which a saved image restores, and whose 1.0.8
   =rand-bits-64= wedges); script IDs from a counter under a lock.
+- *Added*: =set-on-key-down='s =:disable-default= also takes a list of key
+  values, and then cancels only those keys (pressed without Ctrl, Alt or
+  Meta), so that a pane can take the arrows and the space bar and leave the
+  browser its shortcuts; =scroll-into-view= (the DOM's =scrollIntoView=,
+  to the nearest edge).

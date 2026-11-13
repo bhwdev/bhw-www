@@ -78,6 +78,7 @@
    #:height
    #:width
    #:focus
+   #:scroll-into-view
    #:blur
    ;; CLOG-Obj - Low Level
    #:*store-new-objects*

@@ -11,6 +11,8 @@
            #:section-kind #:section-number #:section-label #:section-slides
            #:section-key #:section-name
            #:parse-song #:print-song #:song-problems
+           #:sung-line #:sung-lines
+           #:outline #:*outline-kinds* #:kind-label #:relabel #:outline-song
            #:song-first-line #:slug
            #:*max-lines* #:split-lines
            #:song-deck #:slide-key #:slide-label #:slide-lines #:slide-part
@@ -41,7 +43,13 @@ book's import stages its songs in and the one a custom song is pasted in:
 
 Headers end at the first blank line.  A label stands alone on its line; a
 blank line inside a labelled section breaks the slide; text under no label
-is verses, one per block.
+is verses, one per block.  The marks a song sheet puts beside its words for
+the musicians, (x2) or (V1, V2, Ref.), are not words: PARSE-SONG leaves
+them out (SUNG-LINE), and a deck never shows them.
+
+OUTLINE reads words pasted from elsewhere, with or without labels, and
+suggests their sections and the order they are sung in; OUTLINE-SONG makes
+the song of it.
 
 SONG-DECK lays the song out as the slides to show, in its order, and
 DECK-JUMP finds where a key press leads."))
@@ -130,6 +138,36 @@ colon (\"Women:\")."
                                  :test #'string-equal)
                          (string-capitalize word))
                         (t (third (assoc kind *kinds*))))))))))
+
+(defparameter *marking*
+  (let ((strong "x\\s?\\d|\\d\\s?x\\b|v\\d*\\b|verse|ref|chorus|pre-?\\s?ch|bridge|build|tag\\b|instr|int\\b|intro|coda|outro|repeat")
+        (word "x\\s?\\d+|\\d+\\s?x|\\d+|v\\d*|verse|ref|refr|refrain|chorus|pre-?\\s?ch(?:orus)?|bridge|build|tag|instr(?:umental)?|int(?:ro)?|coda|outro|ending|end|repeat|return|song|last|lines?|two|to|or|and|then"))
+    (cl-ppcre:create-scanner
+     (format nil "\\s*\\((?=[^)]*\\b(?:~A))(?:\\s*(?:~A)\\b\\.?\\s*[,;&/+-]?)+\\s*(?:\\)|$)"
+             strong word)
+     :case-insensitive-mode t))
+  "Matches a mark for the musicians in a line of words: a parenthesis that
+holds nothing but repeats and names of sections, as (x2), (Ref. x2),
+(V1, V2, Ref.), (Pre-Chorus, Refrain 1), (Repeat last two lines).  Sung
+words in parentheses, (echo) or (You are), are not matched.")
+
+(defun sung-line (line)
+  "LINE without the marks for the musicians: \"Today (x2)\" -> \"Today\"."
+  (trim (cl-ppcre:regex-replace-all *marking* line "")))
+
+(defun sung-lines (lines)
+  "LINES without their marks, and without the lines that were only marks."
+  (remove "" (mapcar #'sung-line lines) :test #'string=))
+
+(defun sung-sections (sections)
+  "SECTIONS without the marks in their lines; a slide and a section left
+with no line are dropped."
+  (loop for section in sections
+        for slides = (remove nil (mapcar #'sung-lines (section-slides section)))
+        when slides
+          collect (let ((section (copy-list section)))
+                    (setf (getf section :slides) slides)
+                    section)))
 
 (defun blocks (lines)
   "LINES split at its blank lines into non-empty lists of lines."
@@ -231,7 +269,14 @@ is NIL, and SONG-PROBLEMS says what is wrong with the result."
                        ;; Not a header: the body starts here.
                        (t (return))))
                (pop lines)))
-    (setf (song-sections song) (parse-body lines))
+    (let* ((written (parse-body lines))
+           (sung (sung-sections written))
+           ;; A section that was only marks is gone, from the order too.
+           (gone (set-difference (mapcar #'section-key written) (mapcar #'section-key sung)
+                                 :test #'string=)))
+      (setf (song-sections song) sung
+            (song-order song) (remove-if (lambda (key) (member key gone :test #'string=))
+                                         (song-order song))))
     (dolist (field '(song-title song-writers song-copyright song-ccli song-id))
       (when (equal (funcall field song) "")
         (funcall (fdefinition `(setf ,field)) nil song)))
@@ -250,6 +295,119 @@ fine."
      (loop for key in (song-order song)
            unless (member key keys :test #'string=)
              collect (format nil "Order: names ~A, which the song does not have." key)))))
+
+;;; Suggesting a structure
+
+(defparameter *outline-kinds* '(:verse :refrain :pre-chorus :bridge :tag :ending)
+  "The kinds a part of an outline can be given, as a form offers them.")
+
+(defun kind-label (kind)
+  "What a section of KIND is called: \"Refrain\", \"Pre-Chorus\"."
+  (third (assoc kind *kinds*)))
+
+(defun relabel (part kind)
+  "PART, a section of an outline, as a section of KIND."
+  (list :kind kind :number nil :label (kind-label kind) :slides (section-slides part)))
+
+(defun words-key (lines)
+  "LINES as they compare: their words in small letters, nothing else."
+  (trim (string-downcase
+         (cl-ppcre:regex-replace-all "\\W+" (format nil "~{~A~^ ~}" lines) " "))))
+
+(defun outline (text)
+  "A suggestion of how TEXT, the words of a song as pasted from anywhere,
+is built: its distinct parts as a list of sections, and as a second value
+the order they are sung in, a list of indices into the first.
+
+Each block of lines between blank lines is a part.  A label line (\"Verse
+2\", \"[Chorus]\", \"Bridge:\") names the block under it; a label with
+nothing under it, and a block whose words came before, sing that part
+again.  Of the parts under no label, those sung more than once are taken
+for the refrain, the bridge and the tag, as far as the text names none, and
+the rest for verses.  Marks for the musicians are left out (SUNG-LINE), and
+so is what stands under Intro or Instrumental."
+  (let ((parts '()) (places '()) (label nil) (pending '()))
+    (labels ((add (kind number name block)
+               (setf parts (append parts (list (list :kind kind :number number :label name
+                                                     :slides (list block)))))
+               (push (1- (length parts)) places))
+             (take (block label)
+               (let* ((key (words-key block))
+                      (same (position-if
+                             (lambda (part)
+                               (and (string= key (words-key (first (section-slides part))))
+                                    (or (null label)
+                                        (null (section-kind part))
+                                        (eq (section-kind part) (first label)))))
+                             parts)))
+                 (cond ((null same)
+                        (add (first label) (second label) (third label) block))
+                       (t
+                        ;; A label on words that came unlabelled names them.
+                        (when (and label (null (section-kind (nth same parts))))
+                          (setf (nth same parts)
+                                (list :kind (first label) :number (second label)
+                                      :label (third label) :slides (list block))))
+                        (push same places)))))
+             (flush ()
+               (let* ((lines (nreverse pending))
+                      (apart (equal (first lines) ""))
+                      (blocks (blocks lines)))
+                 (setf pending '())
+                 (cond ((null label)
+                        (dolist (block blocks) (take block nil)))
+                       ((eq (first label) :wordless)
+                        (dolist (block (if apart blocks (rest blocks))) (take block nil)))
+                       ((or (null blocks)
+                            (and apart (find (first label) parts :key #'section-kind)))
+                        ;; A label alone: that part is sung again here.
+                        ;; Which it is shows when every part has its kind.
+                        (push label places)
+                        (dolist (block blocks) (take block nil)))
+                       (blocks
+                        (take (first blocks) label)
+                        (dolist (block (rest blocks)) (take block nil)))))))
+      (dolist (raw (cl-ppcre:split "\\r?\\n" text))
+        (let* ((line (trim raw))
+               (sung (sung-line line))
+               (found (label-line sung)))
+          (cond (found (flush) (setf label found))
+                ((string= line "") (push "" pending))
+                ;; A line that was only a mark is no line, and no break.
+                ((string/= sung "") (push sung pending)))))
+      (flush))
+    (let ((free (remove-if (lambda (kind) (find kind parts :key #'section-kind))
+                           '(:refrain :bridge :tag))))
+      (setf parts (loop for part in parts
+                        for index from 0
+                        collect (cond ((section-kind part) part)
+                                      ((and free (> (count index places) 1))
+                                       (relabel part (pop free)))
+                                      (t (relabel part :verse)))))
+      (values parts
+              (loop for place in (nreverse places)
+                    for index = (if (integerp place)
+                                    place
+                                    (position-if
+                                     (lambda (part)
+                                       (and (eq (section-kind part) (first place))
+                                            (or (null (second place))
+                                                (eql (second place) (section-number part)))))
+                                     parts))
+                    when index collect index)))))
+
+(defun outline-song (parts places &key title writers copyright)
+  "The song of PARTS sung in the order PLACES (see OUTLINE), with its
+credits: the parts numbered, and an order when it is not the parts' own."
+  (let* ((sections (number-sections parts))
+         (keys (mapcar #'section-key sections))
+         (order (loop for place in places collect (nth place keys))))
+    (flet ((text (string)
+             (let ((string (trim (or string ""))))
+               (and (string/= string "") string))))
+      (make-song :title (text title) :writers (text writers) :copyright (text copyright)
+                 :sections sections
+                 :order (and (not (equal order keys)) order)))))
 
 ;;; Writing
 
@@ -321,7 +479,8 @@ verse's number."
 (defun section-deck (section index)
   "The slides of SECTION, the INDEXth of its song."
   (let* ((slides (loop for block in (section-slides section)
-                       append (split-lines block)))
+                       ;; A song stored before PARSE-SONG left the marks out.
+                       append (split-lines (sung-lines block))))
          (of (length slides)))
     (loop for lines in slides
           for part from 1

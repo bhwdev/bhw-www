@@ -291,8 +291,11 @@ its first when none of it is.  Returns NIL at either end."
   "Do in ROOM what the key KEY (a DOM key value: \"r\", \"ArrowRight\", \" \")
 does, SHIFT held or not.  Returns true when the key is one of the map's:
 
-  Space, ArrowRight, PageDown   the next slide of the song's order
-  ArrowLeft, PageUp             the one before
+  Space, ArrowRight, ArrowDown,
+  PageDown                      the next slide of the song's order
+  ArrowLeft, ArrowUp, PageUp    the one before (the console, whose cards
+                                stand in rows, takes ArrowUp and ArrowDown
+                                itself, for the card above and below)
   1-9                           verse N
   R or C, B, P, T, O            refrain, bridge, pre-chorus, tag or build,
                                 outro or coda; again for the section's next
@@ -301,9 +304,9 @@ does, SHIFT held or not.  Returns true when the key is one of the map's:
   W                             the waiting slide, and back
   N, Shift+N                    the next, the previous song of the setlist"
   (let ((key (if (= (length key) 1) (string-upcase key) key)))
-    (cond ((member key '(" " "ArrowRight" "PageDown") :test #'string=)
+    (cond ((member key '(" " "ArrowRight" "ArrowDown" "PageDown") :test #'string=)
            (step-slide room 1) t)
-          ((member key '("ArrowLeft" "PageUp") :test #'string=)
+          ((member key '("ArrowLeft" "ArrowUp" "PageUp") :test #'string=)
            (step-slide room -1) t)
           ((and (= (length key) 1) (find (char key 0) "123456789RCBPTO"))
            (jump room key) t)
