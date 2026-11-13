@@ -342,7 +342,7 @@ Greetings! This is my own Emacs configuration, which runs on <a href="https://en
 </p>
 
 <p>
-The configuration lives in <code>~/project-carlo/emacs/</code>, which Guix Home links to <code>~/.config/emacs/</code>, and this document is its source. <code>early-init.el</code>, <code>init.el</code>, the test suite and one <code>lisp/bhw-*.el</code> module for each section below are tangled from it, and the modules load in the order of the sections. It runs on <a href="https://guix.gnu.org/">Guix System</a>, and Guix installs Emacs and every package: they are listed in my Guix configuration, which Guix Home applies. What is written by hand sits in the same repository: <code>site-lisp/</code>, <code>scripts/</code> and the smoke tests under <code>tests/</code>. Run the following on a new computer,
+The configuration lives in <code>~/bhw-rig/emacs/</code>, which Guix Home links to <code>~/.config/emacs/</code>, and this document is its source. <code>early-init.el</code>, <code>init.el</code>, the test suite and one <code>lisp/bhw-*.el</code> module for each section below are tangled from it, and the modules load in the order of the sections. It runs on <a href="https://guix.gnu.org/">Guix System</a>, and Guix installs Emacs and every package: they are listed in my Guix configuration, which Guix Home applies. What is written by hand sits in the same repository: <code>site-lisp/</code>, <code>scripts/</code> and the smoke tests under <code>tests/</code>. Run the following on a new computer,
 </p>
 
 <div class="org-src-container">
@@ -352,16 +352,16 @@ The configuration lives in <code>~/project-carlo/emacs/</code>, which Guix Home 
   <span class="org-comment-delimiter"># </span><span class="org-comment">in Windows Explorer address bar.</span>
   <span class="org-type">chmod</span> 600 ~/.ssh/github
   <span class="org-comment-delimiter"># </span><span class="org-comment">See heading "Github Tutorial" if you are unfamiliar with git.</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">The configuration is in ~/project-carlo, a repository with no remote:</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">The configuration is in ~/bhw-rig, a repository with no remote:</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">copy it over from the old computer or a backup.</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">I will need to setup GPG. Unlock KeePass database for GPG private key.</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Project Maria is encrypted with git-remote-gcrypt.</span>
-  <span class="org-type">git</span> clone <span class="org-type">git</span>@github.com:bhwdev/project-maria.git ~/project-maria
+  <span class="org-comment-delimiter"># </span><span class="org-comment">bhw-cmd is encrypted with git-remote-gcrypt.</span>
+  <span class="org-type">git</span> clone <span class="org-type">git</span>@github.com:bhwdev/bhw-cmd.git ~/bhw-cmd
   <span class="org-comment-delimiter"># </span><span class="org-comment">Emacs, its packages and the programs it runs: Guix Home, from the</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">repository my Guix configuration is tangled to, then</span>
-  guix home reconfigure -L ~/project-carlo ~/project-carlo/config/home/wsl.scm
-  <span class="org-comment-delimiter"># </span><span class="org-comment">Copy over project-jerome manually</span>
-  scp -r root@oci-a1-flex:/project-jerome ~/
+  guix home reconfigure -L ~/bhw-rig ~/bhw-rig/config/home/wsl.scm
+  <span class="org-comment-delimiter"># </span><span class="org-comment">Copy over bhw-arc manually</span>
+  scp -r root@oci-a1-flex:/bhw-arc ~/
 </code></pre>
 </div>
 
@@ -463,7 +463,7 @@ actually in use without touching its mail, its Matrix queue or its clock.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><code><span class="org-variable-name">BHW_TEST</span>=1 bash -l -c <span class="org-string">'exec emacs --init-directory="$HOME/project-carlo/emacs" --fg-daemon=bhw-test'</span> &amp;
+<pre class="src src-sh"><code><span class="org-variable-name">BHW_TEST</span>=1 bash -l -c <span class="org-string">'exec emacs --init-directory="$HOME/bhw-rig/emacs" --fg-daemon=bhw-test'</span> &amp;
 emacsclient -s bhw-test -e <span class="org-string">'(bhw/reload-status)'</span>
 emacsclient -s bhw-test -e <span class="org-string">'(let (kill-emacs-hook) (kill-emacs))'</span>
 </code></pre>
@@ -1185,10 +1185,10 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 </div>
 
 <div class="org-src-container">
-<pre class="src src-emacs-lisp"><code>(<span class="org-keyword">defconst</span> <span class="org-variable-name">+project-maria-dir+</span> (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/"</span>)
-  <span class="org-doc">"Absolute path to the project-maria directory."</span>)
-(<span class="org-keyword">defconst</span> <span class="org-variable-name">+project-jerome-dir+</span> (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-jerome/"</span>)
-  <span class="org-doc">"Absolute path to the project-jerome directory."</span>)
+<pre class="src src-emacs-lisp"><code>(<span class="org-keyword">defconst</span> <span class="org-variable-name">+bhw-cmd-dir+</span> (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/"</span>)
+  <span class="org-doc">"Absolute path to the bhw-cmd directory."</span>)
+(<span class="org-keyword">defconst</span> <span class="org-variable-name">+bhw-arc-dir+</span> (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-arc/"</span>)
+  <span class="org-doc">"Absolute path to the bhw-arc directory."</span>)
 
 <span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">New frames open fullscreen on the largest display.</span>
@@ -1341,7 +1341,7 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 
 (<span class="org-constant">advice-add</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">save-buffers-kill-emacs</span> <span class="org-builtin">:around</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/always-save-advice</span>)
 
-(<span class="org-keyword">setf</span> <span class="org-variable-name">org-directory</span> <span class="org-variable-name">+project-maria-dir+</span>
+(<span class="org-keyword">setf</span> <span class="org-variable-name">org-directory</span> <span class="org-variable-name">+bhw-cmd-dir+</span>
       <span class="org-variable-name">auto-save-interval</span> 300
       <span class="org-variable-name">auto-revert-interval</span> 30
       <span class="org-variable-name">auto-save-timeout</span> nil
@@ -5280,7 +5280,7 @@ be changed but not deleted.
 <code>SPC SPC</code> (<code>consult-buffer</code>) lists, in this order: the lines of the buffer it
 was called from, as <code>consult-line</code> lists and colours them; org-node&rsquo;s notes by
 title; the buffers; notes about what is typed, from org-similar&rsquo;s index (as
-<code>SPC n s</code> finds them); ripgrep over project-maria; fd over the home directory.
+<code>SPC n s</code> finds them); ripgrep over bhw-cmd; fd over the home directory.
 A group shows only while something in it matches, and all but the buffers
 wait for something to be typed, so on an empty input the buffers come first
 and RET goes back to the last one.  <code>&lt;</code> and a group&rsquo;s letter narrows to it:
@@ -5343,7 +5343,7 @@ CPU, and Emacs 35 ms for the search; the first starts the server, which holds
       <span class="org-comment-delimiter">;; </span><span class="org-comment">six-figure candidate sets against `</span><span class="org-comment"><span class="org-constant">--full-path</span></span><span class="org-comment">'). `</span><span class="org-comment"><span class="org-constant">--max-results</span></span><span class="org-comment">'</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">bounds the worst-case flood consult must ingest on the main thread.</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">`</span><span class="org-comment"><span class="org-constant">--no-ignore-vcs</span></span><span class="org-comment">' because `</span><span class="org-comment"><span class="org-constant">fd</span></span><span class="org-comment">' otherwise honors every enclosing</span>
-      <span class="org-comment-delimiter">;; </span><span class="org-comment">.gitignore: ~/project-maria/.gitignore lists *.pdf/*.tex/*.bbl, which</span>
+      <span class="org-comment-delimiter">;; </span><span class="org-comment">.gitignore: ~/bhw-cmd/.gitignore lists *.pdf/*.tex/*.bbl, which</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">made ~28 real files in that tree unreachable from `</span><span class="org-comment"><span class="org-constant">consult-buffer</span></span><span class="org-comment">'</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">while `</span><span class="org-comment"><span class="org-constant">consult-recent-file</span></span><span class="org-comment">' (plain `</span><span class="org-comment"><span class="org-constant">recentf-list</span></span><span class="org-comment">') still found them.</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">It does NOT disable the global ignore file (~/.config/fd/ignore), so</span>
@@ -5366,8 +5366,8 @@ CPU, and Emacs 35 ms for the search; the first starts the server, which holds
            <span class="org-builtin">:file-handler</span> t
            <span class="org-builtin">:min-input</span> 3))))
 
-  (<span class="org-keyword">defvar</span> <span class="org-variable-name">bhw/consult-source-project-maria</span>
-    <span class="org-highlight-quoted-quote">`</span>(<span class="org-builtin">:name</span>     <span class="org-string">"Project-Maria rg"</span>
+  (<span class="org-keyword">defvar</span> <span class="org-variable-name">bhw/consult-source-bhw-cmd</span>
+    <span class="org-highlight-quoted-quote">`</span>(<span class="org-builtin">:name</span>     <span class="org-string">"bhw-cmd rg"</span>
       <span class="org-builtin">:narrow</span>   ?m
       <span class="org-builtin">:category</span> consult-grep
       <span class="org-builtin">:history</span>  consult--grep-history
@@ -5380,7 +5380,7 @@ CPU, and Emacs 35 ms for the search; the first starts the server, which holds
       <span class="org-comment-delimiter">;; </span><span class="org-comment">`</span><span class="org-comment"><span class="org-constant">consult-ripgrep-args</span></span><span class="org-comment">' only for this builder (args are read at</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">builder-creation time), leaving `M-x consult-ripgrep' untouched.</span>
       ,(<span class="org-keyword">let*</span> ((consult-ripgrep-args (<span class="org-constant">concat</span> consult-ripgrep-args <span class="org-string">" --max-count=10"</span>))
-              (builder (consult--ripgrep-make-builder (<span class="org-constant">list</span> <span class="org-variable-name">+project-maria-dir+</span>))))
+              (builder (consult--ripgrep-make-builder (<span class="org-constant">list</span> <span class="org-variable-name">+bhw-cmd-dir+</span>))))
          (consult--process-collection builder
            <span class="org-builtin">:transform</span> (consult--grep-format builder)
            <span class="org-builtin">:file-handler</span> t
@@ -5656,7 +5656,7 @@ CPU, and Emacs 35 ms for the search; the first starts the server, which holds
                                  bhw/consult-source-org-node
                                  consult-source-buffer
                                  bhw/consult-source-org-similar
-                                 bhw/consult-source-project-maria
+                                 bhw/consult-source-bhw-cmd
                                  bhw/consult-source-filesystem))
 
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Perl split routes plain input to the async source only, leaving sync sources unfiltered.</span>
@@ -10119,7 +10119,7 @@ offset for each variable, and just look for any really big jumps:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-bash"><code>  $ <span class="org-type">grep</span> -E -b -o <span class="org-string">'^\(setq [^ ]+'</span> ~/project-carlo/emacs/var/cache/savehist
+<pre class="src src-bash"><code>  $ <span class="org-type">grep</span> -E -b -o <span class="org-string">'^\(setq [^ ]+'</span> ~/bhw-rig/emacs/var/cache/savehist
 </code></pre>
 </div>
 
@@ -10176,7 +10176,7 @@ offset for each variable, and just look for any really big jumps:
 <span class="org-comment-delimiter">;; </span><span class="org-comment">paths arrive as ~/...  Anchored: a bare "/tmp/" also dropped any path that</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">merely contained a tmp directory.</span>
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">recentf</span>
-  (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">recentf-exclude</span> <span class="org-string">"\\`~/project-jerome/email-archive/"</span>)
+  (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">recentf-exclude</span> <span class="org-string">"\\`~/bhw-arc/email-archive/"</span>)
   (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">recentf-exclude</span> <span class="org-string">"\\`/tmp/"</span>))
 </code></pre>
 </div>
@@ -14423,7 +14423,7 @@ Assuming you already have a key pair created and Github knows about it.
 <pre class="src src-bash"><code>   <span class="org-comment-delimiter"># </span><span class="org-comment">Search for "GPG" inside KeePass and write to private-key.asc.</span>
    gpg --import private-key.asc
    <span class="org-comment-delimiter"># </span><span class="org-comment">https://www.bhw.name/contact to </span><span class="org-type"><span class="org-comment">find</span></span><span class="org-comment"> and write to public-key.asc.</span>
-   gpg --import ~/project-isidore/assets/pubkey.asc
+   gpg --import ~/bhw-www/assets/pubkey.asc
    <span class="org-comment-delimiter"># </span><span class="org-comment">Verify that ~/.gnupg/gpg-agend.conf exists, see dotfile.org.</span>
    <span class="org-comment-delimiter"># </span><span class="org-comment">Edit gpg key to raise trust level to 5 - ultimate.</span>
    gpglogin <span class="org-comment-delimiter"># </span><span class="org-comment">see .bashrc.</span>
@@ -15516,7 +15516,7 @@ systemd service. Praise the Lord, and all the people working on open science.
 <span class="org-doc">Returns immediately; poll the bhw-reload-status tool for the outcome."</span>
     (<span class="org-keyword">catch</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">bhw/done</span>
       (<span class="org-keyword">when</span> tangle
-        (bhw/claude-mcp--tangle <span class="org-string">"~/project-maria/blog/dotemacs.org"</span>))
+        (bhw/claude-mcp--tangle <span class="org-string">"~/bhw-cmd/blog/dotemacs.org"</span>))
       (<span class="org-keyword">setq</span> bhw/claude-mcp--reload-requested-at (<span class="org-constant">float-time</span>))
       <span class="org-comment-delimiter">;; </span><span class="org-comment">On a timer: the reload redefines the very functions this call is</span>
       <span class="org-comment-delimiter">;; </span><span class="org-comment">running in, so it starts once the call has been answered.</span>
@@ -15652,7 +15652,7 @@ systemd service. Praise the Lord, and all the people working on open science.
   (bhw/claude-mcp-register
    <span class="org-builtin">:function</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/claude-mcp-citar-lookup</span>
    <span class="org-builtin">:name</span> <span class="org-string">"citar-lookup"</span>
-   <span class="org-builtin">:description</span> <span class="org-string">"Search the user's citar bibliography (project-jerome.bib). Every whitespace-separated token of the query must occur in the citekey, author, or title (case-insensitive). Returns `@citekey | author | year | title' lines; truncated output ends with `(+N more)'."</span>
+   <span class="org-builtin">:description</span> <span class="org-string">"Search the user's citar bibliography (bhw-arc.bib). Every whitespace-separated token of the query must occur in the citekey, author, or title (case-insensitive). Returns `@citekey | author | year | title' lines; truncated output ends with `(+N more)'."</span>
    <span class="org-builtin">:args</span> <span class="org-highlight-quoted-quote">'</span>((<span class="org-builtin">:name</span> <span class="org-string">"query"</span>
             <span class="org-builtin">:type</span> string
             <span class="org-builtin">:description</span> <span class="org-string">"Tokens to match against citekey, author, and title"</span>)
@@ -15703,7 +15703,7 @@ systemd service. Praise the Lord, and all the people working on open science.
    <span class="org-builtin">:description</span> <span class="org-string">"Kick off bhw/reload (asynchronous: every module is loaded again in order, then the ERT suite runs if it is switched on) and return immediately. With tangle=true, tangle all of dotemacs.org first, as org-tangle does (refuses if its buffer has unsaved edits, or if a file it tangles to was changed and not detangled). Poll bhw-reload-status for the outcome. Redefines live tool functions mid-session. Prefer this over hand-rolled tangle/reload elisp."</span>
    <span class="org-builtin">:args</span> <span class="org-highlight-quoted-quote">'</span>((<span class="org-builtin">:name</span> <span class="org-string">"tangle"</span>
             <span class="org-builtin">:type</span> boolean
-            <span class="org-builtin">:description</span> <span class="org-string">"Tangle ~/project-maria/blog/dotemacs.org before reloading (default false)"</span>
+            <span class="org-builtin">:description</span> <span class="org-string">"Tangle ~/bhw-cmd/blog/dotemacs.org before reloading (default false)"</span>
             <span class="org-builtin">:optional</span> t)))
 
   (bhw/claude-mcp-register
@@ -15723,7 +15723,7 @@ systemd service. Praise the Lord, and all the people working on open science.
   (bhw/claude-mcp-register
    <span class="org-builtin">:function</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/claude-mcp-org-tangle</span>
    <span class="org-builtin">:name</span> <span class="org-string">"org-tangle"</span>
-   <span class="org-builtin">:description</span> <span class="org-string">"Tangle all of ~/project-maria/blog/dotemacs.org, ~/project-maria/guix.org or ~/project-maria/vps.org through ob-tangle-sync, after editing the Org file itself (a new block, heading or header argument, prose). Refuses when its buffer has unsaved edits in Emacs, or when a file it tangles to has changed since it last tangled it (org-detangle that file first). A heading that tangles without an :ID: gets one, and the Org file is then saved. Returns how many files it tangled to. For dotemacs.org, bhw-reload with tangle=true does this and reloads."</span>
+   <span class="org-builtin">:description</span> <span class="org-string">"Tangle all of ~/bhw-cmd/blog/dotemacs.org, ~/bhw-cmd/guix.org or ~/bhw-cmd/vps.org through ob-tangle-sync, after editing the Org file itself (a new block, heading or header argument, prose). Refuses when its buffer has unsaved edits in Emacs, or when a file it tangles to has changed since it last tangled it (org-detangle that file first). A heading that tangles without an :ID: gets one, and the Org file is then saved. Returns how many files it tangled to. For dotemacs.org, bhw-reload with tangle=true does this and reloads."</span>
    <span class="org-builtin">:args</span> <span class="org-highlight-quoted-quote">'</span>((<span class="org-builtin">:name</span> <span class="org-string">"file"</span>
             <span class="org-builtin">:type</span> string
             <span class="org-builtin">:description</span> <span class="org-string">"Absolute path of the Org file"</span>)))
@@ -15813,7 +15813,7 @@ systemd service. Praise the Lord, and all the people working on open science.
 
 <div class="org-src-container">
 <pre class="src src-sh"><code>  <span class="org-type">mkdir</span> /home/ben/.stardict/
-  <span class="org-type">ln</span> -s /home/ben/project-jerome/400-philology/420-english-anglosaxon-languages/.stardict/dic /home/ben/.stardict/
+  <span class="org-type">ln</span> -s /home/ben/bhw-arc/400-philology/420-english-anglosaxon-languages/.stardict/dic /home/ben/.stardict/
 </code></pre>
 </div>
 
@@ -16138,7 +16138,7 @@ same.
 <pre class="src src-sh"><code>  <span class="org-type">cd</span> ~/.cache/latin-dict-build
   <span class="org-type">curl</span> -O http://download.huzheng.org/misc/stardict-latin-english-2.4.2.tar.bz2
   tar xjf stardict-latin-english-2.4.2.tar.bz2
-  python3 ~/project-carlo/emacs/scripts/latin-dict-rebuild.py stardict-latin-english-2.4.2
+  python3 ~/bhw-rig/emacs/scripts/latin-dict-rebuild.py stardict-latin-english-2.4.2
 </code></pre>
 </div>
 
@@ -16167,9 +16167,9 @@ reads natively.  No new runtime dependency: the lookup is still a plain
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><code>  python3 ~/project-carlo/emacs/scripts/latin-syn-gen.py
+<pre class="src src-sh"><code>  python3 ~/bhw-rig/emacs/scripts/latin-syn-gen.py
   <span class="org-comment-delimiter"># </span><span class="org-comment">coverage against a word list, writing nothing:</span>
-  python3 ~/project-carlo/emacs/scripts/latin-syn-gen.py --check WORDS.txt
+  python3 ~/bhw-rig/emacs/scripts/latin-syn-gen.py --check WORDS.txt
 </code></pre>
 </div>
 
@@ -16384,7 +16384,7 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 <h4 id="ID-23b4e9e1-7828-47e5-a39a-8612662b95bf"><a href="#table-of-contents">&#8689;</a><span class="section-number-4">3.17.7.</span> Biblio Config</h4>
 <div class="outline-text-4" id="text-3-17-7">
 <ul class="org-ul">
-<li><a href="../cpb.html#ID-3e8c244e-8a39-4ffd-a30c-cc4c7abcad6c">&lt;&ndash;Project Jerome</a></li>
+<li><a href="../cpb.html#ID-3e8c244e-8a39-4ffd-a30c-cc4c7abcad6c">&lt;&ndash;bhw-arc</a></li>
 <li><a href="https://kristofferbalintona.me/posts/202206141852/">Citations in org-mode: Org-cite and Citar | Kristoffer Balintona</a></li>
 <li><a href="https://blog.tecosaur.com/tmio/2021-07-31-citations.html">Org-Cite 2021 Release Notes</a></li>
 <li><a href="https://amerygration.com/Blog/citation_handling_in_emacs.html">Citation handling in Emacs</a></li>
@@ -16414,20 +16414,20 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">citar</span>
   (<span class="org-keyword">setf</span>
-   citar-bibliography (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"project-jerome.bib"</span>))
-   citar-notes-paths (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"bibtex-notes"</span>))
+   citar-bibliography (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"bhw-arc.bib"</span>))
+   citar-notes-paths (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"bibtex-notes"</span>))
    citar-library-paths
    <span class="org-comment-delimiter">;; </span><span class="org-comment">Excluded trees are pruned DURING the walk (the PREDICATE arg stops</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">recursion), not filtered after it: email-archive alone holds tens of</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">thousands of files that the old post-hoc filter walked and then threw</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">away.  A pruned directory is still returned when INCLUDE-DIRECTORIES is</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">set, hence the final filter also checks membership.</span>
-   (<span class="org-keyword">let*</span> ((base (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-jerome"</span>))
+   (<span class="org-keyword">let*</span> ((base (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-arc"</span>))
           (excluded (<span class="org-constant">mapcar</span> (<span class="org-keyword">lambda</span> (d)
                               (<span class="org-constant">directory-file-name</span> (<span class="org-constant">expand-file-name</span> d)))
-                            <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"~/project-jerome/email-archive"</span>
-                              <span class="org-string">"~/project-jerome/org-attach-data"</span>
-                              <span class="org-string">"~/project-jerome/keepass-database"</span>)))
+                            <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"~/bhw-arc/email-archive"</span>
+                              <span class="org-string">"~/bhw-arc/org-attach-data"</span>
+                              <span class="org-string">"~/bhw-arc/keepass-database"</span>)))
           (prune (<span class="org-keyword">lambda</span> (d)
                    (<span class="org-constant">not</span> (<span class="org-constant">member</span> (<span class="org-constant">directory-file-name</span> (<span class="org-constant">expand-file-name</span> d))
                                 excluded)))))
@@ -16440,7 +16440,7 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Org Cite + biblatex-chicago (CMOS 17 Notes &amp; Bibliography)</span>
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">oc</span>
   (<span class="org-keyword">setf</span> <span class="org-variable-name">org-cite-global-bibliography</span>
-        (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"project-jerome.bib"</span>))
+        (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"bhw-arc.bib"</span>))
         <span class="org-comment-delimiter">;; </span><span class="org-comment">HTML, the blog's, through citeproc and the Chicago author-date</span>
         <span class="org-comment-delimiter">;; </span><span class="org-comment">style that comes with Org.</span>
         <span class="org-variable-name">org-cite-export-processors</span>
@@ -16496,7 +16496,7 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 <span class="org-string">\\setmainfont{TeX Gyre Termes}</span>
 <span class="org-string">\\usepackage{csquotes}</span>
 <span class="org-string">\\usepackage[notes,backend=biber,babel=other,autolang=hyphen,strict]{biblatex-chicago}</span>
-<span class="org-string">\\addbibresource{/home/ben/project-maria/project-jerome.bib}</span>
+<span class="org-string">\\addbibresource{/home/ben/bhw-cmd/bhw-arc.bib}</span>
 <span class="org-string">\\usepackage{hyperref}</span>
 <span class="org-string">\\makeatletter</span>
 <span class="org-string">\\let\\@course\\@empty</span>
@@ -16653,7 +16653,7 @@ The distinction between dictionary and encyclopedia is a theoretically-based dis
 
   <span class="org-comment-delimiter">;; </span><span class="org-comment">endnotes (mla) writes &lt;job&gt;.ent and biber leaves &lt;job&gt;.bbl beside the</span>
   <span class="org-comment-delimiter">;; </span><span class="org-comment">PDF; neither is in the default cleanup list, and *.tex/*.pdf are the</span>
-  <span class="org-comment-delimiter">;; </span><span class="org-comment">only export products project-maria's .gitignore covers.</span>
+  <span class="org-comment-delimiter">;; </span><span class="org-comment">only export products bhw-cmd's .gitignore covers.</span>
   (<span class="org-keyword">dolist</span> (ext <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"bbl"</span> <span class="org-string">"ent"</span>))
     (<span class="org-constant">add-to-list</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">org-latex-logfiles-extensions</span> ext t))
 
@@ -18657,7 +18657,7 @@ licence, Henrik Lissner and contributors).
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
 (<span class="org-keyword">setf</span> common-lisp-hyperspec-root
-      (<span class="org-constant">concat</span> <span class="org-string">"file://"</span> <span class="org-variable-name">+project-jerome-dir+</span>
+      (<span class="org-constant">concat</span> <span class="org-string">"file://"</span> <span class="org-variable-name">+bhw-arc-dir+</span>
               <span class="org-string">"000-generalities-information-computers/000-computer-science/HyperSpec/"</span>))
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Read the local HyperSpec in EWW; every other URL still goes to Edge.</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">SLY's `</span><span class="org-comment"><span class="org-constant">hyperspec-lookup</span></span><span class="org-comment">' ends in `</span><span class="org-comment"><span class="org-constant">browse-url</span></span><span class="org-comment">', which consults</span>
@@ -18782,7 +18782,7 @@ M-RET to create next list item.
   (<span class="org-keyword">setf</span> <span class="org-variable-name">org-adapt-indentation</span> nil
         <span class="org-variable-name">org-startup-indented</span> nil
         <span class="org-comment-delimiter">;; </span><span class="org-comment">Be strict about extensions: match ".org" and ".org.gpg" only.</span>
-        <span class="org-variable-name">org-id-extra-files</span> (<span class="org-constant">directory-files-recursively</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"\\.org</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(</span></span><span class="org-string">\\.gpg</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">?$"</span>))
+        <span class="org-variable-name">org-id-extra-files</span> (<span class="org-constant">directory-files-recursively</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"\\.org</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">(</span></span><span class="org-string">\\.gpg</span><span class="org-string"><span class="org-regexp-grouping-backslash">\\</span></span><span class="org-string"><span class="org-regexp-grouping-construct">)</span></span><span class="org-string">?$"</span>))
 
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Adapted snippet (originally `</span><span class="org-comment"><span class="org-constant">afs/org-replace-link-by-link-description</span></span><span class="org-comment">').</span>
   (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/org-replace-link-by-link-description</span> ()
@@ -20801,7 +20801,7 @@ refile, <code>s</code> the subtree.
 </table>
 
 <p>
-<code>.org</code> in project maria that I consider to be agenda files:
+<code>.org</code> in bhw-cmd that I consider to be agenda files:
 </p>
 <ul class="org-ul">
 <li>hq.org</li>
@@ -20901,7 +20901,7 @@ priorities.
   (<span class="org-keyword">setf</span>
    <span class="org-variable-name">org-agenda-format-date</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/org-agenda-format-date-aligned</span>
    <span class="org-variable-name">org-agenda-files</span>
-   (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>))
+   (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>))
    <span class="org-variable-name">org-agenda-start-day</span> <span class="org-string">"+0d"</span>
    <span class="org-variable-name">org-use-fast-todo-selection</span> t
    <span class="org-variable-name">org-treat-S-cursor-todo-selection-as-state-change</span> t
@@ -20938,12 +20938,12 @@ priorities.
    <span class="org-comment-delimiter">;; </span><span class="org-comment">planner books.  In %^{Effort|0:10|0:00|...} the first field is the</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">prompt and the second the default; only the rest are completions.</span>
    org-capture-templates
-   <span class="org-highlight-quoted-quote">`</span>((<span class="org-string">"t"</span> <span class="org-string">"Todo Task"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>) <span class="org-string">"* </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> [#C] %^{Title}\n:PROPERTIES:\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
-     (<span class="org-string">"a"</span> <span class="org-string">"Appointment"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>) <span class="org-string">"* APPT %^{Title}\nSCHEDULED: %^T\n:PROPERTIES:\n:LOCATION: %^{LOCATION|TBD}\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
-     (<span class="org-string">"j"</span> <span class="org-string">"Journal Entry"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>)<span class="org-string">"* PROG [#C] JOURNAL ENTRY %&lt;Y%YW%V%B%d&gt;\n:PROPERTIES:\n:EFFORT: 0:10\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
-     (<span class="org-string">"h"</span> <span class="org-string">"Habit"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>)<span class="org-string">"* </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> %?\nSCHEDULED: %t\n:PROPERTIES:\n:STYLE: habit\n:REPEAT_TO_STATE: </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string">\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:"</span> <span class="org-builtin">:empty-lines</span> 1)
-     (<span class="org-string">"c"</span> <span class="org-string">"Contacts"</span> entry (file ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"contacts.org"</span>)) <span class="org-string">"* %(org-contacts-template-name)\n:PROPERTIES:\n:PHONE: %?\n:EMAIL:\n:ADDRESS:\n:BIRTHDAY:\n:</span><span class="org-string"><span class="org-bold"><span class="org-success">NOTE</span></span></span><span class="org-string">: Added on: %U\n:END:"</span> <span class="org-builtin">:empty-lines</span> 1)
-     (<span class="org-string">"p"</span> <span class="org-string">"Project"</span> entry (file ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>)) <span class="org-string">"* PROJ %? [/] [%] %^G\n:PROPERTIES:\n:ASSIGNED: %U\n:END:\n** </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> [#C]\n:PROPERTIES:\n:EFFORT: %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n"</span> <span class="org-builtin">:empty-lines</span> 1))
+   <span class="org-highlight-quoted-quote">`</span>((<span class="org-string">"t"</span> <span class="org-string">"Todo Task"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>) <span class="org-string">"* </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> [#C] %^{Title}\n:PROPERTIES:\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
+     (<span class="org-string">"a"</span> <span class="org-string">"Appointment"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>) <span class="org-string">"* APPT %^{Title}\nSCHEDULED: %^T\n:PROPERTIES:\n:LOCATION: %^{LOCATION|TBD}\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
+     (<span class="org-string">"j"</span> <span class="org-string">"Journal Entry"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>)<span class="org-string">"* PROG [#C] JOURNAL ENTRY %&lt;Y%YW%V%B%d&gt;\n:PROPERTIES:\n:EFFORT: 0:10\n:ASSIGNED: %U\n:END:\n%?"</span> <span class="org-builtin">:empty-lines</span> 1)
+     (<span class="org-string">"h"</span> <span class="org-string">"Habit"</span> entry (file+headline ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>) <span class="org-string">"Inbox"</span>)<span class="org-string">"* </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> %?\nSCHEDULED: %t\n:PROPERTIES:\n:STYLE: habit\n:REPEAT_TO_STATE: </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string">\n:EFFORT:   %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:"</span> <span class="org-builtin">:empty-lines</span> 1)
+     (<span class="org-string">"c"</span> <span class="org-string">"Contacts"</span> entry (file ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"contacts.org"</span>)) <span class="org-string">"* %(org-contacts-template-name)\n:PROPERTIES:\n:PHONE: %?\n:EMAIL:\n:ADDRESS:\n:BIRTHDAY:\n:</span><span class="org-string"><span class="org-bold"><span class="org-success">NOTE</span></span></span><span class="org-string">: Added on: %U\n:END:"</span> <span class="org-builtin">:empty-lines</span> 1)
+     (<span class="org-string">"p"</span> <span class="org-string">"Project"</span> entry (file ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>)) <span class="org-string">"* PROJ %? [/] [%] %^G\n:PROPERTIES:\n:ASSIGNED: %U\n:END:\n** </span><span class="org-string"><span class="org-bold"><span class="org-warning">TODO</span></span></span><span class="org-string"> [#C]\n:PROPERTIES:\n:EFFORT: %^{Effort|0:10|0:00|0:10|0:30|1:00|1:30|2:00|2:30|3:00}\n:ASSIGNED: %U\n:END:\n"</span> <span class="org-builtin">:empty-lines</span> 1))
    <span class="org-comment-delimiter">;; </span><span class="org-comment">**** 7) Refiling Tasks</span>
    <span class="org-variable-name">org-refile-targets</span> <span class="org-highlight-quoted-quote">'</span>((nil <span class="org-builtin">:maxlevel</span> . 9)
                         (<span class="org-variable-name">org-agenda-files</span> <span class="org-builtin">:maxlevel</span> . 9))
@@ -20972,7 +20972,7 @@ priorities.
    <span class="org-comment-delimiter">;; </span><span class="org-comment">**** 15) Archiving</span>
    <span class="org-variable-name">org-archive-default-command</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">org-archive-subtree</span>
    <span class="org-variable-name">org-archive-location</span>
-   (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span>
+   (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span>
            <span class="org-string">"archived-tasks/taskings-"</span>
            (<span class="org-constant">format-time-string</span> <span class="org-string">"%Y"</span>) <span class="org-string">".org::datetree/"</span>)
    <span class="org-variable-name">org-archive-save-context-info</span> <span class="org-highlight-quoted-quote">'</span>(time category olpath ltags itags)
@@ -23971,7 +23971,7 @@ Use the WAIT keyword and a scheduled timestamp, refile to 0projects or 0solo.
 <li>Next Actions lists - 0solo.org
 One off actions that you cannot neatly organize under a project. Ideally, of course, with enough self agency, most tasks should be under your projects list.</li>
 
-<li>Reference Material - project-jerome-index.org &amp; contacts.org</li>
+<li>Reference Material - bhw-arc-index.org &amp; contacts.org</li>
 
 <li>A Someday/Maybe list - someday.org
 Refile a task here without changing any TODO keywords or tags. The file tag &ldquo;-SDAY&rdquo; excludes such entries from the Agenda.
@@ -24036,7 +24036,7 @@ delete attachments after you have deleted their associated headline</a>.
       (<span class="org-constant">move-marker</span> m nil)
       (<span class="org-function-name">org-fold-show-context</span>))))
 (<span class="org-keyword">setf</span>
- <span class="org-variable-name">org-attach-id-dir</span> <span class="org-string">"~/project-jerome/org-attach-data/"</span>
+ <span class="org-variable-name">org-attach-id-dir</span> <span class="org-string">"~/bhw-arc/org-attach-data/"</span>
  <span class="org-comment-delimiter">;; </span><span class="org-comment">https://helpdeskheadesk.net/2022-03-13/</span>
  <span class="org-comment-delimiter">;; </span><span class="org-comment">For org attach, change org timestamps to more human readable format.</span>
  <span class="org-variable-name">org-id-method</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">ts</span>
@@ -24237,7 +24237,7 @@ whatever <code>org-attach-method</code> says.  org-download did all this until
 (<span class="org-keyword">use-package</span> org-mem
   <span class="org-builtin">:after</span> org
   <span class="org-builtin">:config</span>
-  (<span class="org-keyword">setf</span> <span class="org-variable-name">org-mem-watch-dirs</span> (<span class="org-constant">list</span> <span class="org-variable-name">+project-maria-dir+</span>))
+  (<span class="org-keyword">setf</span> <span class="org-variable-name">org-mem-watch-dirs</span> (<span class="org-constant">list</span> <span class="org-variable-name">+bhw-cmd-dir+</span>))
   (<span class="org-keyword">unless</span> <span class="org-variable-name">bhw/test-boot-p</span>
     (<span class="org-variable-name">org-mem-updater-mode</span>)))
 
@@ -24559,12 +24559,12 @@ to a cosine of 0.9994, so they share one index.
         <span class="org-comment-delimiter">;; </span><span class="org-comment">them for :overlap; :id-titles changes none, as no note has a bare</span>
         <span class="org-comment-delimiter">;; </span><span class="org-comment">id: link yet.  The verses have none of the options.</span>
         org-similar-partitions
-        <span class="org-highlight-quoted-quote">`</span>((notes <span class="org-builtin">:directory</span> ,<span class="org-variable-name">+project-maria-dir+</span> <span class="org-builtin">:k</span> 7 <span class="org-builtin">:min-score</span> 0.5
+        <span class="org-highlight-quoted-quote">`</span>((notes <span class="org-builtin">:directory</span> ,<span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-builtin">:k</span> 7 <span class="org-builtin">:min-score</span> 0.5
                  <span class="org-builtin">:overlap</span> t <span class="org-builtin">:placeholders</span> t <span class="org-builtin">:strict-planning</span> t <span class="org-builtin">:id-titles</span> t)
-          (scripture <span class="org-builtin">:directory</span> ,(<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"bible/"</span>)
+          (scripture <span class="org-builtin">:directory</span> ,(<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"bible/"</span>)
                      <span class="org-builtin">:k</span> 3 <span class="org-builtin">:min-score</span> 0.45 <span class="org-builtin">:title</span> nil))
         org-similar-exclude-regexps
-        (<span class="org-constant">list</span> (<span class="org-constant">regexp-quote</span> (<span class="org-constant">file-truename</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"dotfiles.org"</span>))))
+        (<span class="org-constant">list</span> (<span class="org-constant">regexp-quote</span> (<span class="org-constant">file-truename</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"dotfiles.org"</span>))))
         org-similar-defer-predicate <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/org-tangle-on-save-file-p</span>
         <span class="org-comment-delimiter">;; </span><span class="org-comment">Drawers are added by hand; a save only keeps them current.</span>
         org-similar-drawers-after-save <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">existing</span>)
@@ -24926,7 +24926,7 @@ and a save wrote <code>tests/config-tests.el</code> with 5 of its 156 tests.
 secrets (<code>~/.authinfo</code>) or live on the Windows side, and nothing of theirs is
 to come back. <code>bhw/org-babel-tangle-on-save</code> tangles it. Since <code>after-save-hook</code>
 is global, <code>bhw/org-tangle-on-save-files</code> (all four) <b>is</b> the allowlist; every
-other Org file in <code>project-maria</code> is left alone no matter what its <code>:tangle</code>
+other Org file in <code>bhw-cmd</code> is left alone no matter what its <code>:tangle</code>
 headers say.
 </p>
 
@@ -24940,17 +24940,17 @@ headers say.
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">org</span>
   (<span class="org-constant">require</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">ob-tangle-sync</span>)
   (<span class="org-keyword">setf</span> <span class="org-variable-name">org-babel-tangle-sync-files</span>
-        (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"blog/dotemacs.org"</span>)
-              (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"guix.org"</span>)
-              (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"vps.org"</span>)))
+        (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"blog/dotemacs.org"</span>)
+              (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"guix.org"</span>)
+              (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"vps.org"</span>)))
   (<span class="org-variable-name">org-babel-tangle-sync-mode</span>))
 
 (<span class="org-keyword">defvar</span> <span class="org-variable-name">bhw/org-tangle-on-save-files</span>
   (<span class="org-constant">mapcar</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">file-truename</span>
-          (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"blog/dotemacs.org"</span>)
-                (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"dotfiles.org"</span>)
-                (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"guix.org"</span>)
-                (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"vps.org"</span>)))
+          (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"blog/dotemacs.org"</span>)
+                (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"dotfiles.org"</span>)
+                (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"guix.org"</span>)
+                (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"vps.org"</span>)))
   <span class="org-doc">"Org files tangled in full on save.</span>
 <span class="org-doc">ob-tangle-sync tangles those of `</span><span class="org-doc"><span class="org-constant">org-babel-tangle-sync-files</span></span><span class="org-doc">';</span>
 <span class="org-doc">`</span><span class="org-doc"><span class="org-constant">bhw/org-babel-tangle-on-save</span></span><span class="org-doc">' tangles the rest, dotfiles.org.</span>
@@ -25175,7 +25175,7 @@ tags :range this-year :limit 5.
 </p>
 
 <pre class="example" id="org3bce71a">
-cd ~/project-carlo/emacs
+cd ~/bhw-rig/emacs
 emacs -q --batch -L site-lisp \
   -l org -l tests/org-clock-analyzer-tests.el -f ert-run-tests-batch-and-exit
 </pre>
@@ -25197,8 +25197,8 @@ emacs -q --batch -L site-lisp \
 
 <span class="org-comment-delimiter">;; </span><span class="org-comment">Set before the defcustom exists: `</span><span class="org-comment"><span class="org-constant">defcustom</span></span><span class="org-comment">' keeps an already-bound value.</span>
 (<span class="org-keyword">setq</span> org-clock-analyzer-files
-      (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"hq.org"</span>)
-            (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"archived-tasks/*.org"</span>)))
+      (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"hq.org"</span>)
+            (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"archived-tasks/*.org"</span>)))
 
 (<span class="org-function-name">bhw/define-keys</span> <span class="org-variable-name">bhw/leader-map</span>
   <span class="org-highlight-quoted-quote">'</span>((<span class="org-string">"n r"</span> org-clock-analyzer <span class="org-string">"Clock analyzer"</span>)))
@@ -25285,7 +25285,7 @@ Install the below if we&rsquo;re going to import contacts into Emacs.
 <span class="org-comment-delimiter">;; </span><span class="org-comment">which loading at boot skipped.  Loading puts the hook back, so Org buffers</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">get its contact completion-at-point once mu4e has started, and not before.</span>
 (<span class="org-constant">remove-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">org-mode-hook</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">org-contacts-org-complete-setup</span>)
-(<span class="org-keyword">setq</span> org-contacts-files (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"contacts.org"</span>)))
+(<span class="org-keyword">setq</span> org-contacts-files (<span class="org-constant">list</span> (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"contacts.org"</span>)))
 <span class="org-comment-delimiter">;; </span><span class="org-comment">The "c" capture template calls this by name; upstream does not autoload it.</span>
 (<span class="org-constant">autoload</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">org-contacts-template-name</span> <span class="org-string">"org-contacts"</span>)
 (<span class="org-keyword">with-eval-after-load</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">mu4e</span>
@@ -25323,14 +25323,14 @@ intended i.e. %C
 
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code><span class="org-comment-delimiter">;;</span><span class="org-comment">---------------------------------------------------------------------------</span>
-<span class="org-comment-delimiter">;; </span><span class="org-comment">project-isidore serves ^/assets/ out of its own source root, so the</span>
+<span class="org-comment-delimiter">;; </span><span class="org-comment">bhw-www serves ^/assets/ out of its own source root, so the</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">published blog lives at /assets/blog/, not at the site root.  These three</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">locations used to be repeated as literals and the feed's copy had drifted</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">to the site root, which 404'd every entry link and the feed's own self URL.</span>
-(<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/blog-source-directory</span> <span class="org-string">"~/project-maria/blog/"</span>
+(<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/blog-source-directory</span> <span class="org-string">"~/bhw-cmd/blog/"</span>
   <span class="org-doc">"Directory holding the blog's Org sources."</span>)
 
-(<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/blog-publish-directory</span> <span class="org-string">"~/project-isidore/assets/blog/"</span>
+(<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/blog-publish-directory</span> <span class="org-string">"~/bhw-www/assets/blog/"</span>
   <span class="org-doc">"Directory `</span><span class="org-doc"><span class="org-constant">org-publish</span></span><span class="org-doc">' writes the blog's HTML into."</span>)
 
 (<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/blog-base-url</span> <span class="org-string">"https://bhw.name/assets/blog/"</span>
@@ -25417,7 +25417,7 @@ intended i.e. %C
   (<span class="org-constant">add-hook</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">org-export-filter-parse-tree-functions</span>
             <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">bhw/org-export-ignore-headlines</span>))
 
-<span class="org-comment-delimiter">;; </span><span class="org-comment">The blog's pages run no script: what project-isidore's theme.js and an</span>
+<span class="org-comment-delimiter">;; </span><span class="org-comment">The blog's pages run no script: what bhw-www's theme.js and an</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">inline postamble script used to do in the reader's browser -- copy each</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">footnote into a sidenote beside its reference, give every heading an</span>
 <span class="org-comment-delimiter">;; </span><span class="org-comment">arrow back to the contents -- is done here, at export, by the `</span><span class="org-comment"><span class="org-constant">bhw-blog</span></span><span class="org-comment">'</span>
@@ -25572,7 +25572,7 @@ intended i.e. %C
            <span class="org-comment-delimiter">;; </span><span class="org-comment">and thereby breaking global.css's own language badges.</span>
            <span class="org-comment-delimiter">;; </span><span class="org-comment">Highlighting in Emacs also survives JS being switched off.</span>
            <span class="org-comment-delimiter">;;</span>
-           <span class="org-comment-delimiter">;; </span><span class="org-comment">The pages run no script.  The colour theme is project-isidore's</span>
+           <span class="org-comment-delimiter">;; </span><span class="org-comment">The pages run no script.  The colour theme is bhw-www's</span>
            <span class="org-comment-delimiter">;; </span><span class="org-comment">doing: the navbar's .theme-toggle posts to its /theme, which</span>
            <span class="org-comment-delimiter">;; </span><span class="org-comment">keeps the choice in a cookie, and the server states it in each</span>
            <span class="org-comment-delimiter">;; </span><span class="org-comment">page it sends, with the dark palette linked when it applies.</span>
@@ -27092,7 +27092,7 @@ sure to edit the html before sending it out.
 
 <p>
 Locate recipient of email in contacts.org
-Compose emails first in org mode through email-template.org in project-maria
+Compose emails first in org mode through email-template.org in bhw-cmd
 export through &ldquo;org-mime-org-subtree-htmlize Hit&rdquo; &ldquo;, e s&rdquo; to export the subtree to mu4e compose
 Verify html renders correctly
 send with &ldquo;, ,&rdquo;
@@ -27111,7 +27111,7 @@ running — quit it first with <code>SPC u q</code> in the main view, as <code>q
 it; the maildir itself is untouched):
 </p>
 <pre class="example" id="orgcfb7366">
-  mu init --maildir=/home/ben/project-jerome/email-archive \
+  mu init --maildir=/home/ben/bhw-arc/email-archive \
     --my-address=me@gmail.com --my-address=me@school.example \
     --my-address=alias1@bhw.name --my-address=alias2@bhw.name \
     --my-address=alias3@bhw.name --my-address=old1@school2.example \
@@ -27508,7 +27508,7 @@ then <code>mbsync -a</code> and <code>mu index</code>. Now in emacs `M-x mu4e&rs
         mm-discouraged-alternatives <span class="org-highlight-quoted-quote">'</span>(<span class="org-string">"text/html"</span> <span class="org-string">"text/richtext"</span>)
         gnus-blocked-images <span class="org-string">"."</span>
         mu4e-org-link-query-in-headers-mode nil
-        <span class="org-comment-delimiter">;; </span><span class="org-comment">mu4e-org-contacts-file (concat +project-maria-dir+ "contacts.org")</span>
+        <span class="org-comment-delimiter">;; </span><span class="org-comment">mu4e-org-contacts-file (concat +bhw-cmd-dir+ "contacts.org")</span>
         message-kill-buffer-on-exit t
         mu4e-confirm-quit nil
         <span class="org-comment-delimiter">;; </span><span class="org-comment">mu4e-headers-time-format "%y/%m/%d %H:%M"</span>
@@ -31883,7 +31883,7 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 (<span class="org-keyword">defvar</span> <span class="org-variable-name">ement-syncs</span>)
 
 (<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/config-tests--org-source</span>
-  (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/blog/dotemacs.org"</span>)
+  (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/blog/dotemacs.org"</span>)
   <span class="org-doc">"The literate source that tangles init.el, the modules and this file."</span>)
 
 (<span class="org-keyword">defun</span> <span class="org-function-name">bhw/config-tests--tangled-files</span> ()
@@ -31946,7 +31946,7 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
           (should (<span class="org-constant">=</span> begins ends)))))))
 
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--tangle-ids-resolve</span> ()
-  <span class="org-doc">"Every id: link comment in project-carlo names exactly one heading of the synced Org files.</span>
+  <span class="org-doc">"Every id: link comment in bhw-rig names exactly one heading of the synced Org files.</span>
 <span class="org-doc">That is, dotemacs.org, guix.org and vps.org.  A heading deleted, or its ID</span>
 <span class="org-doc">changed, since the last tangle leaves its blocks' comments pointing</span>
 <span class="org-doc">nowhere, and detangling them fails; a heading copied with its drawer</span>
@@ -32007,7 +32007,7 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 <span class="org-doc">`</span><span class="org-doc"><span class="org-constant">bhw/org-babel-tangle-on-save</span></span><span class="org-doc">' tangles dotfiles.org, and nothing comes back</span>
 <span class="org-doc">into it.  `</span><span class="org-doc"><span class="org-constant">after-save-hook</span></span><span class="org-doc">' is global, so these two lists are all that</span>
 <span class="org-doc">stands between the hooks and a full `</span><span class="org-doc"><span class="org-constant">org-babel-tangle</span></span><span class="org-doc">' of every other Org</span>
-<span class="org-doc">file in project-maria."</span>
+<span class="org-doc">file in bhw-cmd."</span>
   <span class="org-builtin">:tags</span> <span class="org-highlight-quoted-quote">'</span>(bhw-config)
   (skip-unless (<span class="org-constant">featurep</span> <span class="org-highlight-quoted-quote">'</span><span class="org-constant">ob-tangle-sync</span>))
   (should (<span class="org-constant">memq</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">bhw/org-babel-tangle-on-save</span> (<span class="org-constant">default-value</span> <span class="org-highlight-quoted-quote">'</span><span class="org-variable-name">after-save-hook</span>)))
@@ -32015,20 +32015,20 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
   (should (<span class="org-constant">equal</span> <span class="org-variable-name">bhw/org-tangle-on-save-files</span>
                  (<span class="org-constant">mapcar</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">file-truename</span>
                          (<span class="org-constant">list</span> bhw/config-tests--org-source
-                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/dotfiles.org"</span>)
-                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/guix.org"</span>)
-                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/vps.org"</span>)))))
+                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/dotfiles.org"</span>)
+                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/guix.org"</span>)
+                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/vps.org"</span>)))))
   (should (<span class="org-constant">equal</span> (<span class="org-constant">mapcar</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">file-truename</span> <span class="org-variable-name">org-babel-tangle-sync-files</span>)
                  (<span class="org-constant">mapcar</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">file-truename</span>
                          (<span class="org-constant">list</span> bhw/config-tests--org-source
-                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/guix.org"</span>)
-                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/vps.org"</span>)))))
+                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/guix.org"</span>)
+                               (<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/vps.org"</span>)))))
   (<span class="org-keyword">pcase-dolist</span> (<span class="org-highlight-quoted-quote">`</span>(,file ,tangles-p ,synced-p)
                  <span class="org-highlight-quoted-quote">`</span>((,bhw/config-tests--org-source t t)
-                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/dotfiles.org"</span>) t nil)
-                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/guix.org"</span>) t t)
-                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/vps.org"</span>) t t)
-                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/project-maria/hq.org"</span>) nil nil)
+                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/dotfiles.org"</span>) t nil)
+                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/guix.org"</span>) t t)
+                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/vps.org"</span>) t t)
+                   (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"~/bhw-cmd/hq.org"</span>) nil nil)
                    (nil nil nil)))
     (<span class="org-keyword">with-temp-buffer</span>
       (<span class="org-keyword">setq</span> <span class="org-variable-name">buffer-file-name</span> file)
@@ -32850,9 +32850,9 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--environment</span> ()
   <span class="org-doc">"Paths and external binaries the config depends on exist."</span>
   <span class="org-builtin">:tags</span> <span class="org-highlight-quoted-quote">'</span>(bhw-config)
-  (<span class="org-keyword">dolist</span> (path (<span class="org-constant">list</span> <span class="org-variable-name">+project-maria-dir+</span>
-                      <span class="org-variable-name">+project-jerome-dir+</span>
-                      (<span class="org-constant">concat</span> <span class="org-variable-name">+project-maria-dir+</span> <span class="org-string">"project-jerome.bib"</span>)
+  (<span class="org-keyword">dolist</span> (path (<span class="org-constant">list</span> <span class="org-variable-name">+bhw-cmd-dir+</span>
+                      <span class="org-variable-name">+bhw-arc-dir+</span>
+                      (<span class="org-constant">concat</span> <span class="org-variable-name">+bhw-cmd-dir+</span> <span class="org-string">"bhw-arc.bib"</span>)
                       bhw/config-tests--org-source
                       <span class="org-variable-name">org-directory</span>))
     (should (<span class="org-constant">file-exists-p</span> path)))
@@ -33570,7 +33570,7 @@ The cookie sits in its own <code>:comments no</code> block; see <a href="#ID-202
   (<span class="org-keyword">let</span> (stamped)
     (<span class="org-keyword">cl-letf</span> (((<span class="org-constant">symbol-function</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">bhw/ensure-headline-ids</span>)
                (<span class="org-keyword">lambda</span> (<span class="org-type">&amp;rest</span> _) (<span class="org-keyword">setq</span> stamped t))))
-      (<span class="org-keyword">dolist</span> (spec <span class="org-highlight-quoted-quote">`</span>((,(<span class="org-constant">expand-file-name</span> <span class="org-string">"hq.org"</span> <span class="org-variable-name">+project-maria-dir+</span>) . nil)
+      (<span class="org-keyword">dolist</span> (spec <span class="org-highlight-quoted-quote">`</span>((,(<span class="org-constant">expand-file-name</span> <span class="org-string">"hq.org"</span> <span class="org-variable-name">+bhw-cmd-dir+</span>) . nil)
                       (,(<span class="org-constant">expand-file-name</span> <span class="org-string">"dotemacs.org"</span> <span class="org-variable-name">bhw/blog-source-directory</span>) . t)))
         (<span class="org-keyword">setq</span> stamped nil)
         (<span class="org-keyword">with-temp-buffer</span>
@@ -35618,7 +35618,7 @@ keeps what they list, without a minibuffer, a server or an index.
   (should (<span class="org-constant">equal</span> consult-buffer-sources
                  <span class="org-highlight-quoted-quote">'</span>(bhw/consult-source-line bhw/consult-source-org-node
                    consult-source-buffer bhw/consult-source-org-similar
-                   bhw/consult-source-project-maria bhw/consult-source-filesystem)))
+                   bhw/consult-source-bhw-cmd bhw/consult-source-filesystem)))
   (<span class="org-keyword">let</span> ((sources (<span class="org-constant">mapcar</span> <span class="org-highlight-quoted-quote">#'</span><span class="org-highlight-quoted-symbol">symbol-value</span> consult-buffer-sources)))
     (should (<span class="org-constant">equal</span> (<span class="org-constant">mapcar</span> (<span class="org-keyword">lambda</span> (source) (<span class="org-constant">plist-get</span> source <span class="org-builtin">:narrow</span>)) sources)
                    <span class="org-highlight-quoted-quote">'</span>(?l ?n ?b ?s ?m ?f)))
@@ -36813,7 +36813,7 @@ always open the first.
 
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--blog-feed-url-matches-publish-directory</span> ()
   <span class="org-doc">"The Atom feed's base URL points at where the pages are actually served.</span>
-<span class="org-doc">project-isidore maps ^/assets/ onto its own source root, so the published</span>
+<span class="org-doc">bhw-www maps ^/assets/ onto its own source root, so the published</span>
 <span class="org-doc">blog lives under /assets/blog/.  The feed used to be built against</span>
 <span class="org-doc">https://bhw.name/, which 404'd every entry link and the feed's self URL."</span>
   <span class="org-builtin">:tags</span> <span class="org-highlight-quoted-quote">'</span>(bhw-config)
@@ -37138,7 +37138,7 @@ here, and it costs a fifth of the dictionary without any error being raised.
 <div class="org-src-container">
 <pre class="src src-emacs-lisp"><code>(<span class="org-keyword">defconst</span> <span class="org-variable-name">bhw/config-tests--latin-dict-dir</span>
   (<span class="org-constant">expand-file-name</span>
-   <span class="org-string">"~/project-jerome/400-philology/420-english-anglosaxon-languages/.stardict/dic/stardict-latin-english-2.4.2"</span>)
+   <span class="org-string">"~/bhw-arc/400-philology/420-english-anglosaxon-languages/.stardict/dic/stardict-latin-english-2.4.2"</span>)
   <span class="org-doc">"Directory of the Whitaker's-derived Latin dictionary."</span>)
 
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--latin-search-candidates</span> ()
@@ -37186,7 +37186,7 @@ here, and it costs a fifth of the dictionary without any error being raised.
 <span class="org-doc">civitas, cogo, cognosco, comes, committo, condo --- with them.  `wordcount</span><span class="org-doc"><span class="org-warning">\</span></span><span class="org-doc">' is</span>
 <span class="org-doc">not cosmetic either: sdcv sizes its paged index from it, so a synonym pointing</span>
 <span class="org-doc">past that bound kills sdcv on an assertion rather than missing quietly.</span>
-<span class="org-doc">Rebuild with =python3 ~/project-carlo/emacs/scripts/latin-dict-rebuild.py SRCDIR=."</span>
+<span class="org-doc">Rebuild with =python3 ~/bhw-rig/emacs/scripts/latin-dict-rebuild.py SRCDIR=."</span>
   <span class="org-builtin">:tags</span> <span class="org-highlight-quoted-quote">'</span>(bhw-config)
   (skip-unless (<span class="org-constant">file-directory-p</span> bhw/config-tests--latin-dict-dir))
   (<span class="org-keyword">let*</span> ((idx (<span class="org-constant">expand-file-name</span> <span class="org-string">"latin-english.idx"</span> bhw/config-tests--latin-dict-dir))
@@ -37215,7 +37215,7 @@ here, and it costs a fifth of the dictionary without any error being raised.
 
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--latin-synonym-index</span> ()
   <span class="org-doc">"The generated inflected-form index is present and declared in the .ifo.</span>
-<span class="org-doc">Regenerate with =python3 ~/project-carlo/emacs/scripts/latin-syn-gen.py=."</span>
+<span class="org-doc">Regenerate with =python3 ~/bhw-rig/emacs/scripts/latin-syn-gen.py=."</span>
   <span class="org-builtin">:tags</span> <span class="org-highlight-quoted-quote">'</span>(bhw-config)
   (skip-unless (<span class="org-constant">file-directory-p</span> bhw/config-tests--latin-dict-dir))
   (<span class="org-keyword">let</span> ((syn (<span class="org-constant">expand-file-name</span> <span class="org-string">"latin-english.syn"</span> bhw/config-tests--latin-dict-dir))
@@ -37437,7 +37437,7 @@ popups are where the rest of the configuration expects them.
 
 (<span class="org-keyword">ert-deftest</span> <span class="org-function-name">bhw/config-test--user-dir-is-truename</span> ()
   <span class="org-doc">"`</span><span class="org-doc"><span class="org-constant">bhw/user-dir</span></span><span class="org-doc">' is a truename, though Emacs finds it through a link.</span>
-<span class="org-doc">~/.config/emacs is Guix Home's link to ~/project-carlo/emacs.  Through</span>
+<span class="org-doc">~/.config/emacs is Guix Home's link to ~/bhw-rig/emacs.  Through</span>
 <span class="org-doc">the link `</span><span class="org-doc"><span class="org-constant">project-current</span></span><span class="org-doc">' finds no repository, and `</span><span class="org-doc"><span class="org-constant">trusted-content-p</span></span><span class="org-doc">',</span>
 <span class="org-doc">which compares truenames, would not trust the configuration's own files,</span>
 <span class="org-doc">so Flymake would not byte-compile them."</span>
@@ -38560,7 +38560,7 @@ The startup-deferral check cannot run at reload time — by then everything is
 loaded, so <code>featurep</code> tells you nothing about the startup path.  This script
 boots a throwaway daemon of this configuration and reports what got loaded
 eagerly.  Run it by hand after changing package deferrals:
-<code>bash ~/project-carlo/emacs/tests/startup-deferral-check.sh</code>.
+<code>bash ~/bhw-rig/emacs/tests/startup-deferral-check.sh</code>.
 </p>
 
 <p>
@@ -38634,7 +38634,7 @@ will also act as ESC in situations where <code>fd</code> or <code>ESC</code> fai
 </ul>
 <ol class="org-ol">
 <li>Scope: Computer (All Files) using fd.
-Note org-recoll as an option to search all file <b>contents</b>, such as all PDF&rsquo;s in Project Jerome.</li>
+Note org-recoll as an option to search all file <b>contents</b>, such as all PDF&rsquo;s in bhw-arc.</li>
 <li><p>
 Scope: Project (projectile.el defines this as any directory you have
 defined as the &ldquo;root directory&rdquo; by placing a .projectile file in said
@@ -38704,7 +38704,7 @@ for the full word &ldquo;time&rdquo; while considering &ldquo;-&rdquo; to be a w
 
 <tr>
 <td class="org-left">SPC SPC</td>
-<td class="org-left">custom project maria consult</td>
+<td class="org-left">custom bhw-cmd consult</td>
 </tr>
 </tbody>
 </table></li>

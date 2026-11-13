@@ -1,10 +1,10 @@
 ;;; SPDX-FileCopyrightText: 2026  Ben H. W. <foss@bhw.name>
 ;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-;;; Guix package of Project Isidore, and of the dependency Guix lacks
+;;; Guix package of bhw-www, and of the dependency Guix lacks
 ;;; (graph-db).  This file evaluates to the package:
 ;;;
-;;;   guix build -f guix.scm       compiles, tests, and saves bin/project-isidore
+;;;   guix build -f guix.scm       compiles, tests, and saves bin/bhw-www
 ;;;   guix shell -D -f guix.scm    development environment: SBCL and the inputs
 ;;;
 ;;; Production builds it with the host's own Guix: the deploy hook that
@@ -46,7 +46,7 @@
       (arguments
        ;; The engine and its replication transport only.  The full
        ;; "graph-db" system adds the HTTP API (rest.lisp: ningle on a
-       ;; Clack server of its own), which Project Isidore does not serve.
+       ;; Clack server of its own), which bhw-www does not serve.
        (list #:asd-systems ''("graph-db/core" "graph-db/replication")
              ;; The test systems need FiveAM, Drakma and the full system.
              #:tests? #f))
@@ -112,18 +112,18 @@ Prolog-like query language.")
                        (eq? package sbcl-cffi))
                      #:deep? #t)))
 
-(define-public project-isidore
+(define-public bhw-www
   (with-cffi/no-gcc
    (package
-     (name "project-isidore")
+     (name "bhw-www")
      (version "2.0.0")
-     (source (local-file "." "project-isidore-checkout"
+     (source (local-file "." "bhw-www-checkout"
                          #:recursive? #t
                          #:select? vcs-file?))
      (build-system asdf-build-system/sbcl)
      (arguments
       (list
-       #:asd-systems ''("project-isidore")
+       #:asd-systems ''("bhw")
        #:phases
        #~(modify-phases %standard-phases
            ;; 'build compiled the system and 'check ran its tests, each in a
@@ -135,10 +135,10 @@ Prolog-like query language.")
            (add-after 'create-asdf-configuration 'build-program
              (lambda* (#:key outputs #:allow-other-keys)
                (build-program
-                (string-append #$output "/bin/project-isidore")
+                (string-append #$output "/bin/bhw-www")
                 outputs
-                #:dependencies '("project-isidore")
-                #:entry-program '((project-isidore/main:application-toplevel))))))))
+                #:dependencies '("bhw")
+                #:entry-program '((bhw/main:application-toplevel))))))))
      (native-inputs
       (list sbcl-rove))
      (inputs
@@ -164,12 +164,12 @@ Prolog-like query language.")
             sbcl-slynk
             sbcl-trivial-gray-streams
             sbcl-usocket))
-     (home-page "https://www.bhw.name/blog/project-isidore-doc.html")
+     (home-page "https://www.bhw.name/blog/bhw-www-doc.html")
      (synopsis "Personal web application")
      (description
-      "Project Isidore is a personal web application: a website, a Douay-Rheims
+      "bhw-www is a personal web application: a website, a Douay-Rheims
 Bible reader with search, and a Slack bot that books vans, served by one
 process.")
      (license license:agpl3+))))
 
-project-isidore
+bhw-www

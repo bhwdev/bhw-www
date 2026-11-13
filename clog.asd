@@ -6,12 +6,12 @@
 ;;;; clog.asd                                                              ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Project Isidore's fork of CLOG, in clog/ (see clog/README.org).  This
-;;; file is here, beside project-isidore.asd, so that ASDF finds it wherever
+;;; bhw-www's fork of CLOG, in clog/ (see clog/README.org).  This
+;;; file is here, beside bhw.asd, so that ASDF finds it wherever
 ;;; it is told to look for that one.
 
 (asdf:defsystem #:clog
-  :description "CLOG - The Common Lisp Omnificent GUI: Project Isidore's fork,
+  :description "CLOG - The Common Lisp Omnificent GUI: bhw-www's fork,
 its core and CLOG-GUI on Hunchentoot"
   :author "David Botton <david@botton.com>"
   :license  "BSD"

@@ -1,9 +1,9 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/slack-bot/booking-nlp
+(uiop:define-package #:bhw/slack-bot/booking-nlp
   (:use #:common-lisp)
-  (:local-nicknames (#:nlp #:project-isidore/slack-bot/nlp))
+  (:local-nicknames (#:nlp #:bhw/slack-bot/nlp))
   (:import-from #:cl-ppcre)
   (:import-from #:local-time)
   (:export
@@ -36,7 +36,7 @@ PARSE-BOOKING turns free-form English such as
   \"Can BW and MM take the DGH to the dentist tomorrow morning, leaving at
    8:30 and back around 11?\"
 
-into a BOOKING-REQUEST.  It runs the project-isidore/slack-bot/NLP pipeline, then a
+into a BOOKING-REQUEST.  It runs the bhw/slack-bot/NLP pipeline, then a
 spaCy-style entity ruler for VEHICLE, TIME, DATE and PASSENGER entities, a cue
 matcher for departure/return/destination cue words, and a slot filler that
 decides which time is the departure and which the return, picks the
@@ -49,7 +49,7 @@ request already parsed, for the `edit` answer to a booking's confirmation.
 BOOKING-INCOMPLETE is the condition used to tell the user exactly which pieces
 are missing; its report is ready to post to Slack."))
 
-(in-package #:project-isidore/slack-bot/booking-nlp)
+(in-package #:bhw/slack-bot/booking-nlp)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Formatting helpers (shared with van-booking)

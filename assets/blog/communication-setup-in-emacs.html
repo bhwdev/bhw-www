@@ -134,7 +134,7 @@ Rust binary with an embedded RocksDB database and prebuilt <code>.deb</code> pac
 compared to my old matrix-synapse deployment there is no Python virtualenv and
 no PostgreSQL to administer. Replace all instances of <code>matrix.bhw.name</code> with
 your domain name <code>matrix.example.com</code>. For the older matrix-synapse versions of
-this article see <a href="https://gitlab.com/bhw/project-isidore/-/blob/2f4d9517352862d21b4e19267f9bc91642859712/assets/blog/communication-setup-in-emacs.html">commit 2f4d9517</a> (Debian 12, distribution package) or <a href="https://gitlab.com/bhw/project-isidore/-/blob/befe72fb930420716cca3f58c3f3a5dd66f2e3f6/assets/blog/communication-setup-in-emacs.html">commit
+this article see <a href="https://gitlab.com/bhw/bhw-www/-/blob/2f4d9517352862d21b4e19267f9bc91642859712/assets/blog/communication-setup-in-emacs.html">commit 2f4d9517</a> (Debian 12, distribution package) or <a href="https://gitlab.com/bhw/bhw-www/-/blob/befe72fb930420716cca3f58c3f3a5dd66f2e3f6/assets/blog/communication-setup-in-emacs.html">commit
 befe72fb</a> (Debian 13, building from source). The steps outlined here are only
 what&rsquo;s required for a single user to self-host a tuwunel server with user
 defined <a href="https://matrix.org/ecosystem/bridges/">bridges</a>. Voice/video calling via MatrixRTC and LiveKit is supported by
@@ -461,8 +461,8 @@ instead I mark it as read and move it out of my inbox to &ldquo;All mail&rdquo;.
   Account gmail
 
   MaildirStore gmail-local
-  Path /home/ben/project-jerome/email-archive/
-  Inbox /home/ben/project-jerome/email-archive/inbox/
+  Path /home/ben/bhw-arc/email-archive/
+  Inbox /home/ben/bhw-arc/email-archive/inbox/
   SubFolders Verbatim
 
   Channel gmail
@@ -481,7 +481,7 @@ instead I mark it as read and move it out of my inbox to &ldquo;All mail&rdquo;.
   mbsync -a -V
   <span class="org-comment-delimiter"># </span><span class="org-comment">See mu4e manual section 2.4</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">https://www.djcbsoftware.nl/code/mu/mu4e/</span>
-  mu init --maildir=~/project-jerome/email-archive/ --my-address=myemailaddress@gmail.com
+  mu init --maildir=~/bhw-arc/email-archive/ --my-address=myemailaddress@gmail.com
   mu index
 </code></pre>
 </div>

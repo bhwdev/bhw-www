@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/bible/reader
+(uiop:define-package #:bhw/bible/reader
   (:use #:common-lisp)
   (:import-from #:alexandria #:extremum #:iota)
   (:import-from #:cl-ppcre)
@@ -13,15 +13,15 @@
                 #:requiredp #:set-on-change #:set-on-click #:set-on-new-window
                 #:set-on-submit #:style #:url #:url-rewrite #:value #:window)
   (:import-from #:quri)
-  (:import-from #:project-isidore/bible/database #:+bible-book-url-alist+)
-  (:import-from #:project-isidore/site/layout #:escape-html #:with-page-chrome)
-  (:local-nicknames (#:bible #:project-isidore/bible/text))
+  (:import-from #:bhw/bible/database #:+bible-book-url-alist+)
+  (:import-from #:bhw/site/layout #:escape-html #:with-page-chrome)
+  (:local-nicknames (#:bible #:bhw/bible/text))
   (:export #:register-routes)
   (:documentation
    "The bible reader's pages: /bible/BOOK-CHAPTER-VERSE[/BOOK-CHAPTER-VERSE]
 shows a passage with its commentary in a table, /bible-search searches it."))
 
-(in-package #:project-isidore/bible/reader)
+(in-package #:bhw/bible/reader)
 
 ;;; Error Pages
 
@@ -31,7 +31,7 @@ shows a passage with its commentary in a table, /bible-search searches it."))
   (create-section obj :h4 :content "Error Code 400 - Bad Request")
   (create-p obj :content "Please validate the URL. Resource exists but invalid arguments passed.")
   (create-p obj :content
-            "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/project-isidore/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>"))
+            "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/bhw-www/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>"))
 
 (defun render-negative-range-page (obj invalid-range)
   "Render 416 Range Not Specifiable content into OBJ.  INVALID-RANGE is the
@@ -45,7 +45,7 @@ beginning and ending references as the URL wrote them, so they are escaped."
               (format nil "Please validate the URL. The beginning input <code>~A</code> subtracted from the ending input <code>~A</code> results in a negative interval range. Perhaps swapping the values will provide a valid URL: <a href=\"~A\">~A</a>"
                       bi ei corrected-link corrected-link))
     (create-p obj :content
-              "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/project-isidore/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>")))
+              "An example of a valid URL is <code>/bible/matthew-4-14/john-3-15</code> where the ending input is optional. Instead of <code>matthew</code> the number 47 may be used instead. This does not hold true for the chapter or verse which must be numeric. <a href=\"https://github.com/bhwdev/bhw-www/blob/master/src/bible/reader.lisp\">Consult the source repository on what constitutes a valid URL (N.B. the function PARSE-UID-SYM)</a> or <a href=\"/contact\">contact me for more information.</a>")))
 
 ;;; Bible Route Handling
 

@@ -1,15 +1,15 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/slack-bot/nlp
+(uiop:define-package #:bhw/tests/slack-bot/nlp
   (:use #:common-lisp)
   (:import-from #:rove #:deftest #:testing #:ok #:ng #:signals)
-  (:local-nicknames (#:nlp #:project-isidore/slack-bot/nlp))
+  (:local-nicknames (#:nlp #:bhw/slack-bot/nlp))
   (:documentation
-   "Tests for project-isidore/slack-bot/nlp: tokenizer, spans, Matcher,
+   "Tests for bhw/slack-bot/nlp: tokenizer, spans, Matcher,
 EntityRuler and PhraseMatcher."))
 
-(in-package #:project-isidore/tests/slack-bot/nlp)
+(in-package #:bhw/tests/slack-bot/nlp)
 
 (defun token-texts (doc)
   (map 'list #'nlp:token-text (nlp:doc-tokens doc)))

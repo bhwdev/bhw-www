@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/site/layout
+(uiop:define-package #:bhw/site/layout
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
   (:import-from #:clog
@@ -20,7 +20,7 @@ and footer, around content a page fills in.
 The colour theme is a cookie: \"light\" (parchment, the default), \"dark\"
 or \"auto\" (as the system prefers).  The navbar's toggle is a form that
 posts to /theme, which sets the next one and sends the reader back
-(THEME-TOGGLE-RESPONSE, served by PROJECT-ISIDORE/MAIN).  A page states the
+(THEME-TOGGLE-RESPONSE, served by BHW/MAIN).  A page states the
 choice as <html data-theme-pref>, which picks the toggle's glyph, and links
 /assets/dark.css, the dark palette, always for dark and under the media
 query prefers-color-scheme: dark for auto: a page CLOG builds reads the
@@ -28,7 +28,7 @@ cookie through CLOG (WITH-PAGE-CHROME), and a static HTML file (the Org
 blog) gets the same from INJECT-THEME as it is sent.  None of it is a
 script of the site's own."))
 
-(in-package #:project-isidore/site/layout)
+(in-package #:bhw/site/layout)
 
 (defun escape-html (string)
   "STRING with & < > \" ' written as character references, for text or a

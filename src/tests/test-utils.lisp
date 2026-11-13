@@ -1,14 +1,14 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/test-utils
+(uiop:define-package #:bhw/tests/test-utils
   (:use #:common-lisp)
   (:export #:with-mocked-functions
            #:with-temp-data-root)
   (:documentation
-   "Helpers shared by the Project Isidore test packages."))
+   "Helpers shared by the bhw-www test packages."))
 
-(in-package #:project-isidore/tests/test-utils)
+(in-package #:bhw/tests/test-utils)
 
 (defmacro with-mocked-functions (bindings &body body)
   "Temporarily replace global function definitions while BODY runs.
@@ -36,17 +36,17 @@ calls (READ-RANGE, WRITE-RANGE, POST-SLACK-MESSAGE, ...) in tests.
                  collect `(setf (symbol-function ',name) ,var))))))
 
 (defmacro with-temp-data-root ((&optional (root (gensym "ROOT"))) &body body)
-  "Run BODY with PROJECT_ISIDORE_DATA pointing at a fresh temporary directory,
+  "Run BODY with BHW_WWW_DATA pointing at a fresh temporary directory,
 bound to ROOT, and delete that directory afterwards.  Stores BODY opens there
 must be closed by the time it returns."
   (let ((saved (gensym "SAVED")))
     `(let ((,root (uiop:subpathname (uiop:temporary-directory)
-                                    (format nil "project-isidore-test-~36R/"
+                                    (format nil "bhw-www-test-~36R/"
                                             (random (expt 36 8) (make-random-state t)))))
-           (,saved (uiop:getenv "PROJECT_ISIDORE_DATA")))
+           (,saved (uiop:getenv "BHW_WWW_DATA")))
        (unwind-protect
             (progn
-              (setf (uiop:getenv "PROJECT_ISIDORE_DATA") (namestring ,root))
+              (setf (uiop:getenv "BHW_WWW_DATA") (namestring ,root))
               ,@body)
-         (setf (uiop:getenv "PROJECT_ISIDORE_DATA") (or ,saved ""))
+         (setf (uiop:getenv "BHW_WWW_DATA") (or ,saved ""))
          (uiop:delete-directory-tree ,root :validate t :if-does-not-exist :ignore)))))

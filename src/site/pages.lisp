@@ -1,14 +1,14 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/site/pages
+(uiop:define-package #:bhw/site/pages
   (:use #:common-lisp)
   (:import-from #:clog
                 #:add-style #:create-a #:create-child #:create-div
                 #:create-img #:create-list-item #:create-p #:create-section
                 #:create-style-block #:create-unordered-list #:head-element
                 #:html-document #:location #:path-name #:set-on-new-window #:title)
-  (:import-from #:project-isidore/site/layout #:escape-html #:with-page-chrome)
+  (:import-from #:bhw/site/layout #:escape-html #:with-page-chrome)
   (:export #:on-index-handler
            #:register-routes)
   (:documentation
@@ -16,7 +16,7 @@
 Contact, the mailing-list page and the 404 page.  CLOG builds them; what
 moves on them, the slideshow and the greeting, is CSS."))
 
-(in-package #:project-isidore/site/pages)
+(in-package #:bhw/site/pages)
 
 ;;; The index page's animations: a cross-fading slideshow behind a card whose
 ;;; greeting types itself out, language after language.
@@ -200,7 +200,7 @@ the spans share a few keyframes and differ in their delays."
           (create-section right :h2 :content "Nice to meet you.")))
       (create-child inner "<hr>")
       (create-p inner
-                :content "Welcome to my personal website! This website was built with <a href=\"https://edicl.github.io/hunchentoot/\" target=\"_blank\" rel=\"noreferrer\">Hunchentoot</a> and <a href=\"/assets/blog/project-isidore-doc.html#Project-History-Credits\" target=\"_blank\" rel=\"noreferrer\">Common Lisp.</a> My resume can be found under the work tab. I hope you find what you're looking for, and may the wind be always at your back.")
+                :content "Welcome to my personal website! This website was built with <a href=\"https://edicl.github.io/hunchentoot/\" target=\"_blank\" rel=\"noreferrer\">Hunchentoot</a> and <a href=\"/assets/blog/bhw-www-doc.html#Project-History-Credits\" target=\"_blank\" rel=\"noreferrer\">Common Lisp.</a> My resume can be found under the work tab. I hope you find what you're looking for, and may the wind be always at your back.")
       (let ((buttons (create-p inner)))
         (create-a buttons :content "About" :link "/about")
         (create-a buttons :content "Work" :link "/work")
@@ -240,7 +240,7 @@ the spans share a few keyframes and differ in their delays."
       (create-p main :content "My PGP Public Key is available <a target=\"_blank\" href=\"/assets/pubkey.asc\">here</a> and as a secondary source, at <a target=\"_blank\" href=\"https://keys.openpgp.org\">https://keys.openpgp.org.</a>")
       (create-p main :content "To receive blog article updates please use <a target=\"_blank\" href=\"https://bhw.name/assets/blog/atom.xml\">the Blog RSS Feed</a> or <a href=\"https://bhw.name/subscribe\">Subscribe to the Mailing List.</a>")
       (create-section main :h1 :content "Blog Article Transparency Policy")
-      (create-p main :content "All edits made to an article after the initial publication date can be found <a target=\"_blank\" href=\"https://github.com/bhwdev/project-isidore/tree/master/assets/blog\">in the version-controlled GitHub repository.</a>"))))
+      (create-p main :content "All edits made to an article after the initial publication date can be found <a target=\"_blank\" href=\"https://github.com/bhwdev/bhw-www/tree/master/assets/blog\">in the version-controlled GitHub repository.</a>"))))
 
 (defun on-subscribe-handler (body)
   "Subscribe page."
@@ -272,12 +272,12 @@ the spans share a few keyframes and differ in their delays."
                   (format nil "The requested URL <code>~A</code> was not found on this server. But that's not all we know..."
                           (escape-html (or path ""))))
         (create-p main :content
-                  "Please validate the URL. <a href=\"https://www.w3.org/Provider/Style/URI\">Although I try my best to keep permanent, eternal, everlasting URLs,</a> Mea culpa. If you have a vague certainty that something should be here but isn't; <a href=\"https://github.com/bhwdev/project-isidore\">please browse the source repository</a> or <a href=\"/contact\">contact me for more information.</a>")))))
+                  "Please validate the URL. <a href=\"https://www.w3.org/Provider/Style/URI\">Although I try my best to keep permanent, eternal, everlasting URLs,</a> Mea culpa. If you have a vague certainty that something should be here but isn't; <a href=\"https://github.com/bhwdev/bhw-www\">please browse the source repository</a> or <a href=\"/contact\">contact me for more information.</a>")))))
 
 
 (defun register-routes ()
   "Serve the site's pages.  The index page is the handler CLOG is started with
-\(see PROJECT-ISIDORE/MAIN), and any path nothing else serves gets the 404."
+\(see BHW/MAIN), and any path nothing else serves gets the 404."
   (set-on-new-window 'on-about-handler :path "/about")
   (set-on-new-window 'on-work-handler :path "/work")
   (set-on-new-window 'on-contact-handler :path "/contact")

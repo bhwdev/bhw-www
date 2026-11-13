@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/slack-bot/nlp
+(uiop:define-package #:bhw/slack-bot/nlp
   (:use #:common-lisp)
   (:import-from #:alexandria)
   (:import-from #:cl-ppcre)
@@ -39,7 +39,7 @@ The pipeline is TOKENIZE -> rule-based matching:
   - PHRASE-MATCHER matches a gazetteer of literal phrases (spaCy's
     PhraseMatcher), used for destinations already present on the sheet."))
 
-(in-package #:project-isidore/slack-bot/nlp)
+(in-package #:bhw/slack-bot/nlp)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Tokens, documents, spans

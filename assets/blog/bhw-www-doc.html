@@ -4,7 +4,7 @@
 <!-- 2026-11-10 Tue 13:07 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Project Isidore Design Notebook</title>
+<title>bhw-www Design Notebook</title>
 <meta name="author" content="Site Admin.">
 <meta name="generator" content="Org Mode">
 
@@ -29,7 +29,7 @@
                                         <form class="theme-form" method="post" action="/theme"><button type="submit" class="theme-toggle" title="Switch the colour theme" aria-label="Switch the colour theme"></button></form>
                                       </div>
                                     </div>
-                                    <h1 class="title">Project Isidore Design Notebook</h1>
+                                    <h1 class="title">bhw-www Design Notebook</h1>
                                     <p class="subtitle">Divus Isidorus Hispalensis ora pro nobis</p> <br/>
                                     <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-10-15 Thu 23:36</p>
 </div>
@@ -40,7 +40,7 @@
 </p>
 
 <p>
-Project Isidore is a personal website written in <a href="https://en.wikipedia.org/wiki/Lisp_(programming_language)">LISP.</a> This article
+bhw-www is a personal website written in <a href="https://en.wikipedia.org/wiki/Lisp_(programming_language)">LISP.</a> This article
 simultaneously serves as project documentation and enables literate programming
 via <a href="https://orgmode.org/worg/org-contrib/babel/">org-babel.</a>
 </p>
@@ -59,7 +59,7 @@ via <a href="https://orgmode.org/worg/org-contrib/babel/">org-babel.</a>
 <li><a href="#Literate-Programming">2.1. Literate Programming</a></li>
 </ul>
 </li>
-<li><a href="#Project-Isidore-System-Definition">3. Project Isidore System Definition</a>
+<li><a href="#bhw-www-System-Definition">3. bhw-www System Definition</a>
 <ul>
 <li><a href="#Libraries-System-dependencies">3.1. Libraries &amp; System dependencies</a></li>
 </ul>
@@ -127,16 +127,16 @@ via <a href="https://orgmode.org/worg/org-contrib/babel/">org-babel.</a>
 <p>
 <span class="dropcap">W</span>elcome! This is the
 documentation webpage of my personal website. The canonical source code is
-located at <a href="https://gitlab.com/bhw/project-isidore">Ben / Project Isidore · GitLab</a>. For usage, please see the <a href="#User-Manual">user manual</a>
+located at <a href="https://gitlab.com/bhw/bhw-www">Ben / bhw-www · GitLab</a>. For usage, please see the <a href="#User-Manual">user manual</a>
 and the navigation bar located at the top of the website.
 </p>
 
 <ul class="org-ul">
 <li><a href="#Common-Lisp-Environment-Setup">Common Lisp Environment Setup - How to get started with Lisp</a></li>
 <li><a href="#Org-Publish-Pipeline">Org Publish Pipeline Section - How I Blog from Org Mode</a></li>
-<li><a href="#Project-Isidore-System-Definition">High Level Project Overview - How to navigate the source tree</a></li>
-<li><a href="#User-Manual">Project Isidore User Manual - Tutorial &amp; Guides</a></li>
-<li><a href="#Reference-Manual">Project Isidore Reference Manual - For Developers</a></li>
+<li><a href="#bhw-www-System-Definition">High Level Project Overview - How to navigate the source tree</a></li>
+<li><a href="#User-Manual">bhw-www User Manual - Tutorial &amp; Guides</a></li>
+<li><a href="#Reference-Manual">bhw-www Reference Manual - For Developers</a></li>
 </ul>
 
 <p>
@@ -373,7 +373,7 @@ open a web browser at the online HyperSpec.
 <p>
 Newcomers to the language are advised to dive right into the <a href="https://stevelosh.com/blog/2018/08/a-road-to-common-lisp/#s13-a-gentle-introduction">recommended
 reading.</a> Now&rsquo;s a good chance to use org-babel for some note-taking. If you&rsquo;ve
-forked the repo to play around with, <a href="#Project-Isidore-System-Definition">a high-level overview of the project</a> may be
+forked the repo to play around with, <a href="#bhw-www-System-Definition">a high-level overview of the project</a> may be
 useful.
 </p>
 </div>
@@ -461,16 +461,16 @@ de-tangle a file exists out in the wild, please do let me know.
 </div>
 </div>
 </div>
-<div id="outline-container-Project-Isidore-System-Definition" class="outline-2">
-<h2 id="Project-Isidore-System-Definition"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">3.</span> Project Isidore System Definition</h2>
-<div class="outline-text-2" id="text-Project-Isidore-System-Definition">
+<div id="outline-container-bhw-www-System-Definition" class="outline-2">
+<h2 id="bhw-www-System-Definition"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">3.</span> bhw-www System Definition</h2>
+<div class="outline-text-2" id="text-bhw-www-System-Definition">
 <p>
 Bibliographies exist for a written corpus of work. The same sort of metadata is
 needed a code base. In Common Lisp, it is the <code>.asd</code> file.
 </p>
 
 <p>
-Project Isidore follows the common <a href="https://wiki.c2.com/?ModelViewController">Model-view-controller (MVC) design pattern.</a>
+bhw-www follows the common <a href="https://wiki.c2.com/?ModelViewController">Model-view-controller (MVC) design pattern.</a>
 It entails encapsulating data together with its processing (the model) and
 isolating it from the manipulation (the controller) and presentation (the view)
 part that has to be done on a user interface.
@@ -479,7 +479,7 @@ part that has to be done on a user interface.
 <p>
 The project follows the <a href="https://common-lisp.net/project/asdf/asdf/The-package_002dinferred_002dsystem-extension.html">ASDF package inferred system</a> style of using <code>defpackage</code>
 forms to specify file inter-dependencies. The entry point of dependency graph is
-<a href="https://gitlab.com/bhw/project-isidore/-/blob/master/src/packages.lisp">packages.lisp</a>. To understand the code base, the files are named after the MVC
+<a href="https://gitlab.com/bhw/bhw-www/-/blob/master/src/packages.lisp">packages.lisp</a>. To understand the code base, the files are named after the MVC
 design pattern.
 </p>
 
@@ -555,19 +555,19 @@ Call <code>sly-eval-buffer</code> on the following code block to update the grap
      (ql:quickload <span class="org-builtin">:cl-dot</span>)
      <span class="org-comment-delimiter">;; </span><span class="org-comment">Not present in quicklisp, retrieve from https://github.com/guicho271828/asdf-viz</span>
      (ql:quickload <span class="org-builtin">:asdf-viz</span>)
-     (ql:quickload <span class="org-builtin">:project-isidore</span>) <span class="org-comment">; also loads cl-ppcre.</span>
+     (ql:quickload <span class="org-builtin">:bhw</span>) <span class="org-comment">; also loads cl-ppcre.</span>
      (setf cl-dot:*dot-path* (string-trim '(#\space #\newline) (second (ppcre:split <span class="org-string">" "</span>(nth-value 0 (uiop:run-program <span class="org-string">"whereis -b dot"</span> <span class="org-builtin">:output</span> <span class="org-builtin">:string</span>))))))
      <span class="org-comment-delimiter">;; </span><span class="org-comment">Tilde char "~" in destination pathname throws an error.</span>
-     (asdf-viz:visualize-asdf-hierarchy (asdf:system-relative-pathname <span class="org-string">"project-isidore"</span> <span class="org-string">"assets/project-isidore-dependency-graph.png"</span>) (list (asdf:find-system <span class="org-builtin">:project-isidore</span>)))
+     (asdf-viz:visualize-asdf-hierarchy (asdf:system-relative-pathname <span class="org-string">"bhw-www"</span> <span class="org-string">"assets/bhw-www-dependency-graph.png"</span>) (list (asdf:find-system <span class="org-builtin">:bhw</span>)))
      <span class="org-comment-delimiter">;; </span><span class="org-comment">"asdf-viz" also can draw class hierarchies and call graphs.</span>
 </code></pre>
 </div>
 
 
 <figure id="org63da0b6">
-<img src="../project-isidore-dependency-graph.png" alt="Project Isidore dependency graph">
+<img src="../bhw-www-dependency-graph.png" alt="bhw-www dependency graph">
 
-<figcaption><span class="figure-number">Figure 1: </span>Project Isidore dependency graph</figcaption>
+<figcaption><span class="figure-number">Figure 1: </span>bhw-www dependency graph</figcaption>
 </figure>
 
 <p>
@@ -776,14 +776,14 @@ your version control needs.
 <div class="outline-text-3" id="text-5-1">
 <p>
 Some measure of quality assurance through unit, integration and regression
-testing upon commit. This is done in <a href="https://github.com/BenedictHW/project-isidore/blob/master/src/make.lisp">MAKE.LISP</a>, see also <a href="https://github.com/BenedictHW/project-isidore/blob/master/test/tests.lisp">TESTS.LISP</a>.
+testing upon commit. This is done in <a href="https://github.com/BenedictHW/bhw-www/blob/master/src/make.lisp">MAKE.LISP</a>, see also <a href="https://github.com/BenedictHW/bhw-www/blob/master/test/tests.lisp">TESTS.LISP</a>.
 </p>
 </div>
 <div id="outline-container-Testing" class="outline-4">
 <h4 id="Testing"><a href="#table-of-contents">&#8689;</a><span class="section-number-4">5.1.1.</span> Testing</h4>
 <div class="outline-text-4" id="text-Testing">
 <p>
-<a href="https://www.bhw.name/assets/code-coverage-report/cover-index.html">Project Isidore code coverage report.</a>
+<a href="https://www.bhw.name/assets/code-coverage-report/cover-index.html">bhw-www code coverage report.</a>
 </p>
 
 <p>
@@ -793,7 +793,7 @@ frameworks, the most recent iteration by <a href="https://sabracrolleton.github.
 </p>
 
 <p>
-Project Isidore code aims to be portable Common Lisp within reason. <a href="https://portability.cl/">Common Lisp
+bhw-www code aims to be portable Common Lisp within reason. <a href="https://portability.cl/">Common Lisp
 Portability Library Status</a>
 </p>
 </div>
@@ -1064,8 +1064,8 @@ Edi.
    (<span class="org-keyword">declaim</span> (optimize sb-cover:store-coverage-data))
    <span class="org-comment-delimiter">;; </span><span class="org-comment">Load while ensuring that it's recompiled with the new optimization</span>
    <span class="org-comment-delimiter">;; </span><span class="org-comment">policy.</span>
-   (asdf:load-system <span class="org-builtin">:project-isidore</span> <span class="org-builtin">:force</span> t)
-   (asdf:test-system <span class="org-builtin">:project-isidore</span>)
+   (asdf:load-system <span class="org-builtin">:bhw</span> <span class="org-builtin">:force</span> t)
+   (asdf:test-system <span class="org-builtin">:bhw</span>)
    <span class="org-comment-delimiter">;; </span><span class="org-comment">HTML report output location</span>
    (sb-cover:report <span class="org-string">"../assets/code-coverage-report/"</span>)
    (<span class="org-keyword">declaim</span> (optimize (sb-cover:store-coverage-data 0)))
@@ -1080,7 +1080,7 @@ Edi.
 <div class="outline-text-3" id="text-5-2">
 <p>
 Building an executable binary for all 3 major operating system platforms on the
-x86-64 architecture. This is done as the final step of <a href="https://gitlab.com/bhw/project-isidore/-/blob/master/make.lisp">MAKE.LISP</a> by calling
+x86-64 architecture. This is done as the final step of <a href="https://gitlab.com/bhw/bhw-www/-/blob/master/make.lisp">MAKE.LISP</a> by calling
 <code>(asdf:make "system-name")</code>. More esoteric architecture/OS pairs will have to
 compile from source, refer to <a href="http://sbcl.org/platform-table.html">the SBCL compiler supported platform table</a>.
 </p>
@@ -1116,12 +1116,12 @@ and SBCL runtime included.
 </tr>
 
 <tr>
-<td class="org-left"><a href="https://gitlab.com/bhw/project-isidore/commit/603da4f0ab28c7e15a1811b96a0640d6ecba0a2a">603da4f</a></td>
+<td class="org-left"><a href="https://gitlab.com/bhw/bhw-www/commit/603da4f0ab28c7e15a1811b96a0640d6ecba0a2a">603da4f</a></td>
 <td class="org-left">Fly.io</td>
 </tr>
 
 <tr>
-<td class="org-left"><a href="https://gitlab.com/bhw/project-isidore/commit/1c7a8e9ba10ae2f5efa05f5ad9ddfc33bf9aa0bd">1c7a8e9</a></td>
+<td class="org-left"><a href="https://gitlab.com/bhw/bhw-www/commit/1c7a8e9ba10ae2f5efa05f5ad9ddfc33bf9aa0bd">1c7a8e9</a></td>
 <td class="org-left">Oracle Cloud Infrastructure</td>
 </tr>
 
@@ -1160,12 +1160,12 @@ Prerequisites:
 </p>
 
 <ul class="org-ul">
-<li><a href="#Introduction">Project Isidore source code.</a></li>
+<li><a href="#Introduction">bhw-www source code.</a></li>
 <li><a href="#Common-Lisp-Environment-Setup">Common Lisp development environment set up.</a></li>
 <li>Basic familiarity with <a href="https://cryptography.io/en/latest/hazmat/primitives/asymmetric/">asymmetric encryption</a>.</li>
 
 <li><p>
-Deploy Project Isidore
+Deploy bhw-www
 </p>
 
 <p>
@@ -1175,7 +1175,7 @@ guided setup on <a href="#ID-20260901T134924.980718">Oracle Cloud Infrastructure
 </p>
 
 <p>
-Read <a href="https://github.com/BenedictHW/project-isidore/blob/master/src/infrastructure/production.lisp">PRODUCTION.LISP</a> to properly supply SSH credentials and SSL keys.
+Read <a href="https://github.com/BenedictHW/bhw-www/blob/master/src/infrastructure/production.lisp">PRODUCTION.LISP</a> to properly supply SSH credentials and SSL keys.
 </p></li>
 
 <li><p>
@@ -1223,7 +1223,7 @@ miles away</a>, continues to serve as an inspiration.
 </p>
 
 <p>
-For an example of how this application starts a slynk server see <a href="https://github.com/BenedictHW/project-isidore/commit/da1f7facd6bdfd61d537101ec301b6558834d672">da1f7fa</a>.
+For an example of how this application starts a slynk server see <a href="https://github.com/BenedictHW/bhw-www/commit/da1f7facd6bdfd61d537101ec301b6558834d672">da1f7fa</a>.
 There is no need to allow ingress on OCI&rsquo;s virtual cloud network or in
 firewalld for port 4005. The 4005 ports on both the local and remote machines
 are communicate via SSH port 22. Create the SSH tunnel on the local machine,
@@ -1844,9 +1844,9 @@ Quux-Hunchentoot Thread Pool
 
 <p>
 Because MAKE.LISP fiddles with compiler knobs in search of performance, a single
-project-isidore@.service in production can reach upwards of 3300 requests per
+bhw-www@.service in production can reach upwards of 3300 requests per
 second. To improve application resiliency Nginx is used to load balance between 12
-project-isidore processes each at 2GB of RAM. Lastly, of note is the 4GBps
+bhw-www processes each at 2GB of RAM. Lastly, of note is the 4GBps
 network bandwidth offered by Oracle Cloud. My bottleneck should be at this
 point the rucksack database, despite offering concurrent transactions.
 </p>
@@ -1974,7 +1974,7 @@ displayed. Dollar amounts are in CAD. Thank you to <a href="#Project-History-Cre
 <h2 id="Data-Persistence"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">6.</span> Data Persistence</h2>
 <div class="outline-text-2" id="text-Data-Persistence">
 <p>
-Project Isidore uses <a href="https://www.sqlite.org/whentouse.html">an embedded database</a> (Rucksack) over more typical
+bhw-www uses <a href="https://www.sqlite.org/whentouse.html">an embedded database</a> (Rucksack) over more typical
 client-server RDBMS&rsquo;s such as PostgreSQL. Extremely heavy read-heavy data or
 whatever data that ought to be cached are stored by the in-memory object
 prevalence model (BKNR.Datastore). <a href="https://blog.wesleyac.com/posts/consider-sqlite">Moore&rsquo;s law has brought us significant
@@ -2033,7 +2033,7 @@ just like XML is a poor, verbose re-implementation of s-expressions, RDF is an e
 This section is now outdated. I implemented a trivial PostgreSQL mailing list
 but running what amounts to your own mail server that does not have its messages
 marked by the big email providers as spam is most definitely non-trivial. As of
-<a href="https://gitlab.com/bhw/project-isidore/commit/7a4fc5dce7c489e7ba07a6e5d7c3c7cc491fa000">commit 7a4fc5d,</a> I have switched to <a href="https://mailchimp.com/pricing/marketing/">Mailchimp.</a> On production instances, there&rsquo;s a
+<a href="https://gitlab.com/bhw/bhw-www/commit/7a4fc5dce7c489e7ba07a6e5d7c3c7cc491fa000">commit 7a4fc5d,</a> I have switched to <a href="https://mailchimp.com/pricing/marketing/">Mailchimp.</a> On production instances, there&rsquo;s a
 savings of 138MB-92.8MB=45.2MB RAM.
 </p>
 
@@ -2146,7 +2146,7 @@ See pg 668 of weitzCommonLispRecipes2016 for cookbook recipes on BKNR.DATASTORE.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-text"><code>PROJECT-ISIDORE/VIEWS&gt; (time (get-bible-text 23))
+<pre class="src src-text"><code>BHW/VIEWS&gt; (time (get-bible-text 23))
 Evaluation took:
   0.000 seconds of real time
   0.000098 seconds of total run time (0.000095 user, 0.000003 system)
@@ -2154,7 +2154,7 @@ Evaluation took:
   228,122 processor cycles
   0 bytes consed
 
-PROJECT-ISIDORE/VIEWS&gt; (time (get-bible-text 23))
+BHW/VIEWS&gt; (time (get-bible-text 23))
 Evaluation took:
   0.000 seconds of real time
   0.000020 seconds of total run time (0.000020 user, 0.000000 system)
@@ -2162,7 +2162,7 @@ Evaluation took:
   36,872 processor cycles
   0 bytes consed
 
-PROJECT-ISIDORE/VIEWS&gt; (time (bible-page "1-1-1-2-2-2"))
+BHW/VIEWS&gt; (time (bible-page "1-1-1-2-2-2"))
 Evaluation took:
   0.330 seconds of real time
   0.328973 seconds of total run time (0.328973 user, 0.000000 system)
@@ -2170,7 +2170,7 @@ Evaluation took:
   821,152,853 processor cycles
   30,101,264 bytes consed
 
-PROJECT-ISIDORE/VIEWS&gt; (time (bible-page "1-1-1-2-2-2"))
+BHW/VIEWS&gt; (time (bible-page "1-1-1-2-2-2"))
 Evaluation took:
   0.440 seconds of real time
   0.441031 seconds of total run time (0.431896 user, 0.009135 system)
@@ -2179,7 +2179,7 @@ Evaluation took:
   1,098,042,384 processor cycles
   91,860,080 bytes consed
 
-PROJECT-ISIDORE/VIEWS&gt; (time (bible-page "1-1-1-73-22-21"))
+BHW/VIEWS&gt; (time (bible-page "1-1-1-73-22-21"))
 Evaluation took:
   8.990 seconds of real time
   8.998338 seconds of total run time (8.102798 user, 0.895540 system)
@@ -2188,7 +2188,7 @@ Evaluation took:
   22,446,254,265 processor cycles
   796,903,104 bytes consed
 
-PROJECT-ISIDORE/VIEWS&gt; (time (bible-page "1-1-1-73-22-21"))
+BHW/VIEWS&gt; (time (bible-page "1-1-1-73-22-21"))
 Evaluation took:
   0.660 seconds of real time
   0.659741 seconds of total run time (0.641298 user, 0.018443 system)
@@ -2204,7 +2204,7 @@ A sampling of <a href="https://github.com/marijnh/Postmodern">postmodern</a> DAO
 </p>
 
 <div class="org-src-container">
-<pre class="src src-text"><code>PROJECT-ISIDORE/MODEL&gt; (time (friend-email (mailinglist-get 2)))
+<pre class="src src-text"><code>BHW/MODEL&gt; (time (friend-email (mailinglist-get 2)))
 Evaluation took:
   0.010 seconds of real time
   0.002794 seconds of total run time (0.002794 user, 0.000000 system)
@@ -2221,7 +2221,7 @@ And a regular SQL query done in postmodern,
 </p>
 
 <div class="org-src-container">
-<pre class="src src-text"><code>PROJECT-ISIDORE/MODEL&gt;  (time (pomo:with-connection (db-params) (pomo:query (:select 'email :from 'mailinglist :where (:= 'id 2)) :single)))
+<pre class="src src-text"><code>BHW/MODEL&gt;  (time (pomo:with-connection (db-params) (pomo:query (:select 'email :from 'mailinglist :where (:= 'id 2)) :single)))
 Evaluation took:
   0.010 seconds of real time
   0.003089 seconds of total run time (0.003089 user, 0.000000 system)
@@ -2705,7 +2705,7 @@ system, I would try a library like <a href="https://gitlab.common-lisp.net/dkoch
 
 <div class="org-src-container">
 <pre class="src src-lisp"><code>  <span class="org-comment-delimiter">;; </span><span class="org-comment">Load project into image.</span>
-  (ql:quickload <span class="org-builtin">:project-isidore</span>)
+  (ql:quickload <span class="org-builtin">:bhw</span>)
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Load SBCL's statisical profiler.</span>
   (<span class="org-keyword">require</span> <span class="org-constant">:sb-sprof</span>)
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Includes COMMON LISP USER package symbols as defined in the Hyperspec.</span>
@@ -2715,7 +2715,7 @@ system, I would try a library like <a href="https://gitlab.common-lisp.net/dkoch
                             <span class="org-builtin">:report</span> <span class="org-builtin">:graph</span>
                             <span class="org-builtin">:loop</span> t
                             <span class="org-builtin">:show-progress</span> t)
-    (project-isidore:bible-page <span class="org-string">"1-1-1-3-3-3"</span>))
+    (bhw-www:bible-page <span class="org-string">"1-1-1-3-3-3"</span>))
 </code></pre>
 </div>
 
@@ -2752,20 +2752,20 @@ below.
 
 <div class="org-src-container">
 <pre class="src src-text"><code>------------------------------------------------------------------------
-  3840  76.8                   PROJECT-ISIDORE/MODEL:GET-BIBLE-UID [99]
+  3840  76.8                   BHW/MODEL:GET-BIBLE-UID [99]
     44   0.9                   REMOVE-IF-NOT [5]
-    55   1.1                   PROJECT-ISIDORE/MODEL:GET-HAYDOCK-TEXT [96]
+    55   1.1                   BHW/MODEL:GET-HAYDOCK-TEXT [96]
    190   3.8   3896  77.9   REMOVE-IF-NOT [5]
-     1   0.0                   (LAMBDA (PROJECT-ISIDORE/MODEL::X) :IN PROJECT-ISIDORE/MODEL::FILTER-LIST-BY-VERSE) [114]
+     1   0.0                   (LAMBDA (BHW/MODEL::X) :IN BHW/MODEL::FILTER-LIST-BY-VERSE) [114]
      1   0.0                   (SB-PCL::EMF SB-MOP:SLOT-VALUE-USING-CLASS) [2]
      1   0.0                   (LAMBDA (SB-PCL::.ARG0.) :IN "SYS:SRC;PCL;DLISP3.LISP") [3]
      1   0.0                   foreign function alloc_list [29]
-    43   0.9                   (LAMBDA (PROJECT-ISIDORE/MODEL::X) :IN PROJECT-ISIDORE/MODEL::FILTER-LIST-BY-CHAPTER) [30]
+    43   0.9                   (LAMBDA (BHW/MODEL::X) :IN BHW/MODEL::FILTER-LIST-BY-CHAPTER) [30]
    140   2.8                   SB-KERNEL:TWO-ARG-STRING-EQUAL [10]
-  1421  28.4                   (LAMBDA (PROJECT-ISIDORE/MODEL::X) :IN PROJECT-ISIDORE/MODEL::FILTER-LIST-BY-BOOK) [17]
+  1421  28.4                   (LAMBDA (BHW/MODEL::X) :IN BHW/MODEL::FILTER-LIST-BY-BOOK) [17]
   2004  40.1                   EQUALP [1]
     44   0.9                   REMOVE-IF-NOT [5]
-    47   0.9                   (LAMBDA (PROJECT-ISIDORE/MODEL::X) :IN PROJECT-ISIDORE/MODEL:GET-HAYDOCK-TEXT) [38]
+    47   0.9                   (LAMBDA (BHW/MODEL::X) :IN BHW/MODEL:GET-HAYDOCK-TEXT) [38]
 ------------------------------------------------------------------------
 </code></pre>
 </div>
@@ -2777,7 +2777,7 @@ the information. Let&rsquo;s see if we can&rsquo;t optimize this particular func
 </p>
 
 <div class="org-src-container">
-<pre class="src src-lisp"><code>(time (project-isidore:bible-page <span class="org-string">"1-1-1-3-3-3"</span>))
+<pre class="src src-lisp"><code>(time (bhw-www:bible-page <span class="org-string">"1-1-1-3-3-3"</span>))
 </code></pre>
 </div>
 
@@ -3015,7 +3015,7 @@ After the addition of regex generated cross-references in version 1.2.2,
 <div class="outline-text-3" id="text-How-do-I-find-past-versions-of-a-blog-article">
 <p>
 To view the entire revision history of an article, find and click the article
-title on <a href="https://gitlab.com/bhw/project-isidore/tree/master/assets/blog">the repository&rsquo;s blog subfolder.</a> Then click on the <code>History</code> button to
+title on <a href="https://gitlab.com/bhw/bhw-www/tree/master/assets/blog">the repository&rsquo;s blog subfolder.</a> Then click on the <code>History</code> button to
 view specific, atomic changes. Inputting the article URL into <a href="https://archive.org/web/">the Internet
 Wayback Machine</a> is also an option.
 </p>
@@ -3035,7 +3035,7 @@ on the <a href="https://www.bhw.name/unsubscribe">unsubscribe page.</a> To resub
 <div class="outline-text-3" id="text-Can-I-visit-this-website-offline">
 <p>
 To access the website offline, download the appropriate executable
-from the project release page. <a href="https://gitlab.com/bhw/project-isidore/-/releases">Releases · Ben / Project Isidore · GitLab</a>
+from the project release page. <a href="https://gitlab.com/bhw/bhw-www/-/releases">Releases · Ben / bhw-www · GitLab</a>
 </p>
 
 <p>
@@ -3045,7 +3045,7 @@ supported on Ubuntu, MacOS and Windows operating systems.
 </p>
 
 <p>
-Project Isidore does not offer signed binaries for MacOS, therefore you will
+bhw-www does not offer signed binaries for MacOS, therefore you will
 have to manually execute the unsigned binaries. Please see
 <a href="https://lapcatsoftware.com/articles/unsigned.html">https://lapcatsoftware.com/articles/unsigned.html</a> for more details.
 </p>
@@ -3072,7 +3072,7 @@ The documentation is organized according to the best practices outlined here:
 
 <p>
 The closest thing to a tutorial as understood by the divio documentation system
-ought to be the development quickstart <a href="https://gitlab.com/bhw/project-isidore/-/blob/master/README.org">(present in the README.org)</a> or embedded
+ought to be the development quickstart <a href="https://gitlab.com/bhw/bhw-www/-/blob/master/README.org">(present in the README.org)</a> or embedded
 as close as possible to the end-user interface. How-to guides are meant to be
 placed here in the user manual. The Reference is auto-generated with the help of
 <a href="#Generate-Reference-Manual">the Declt system</a>. The Explanation is this Design Notebook blog article and git
@@ -3085,13 +3085,13 @@ commit messages.
 <h2 id="Reference-Manual"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">10.</span> Reference Manual</h2>
 <div class="outline-text-2" id="text-Reference-Manual">
 <p>
-Reference manuals are technical descriptions of Project Isidore&rsquo;s internal
+Reference manuals are technical descriptions of bhw-www&rsquo;s internal
 artifact architecture and how to operate it. For end users, please see the <a href="#User-Manual">User
 Manual</a>.
 </p>
 
 <p>
-<a href="https://www.bhw.name/assets/reference-manual.html">The Project Isidore Reference Manual</a> is complete with cross-references to ASDF
+<a href="https://www.bhw.name/assets/reference-manual.html">The bhw-www Reference Manual</a> is complete with cross-references to ASDF
 component dependencies, parents and children, classes&rsquo; direct methods, super and
 subclasses, slot readers and writers, setf expanders access and update functions
 etc. The reference manual also includes exhaustive and multiple-entry indexes
@@ -3146,7 +3146,7 @@ docstrings where the opportunity arises will yield great results.
 <code>generate-doc.lisp</code> script is run by a git pre-commit hook. Upon every commit,
 it will regenerate the reference manual and include changes into the commit.
 <code>pre-commit</code> is originally located at
-<code>/project-isidore/.git/hooks/pre-commit.sample</code>.
+<code>/bhw-www/.git/hooks/pre-commit.sample</code>.
 </p>
 
 <div class="org-src-container">
@@ -3154,9 +3154,9 @@ it will regenerate the reference manual and include changes into the commit.
 
   <span class="org-comment-delimiter"># </span><span class="org-comment">Generate updated manual. SBCL must be installed. See documentation for</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">environment setup</span>
-  sbcl --load /home/ben/quicklisp/local-projects/project-isidore/src/generate-doc.lisp
+  sbcl --load /home/ben/quicklisp/local-projects/bhw-www/src/generate-doc.lisp
   <span class="org-comment-delimiter"># </span><span class="org-comment">Add updated manual.html to commit</span>
-  <span class="org-type">git</span> add /home/ben/quicklisp/local-projects/project-isidore/assets/reference-manual.html
+  <span class="org-type">git</span> add /home/ben/quicklisp/local-projects/bhw-www/assets/reference-manual.html
 </code></pre>
 </div>
 </div>
@@ -3169,11 +3169,11 @@ it will regenerate the reference manual and include changes into the commit.
 <pre class="src src-lisp"><code><span class="org-comment-delimiter">;;;; </span><span class="org-comment">SPDX-FileCopyrightText: 2021  Ben H. W.<a href="mailto:foss%40bhw.name">&lt;foss@bhw.name&gt;</a></span>
 <span class="org-comment-delimiter">;;;; </span><span class="org-comment">SPDX-License-Identifier: AGPL-3.0-or-later</span>
 
-(uiop:define-package <span class="org-builtin">#:project-isidore/migration</span>
+(uiop:define-package <span class="org-builtin">#:bhw/migration</span>
   (<span class="org-builtin">:use</span> <span class="org-builtin">#:common-lisp</span>
         <span class="org-builtin">#:series</span>
-        <span class="org-builtin">#:project-isidore/bible</span>
-        <span class="org-builtin">#:project-isidore/database</span>)
+        <span class="org-builtin">#:bhw/bible</span>
+        <span class="org-builtin">#:bhw/database</span>)
   <span class="org-comment-delimiter">;; </span><span class="org-comment">No package local nicknames. See commit 1962a26.</span>
   (<span class="org-builtin">:documentation</span>
    <span class="org-doc">"Data import: USFM (Unified Standard Format Markers) -&gt; CLOS objects</span>
@@ -3191,7 +3191,7 @@ it will regenerate the reference manual and include changes into the commit.
 <span class="org-doc">-&gt; graph-db migration):</span>
 <span class="org-doc">  (migrate-from-dump #P\"data/migration-dump/\")"</span>))
 
-(<span class="org-keyword">in-package</span> <span class="org-builtin">#:project-isidore/migration</span>)
+(<span class="org-keyword">in-package</span> <span class="org-builtin">#:bhw/migration</span>)
 
 <span class="org-comment-delimiter">;;; </span><span class="org-comment">UNIQUE-ID assignment for fresh imports. The bible CLOS class no longer</span>
 <span class="org-comment-delimiter">;;; </span><span class="org-comment">has a hook analogous to rucksack's INITIALIZE-INSTANCE :AFTER that</span>
@@ -3240,9 +3240,9 @@ it will regenerate the reference manual and include changes into the commit.
                 (setf book (bible-book-convert-dwim (ppcre:regex-replace-all <span class="org-string">"\\\\h "</span> line <span class="org-string">""</span>))))
 
                ((string-equal <span class="org-string">"\\im"</span> (car (ppcre:split <span class="org-string">" "</span> line)))
-                (create-bible (nreverse (pairlis '(project-isidore/bible::book
-                                                   project-isidore/bible::chapter
-                                                   project-isidore/bible::verse)
+                (create-bible (nreverse (pairlis '(bhw/bible::book
+                                                   bhw/bible::chapter
+                                                   bhw/bible::verse)
                                                  (list book 0 0)))
                               (ppcre:regex-replace-all <span class="org-string">"\\\\im "</span> line <span class="org-string">""</span>)))
 
@@ -3255,9 +3255,9 @@ it will regenerate the reference manual and include changes into the commit.
                   (setf chapter (parse-integer (car (last (ppcre:split <span class="org-string">" "</span> line)))))))
 
                ((string-equal <span class="org-string">"\\cd"</span> (car (ppcre:split <span class="org-string">" "</span> line)))
-                (create-bible (nreverse (pairlis '(project-isidore/bible::book
-                                                   project-isidore/bible::chapter
-                                                   project-isidore/bible::verse)
+                (create-bible (nreverse (pairlis '(bhw/bible::book
+                                                   bhw/bible::chapter
+                                                   bhw/bible::verse)
                                                  (list book chapter 0)))
                               (ppcre:regex-replace-all <span class="org-string">"\\\\cd "</span> line <span class="org-string">""</span>)))
 
@@ -3265,9 +3265,9 @@ it will regenerate the reference manual and include changes into the commit.
                 (<span class="org-keyword">progn</span>
                   (ppcre:do-matches-as-strings (match <span class="org-string">"\\\\v [0-9]{1,3}"</span> line)
                     (setf verse (parse-integer (car (last (ppcre:split <span class="org-string">" "</span> match))))))
-                  (create-bible (nreverse (pairlis '(project-isidore/bible::book
-                                                     project-isidore/bible::chapter
-                                                     project-isidore/bible::verse)
+                  (create-bible (nreverse (pairlis '(bhw/bible::book
+                                                     bhw/bible::chapter
+                                                     bhw/bible::verse)
                                                    (list book chapter verse)))
                                 (ppcre:regex-replace-all <span class="org-string">"\\\\v [0-9]{1,3} "</span> line <span class="org-string">""</span>))))))))
 
@@ -3339,7 +3339,7 @@ it will regenerate the reference manual and include changes into the commit.
 (<span class="org-keyword">defun</span> <span class="org-function-name">migrate-from-dump</span> (<span class="org-type">&amp;optional</span>
                             (dump-dir
                              (asdf:system-relative-pathname
-                              <span class="org-builtin">:project-isidore</span> <span class="org-string">"data/migration-dump/"</span>)))
+                              <span class="org-builtin">:bhw</span> <span class="org-string">"data/migration-dump/"</span>)))
   <span class="org-doc">"Import bible vertices, bible-metadata, and slack-subscriptions from</span>
 <span class="org-doc">the SEXP dump under DUMP-DIR into the currently open *BIBLE-DATABASE*</span>
 <span class="org-doc">and *DATABASE* graphs."</span>

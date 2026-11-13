@@ -1,10 +1,10 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/slack-bot/database
+(uiop:define-package #:bhw/slack-bot/database
   (:use #:common-lisp)
   (:import-from #:graph-db)
-  (:local-nicknames (#:store #:project-isidore/store))
+  (:local-nicknames (#:store #:bhw/store))
   (:export #:*database*
            #:store-path
            #:open-database
@@ -30,7 +30,7 @@
    "The Slack bot's graph-db store, at <data-root>/slack-bot/: who has
 subscribed to reminder DMs, and which initials each Slack account goes by."))
 
-(in-package #:project-isidore/slack-bot/database)
+(in-package #:bhw/slack-bot/database)
 
 (defvar *database* nil
   "The open bot store, or NIL before OPEN-DATABASE.")

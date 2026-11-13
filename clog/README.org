@@ -1,11 +1,11 @@
-#+TITLE: CLOG, Project Isidore's fork
+#+TITLE: CLOG, bhw-www's fork
 
 [[https://github.com/rabbibotton/clog][CLOG]], the Common Lisp Omnificent GUI, by David Botton (BSD 3-Clause,
 see =LICENSE=), cut down to its core, served by Hunchentoot alone, and with
 plain JavaScript in the browser in place of jQuery and jQuery UI. Forked
 from upstream's =main= at commit =86d0f190902f3d77132d094d2c4c3e3cc5d241ef=
 (2.4 and the commits after it). Its system definition is =../clog.asd=,
-beside =project-isidore.asd= so that ASDF finds both in the same place; the
+beside =bhw.asd= so that ASDF finds both in the same place; the
 system and its packages keep upstream's names.
 
 * What is kept

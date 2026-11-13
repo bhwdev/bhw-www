@@ -1,18 +1,18 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/main
+(uiop:define-package #:bhw/tests/main
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
   (:import-from #:rove #:deftest #:ok #:ng #:testing)
   (:import-from #:usocket)
-  (:import-from #:project-isidore/tests/test-utils #:with-temp-data-root)
-  (:local-nicknames (#:main #:project-isidore/main)
-                    (#:layout #:project-isidore/site/layout))
+  (:import-from #:bhw/tests/test-utils #:with-temp-data-root)
+  (:local-nicknames (#:main #:bhw/main)
+                    (#:layout #:bhw/site/layout))
   (:documentation
    "Tests for the application as a whole."))
 
-(in-package #:project-isidore/tests/main)
+(in-package #:bhw/tests/main)
 
 (defun http-status (port request-line &rest header-lines)
   "Send REQUEST-LINE and HEADER-LINES, verbatim, as an HTTP/1.0 request with
@@ -134,7 +134,7 @@ it."
 ;; slideshow opens on its first slide.
 (deftest index-animations
   (multiple-value-bind (html css)
-      (project-isidore/site/pages::typewriter '("Hi" "Yo!") :per-character 1/10 :hold 1/2 :pause 1)
+      (bhw/site/pages::typewriter '("Hi" "Yo!") :per-character 1/10 :hold 1/2 :pause 1)
     (ok (search "<span class=\"greeting-static\">Hi</span>" html))
     (ok (= 5 (count-if (lambda (i) (string= "<span style" html :start2 i :end2 (min (length html) (+ i 11))))
                        (loop for i below (length html) collect i))))
@@ -142,7 +142,7 @@ it."
     (ok (search "animation: none 2.50s" css))
     (dolist (window '("tw60 " "tw70 " "tw160 " "tw170 " "tw180 "))
       (ok (search (format nil "@keyframes ~A" window) css) window)))
-  (multiple-value-bind (html css) (project-isidore/site/pages::slideshow)
+  (multiple-value-bind (html css) (bhw/site/pages::slideshow)
     (ok (search "animation-delay:-1s" html))
     (ok (search "animation: slide 36s" css))))
 
@@ -185,7 +185,7 @@ it."
              (ok (= 200 (http-status 8293 "GET /js/boot.js HTTP/1.0")))
              (ok (= 404 (http-status 8293 "GET /js/jquery.min.js HTTP/1.0")) "no jQuery")
              ;; No static root: the checkout's files outside assets/ are not served.
-             (dolist (path '("/guix.scm" "/clog.asd" "/project-isidore.asd" "/README.org"))
+             (dolist (path '("/guix.scm" "/clog.asd" "/bhw.asd" "/README.org"))
                (ok (= 404 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))
              ;; and its websocket, which answers a version it does not
              ;; speak without opening a session
@@ -198,7 +198,7 @@ it."
              ;; directory, and the checkout's .gitignore.
              (dolist (path (list (format nil "/~A" (namestring
                                                     (asdf:system-relative-pathname
-                                                     :project-isidore "project-isidore.asd")))
+                                                     :bhw "bhw.asd")))
                                  "/%2Fetc/passwd"
                                  "/~/.profile"
                                  "/.gitignore"))
@@ -224,7 +224,7 @@ it."
                        "another theme is another entity"))))
              (testing "a file is revalidated by its ETag, never by its 1970 write date"
                (let ((length (with-open-file (in (asdf:system-relative-pathname
-                                                  :project-isidore "assets/global.css")
+                                                  :bhw "assets/global.css")
                                                  :element-type '(unsigned-byte 8))
                                (file-length in))))
                  (multiple-value-bind (status headers body)

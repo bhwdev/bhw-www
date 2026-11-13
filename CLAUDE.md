@@ -1,4 +1,4 @@
-# Project Isidore
+# bhw-www
 
 ## Architecture
 
@@ -31,7 +31,7 @@ is a cookie set by POST /theme (`site/layout`), and the index's slideshow and
 greeting are CSS.
 
 `clog/` is a fork of CLOG (system `clog`, `clog.asd` at the root beside
-`project-isidore.asd`): its core and CLOG-GUI, without MGL-PAX, CL-DBI,
+`bhw.asd`): its core and CLOG-GUI, without MGL-PAX, CL-DBI,
 Clack, Lack, websocket-driver or jQuery, on Hunchentoot with its own RFC 6455
 websockets (`clog-websocket.lisp`); the scripts it sends the browser are plain
 DOM calls and the helpers in `clog/static-files/js/boot.js`.
@@ -45,7 +45,7 @@ mirroring `src/`.
 ## Commands
 
 - `guix build -f guix.scm`: compiles, runs every test suite (the `check`
-  phase), then saves the executable (`bin/project-isidore` in its store
+  phase), then saves the executable (`bin/bhw-www` in its store
   output) from an image that loaded only the system. Its source is the files
   of HEAD's commit (Guix's `git-predicate`) with their working-tree contents,
   so a new file is left out until it is committed. Production builds the same
@@ -76,10 +76,10 @@ Use cl-mcp for:
 - **Finding a definition or its callers**: `clgrep-search` returns the
   enclosing form's signature, so a hit needs no second read for context.
 - **One test package**: `run-tests` with system
-  `project-isidore/tests/<path>` (e.g. `project-isidore/tests/slack-bot/nlp`)
+  `bhw/tests/<path>` (e.g. `bhw/tests/slack-bot/nlp`)
   gives per-test results. When a failure is not inside a `testing` block it
   dies with "The function NIL is undefined"; then use `repl-eval`
-  `(rove:run :project-isidore/tests/<path> :style :dot)` for the report.
+  `(rove:run :bhw/tests/<path> :style :dot)` for the report.
 
 Use the built-in tools for:
 - Non-Lisp files, small files, and edits of a few lines (`Edit` costs what
@@ -90,9 +90,9 @@ Use the built-in tools for:
   filtered.
 
 Setup: a local-scope MCP server in `~/.claude.json` runs `cl-mcp-stdio` (from
-Guix Home) inside `guix shell -D -f /home/ben/project-isidore/guix.scm`, so
+Guix Home) inside `guix shell -D -f /home/ben/bhw-www/guix.scm`, so
 the worker finds the dependencies however Claude Code was started. Then
-`load-system` `project-isidore/tests`. After a change to `guix.scm` that
+`load-system` `bhw/tests`. After a change to `guix.scm` that
 needs a package built, build the shell once (`guix shell -D -f guix.scm --
 true`) before starting Claude Code, or cl-mcp may time out connecting. Not
 under another Guix's `time-machine`: its SBCL may differ from cl-mcp's, and

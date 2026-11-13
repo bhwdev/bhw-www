@@ -1,11 +1,11 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/bible/text
+(uiop:define-package #:bhw/bible/text
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
   (:import-from #:montezuma)
-  (:import-from #:project-isidore/bible/database
+  (:import-from #:bhw/bible/database
                 #:bible-obj-with-id
                 #:heading-of #:text-of #:cross-references-of #:footnotes-of
                 #:+bible-book-numbers-alist+
@@ -34,7 +34,7 @@
 footnotes and cross-references (as HTML links), and full-text search over
 them with a Montezuma index."))
 
-(in-package #:project-isidore/bible/text)
+(in-package #:bhw/bible/text)
 
 (defun get-bible-uid (book chapter verse)
   "Return a unique identifier assigned to each instance of class `bible'.
@@ -260,7 +260,7 @@ of an off by one error.
 
 Example:
 
-(project-isidore/bible:make-bible-chapter-url-list '(10 91)) =>
+(bhw/bible:make-bible-chapter-url-list '(10 91)) =>
 
 ((\"/bible/1-1-1/1-1-31\" . \"Genesis 1\")
  (\"/bible/1-2-1/1-2-25\" . \"Genesis 2\")
@@ -319,7 +319,7 @@ Example:
 
 ;;; Search
 
-(defvar *search-index-path* #p"/var/local/project-isidore/montezuma/"
+(defvar *search-index-path* #p"/var/local/bhw-www/montezuma/"
   "The directory of the Montezuma index over the bible, shipped with it.")
 
 (defvar *search-index* nil

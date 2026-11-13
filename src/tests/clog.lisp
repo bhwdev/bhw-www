@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/clog
+(uiop:define-package #:bhw/tests/clog
   (:use #:common-lisp)
   (:import-from #:alexandria)
   (:import-from #:cl-ppcre)
@@ -15,7 +15,7 @@
 against a client side written here apart from the server's, and its server on
 Hunchentoot, through a whole CLOG session over a socket."))
 
-(in-package #:project-isidore/tests/clog)
+(in-package #:bhw/tests/clog)
 
 ;;; The client's side of the framing, apart from clog-websocket.lisp's.
 
@@ -181,7 +181,7 @@ the server sends back."
                 (sent-frames out)))))
 
 (deftest static-file-paths
-  (let ((root (asdf:system-relative-pathname :project-isidore "")))
+  (let ((root (asdf:system-relative-pathname :bhw "")))
     (ok (conn::static-file root "/clog.asd"))
     (ok (conn::static-file root "/assets/global.css"))
     (dolist (path (list "/" "/assets" "/assets/" "/assets//global.css" "/../etc/passwd"

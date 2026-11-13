@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/main
+(uiop:define-package #:bhw/main
   (:use #:common-lisp)
   (:import-from #:alexandria)
   (:import-from #:bordeaux-threads)
@@ -15,18 +15,18 @@
   (:import-from #:ironclad)
   (:import-from #:slynk)
   (:local-nicknames (#:conn #:clog-connection)
-                    (#:layout #:project-isidore/site/layout)
-                    (#:pages #:project-isidore/site/pages)
-                    (#:bible-db #:project-isidore/bible/database)
-                    (#:bible #:project-isidore/bible/text)
-                    (#:reader #:project-isidore/bible/reader)
-                    (#:bot-db #:project-isidore/slack-bot/database)
-                    (#:bot #:project-isidore/slack-bot/bot))
+                    (#:layout #:bhw/site/layout)
+                    (#:pages #:bhw/site/pages)
+                    (#:bible-db #:bhw/bible/database)
+                    (#:bible #:bhw/bible/text)
+                    (#:reader #:bhw/bible/reader)
+                    (#:bot-db #:bhw/slack-bot/database)
+                    (#:bot #:bhw/slack-bot/bot))
   (:export #:initialize-application
            #:terminate-application
            #:application-toplevel)
   (:documentation
-   "Project Isidore's one process: the personal site, the bible reader and the
+   "bhw-www's one process: the personal site, the bible reader and the
 Slack bot, served by one web server: SITE-ACCEPTOR, the Hunchentoot acceptor
 of the fork of CLOG in clog/.
 
@@ -38,7 +38,7 @@ does none of this, so loading has no side effects and the build can save the
 image straight after loading it.  APPLICATION-TOPLEVEL is the executable's
 entry point."))
 
-(in-package #:project-isidore/main)
+(in-package #:bhw/main)
 
 (defvar *server* nil
   "Non-NIL when the CLOG web server is running.")
@@ -280,22 +280,22 @@ source, are not served."
   (pages:register-routes)
   (reader:register-routes)
   (conn:add-plugin-path "^/assets/"
-                        (namestring (asdf:system-relative-pathname :project-isidore "./")))
+                        (namestring (asdf:system-relative-pathname :bhw "./")))
   (conn:add-plugin-path "^/favicon\\.ico"
-                        (namestring (asdf:system-relative-pathname :project-isidore "assets/")))
+                        (namestring (asdf:system-relative-pathname :bhw "assets/")))
   (setf *server* t)
   (format t "~%
 ========================================
-Project Isidore
+bhw-www
 ========================================
 Copyright (c) 2021  Ben H. W. <foss@bhw.name>
-Project Isidore is free software, provided as is, and comes with ABSOLUTELY NO
+bhw-www is free software, provided as is, and comes with ABSOLUTELY NO
 WARRANTY. This program is licensed under the GNU AFFERO GENERAL PUBLIC LICENSE
 Version 3, 19 November 2007 You are welcome to redistribute the program or any
 parts hereof under certain conditions. Please visit
 https://www.gnu.org/licenses/agpl-3.0.html for License details.
-Homepage: https://www.bhw.name/assets/blog/project-isidore-doc.html
-Source code repository: https://github.com/bhwdev/project-isidore
+Homepage: https://www.bhw.name/assets/blog/bhw-www-doc.html
+Source code repository: https://github.com/bhwdev/bhw-www
 Navigate to http://localhost:~A to continue... ~%" port)
   t)
 

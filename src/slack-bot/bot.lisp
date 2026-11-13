@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/slack-bot/bot
+(uiop:define-package #:bhw/slack-bot/bot
   (:use #:common-lisp)
   (:import-from #:alexandria
                 #:plist-hash-table
@@ -13,14 +13,14 @@
   (:import-from #:flexi-streams)
   (:import-from #:ironclad)
   (:import-from #:quri)
-  (:import-from #:project-isidore/slack-bot/booking-nlp
+  (:import-from #:bhw/slack-bot/booking-nlp
                 #:booking-incomplete
                 #:booking-incomplete-missing
                 #:booking-incomplete-preamble
                 #:slot-label
                 #:self-reference-p
                 #:resolve-self-reference)
-  (:import-from #:project-isidore/slack-bot/van-booking
+  (:import-from #:bhw/slack-bot/van-booking
                 #:propose-natural
                 #:revise-proposal
                 #:commit-booking
@@ -40,7 +40,7 @@
                 #:remind-return-driver
                 #:trip-vehicle
                 #:trip-block-start-row)
-  (:import-from #:project-isidore/slack-bot/database
+  (:import-from #:bhw/slack-bot/database
                 #:all-slack-subscriptions
                 #:add-slack-subscription
                 #:remove-slack-subscription
@@ -58,7 +58,7 @@
    "Slack bot integration for van booking.
 
 Serves two endpoints (SLACK-REQUEST-P, SLACK-RESPONSE), through
-PROJECT-ISIDORE/MAIN's web server:
+BHW/MAIN's web server:
 
   POST /slack/commands — Slash commands /book, /view, /iam, /subscribe,
                          /unsubscribe, /help.
@@ -69,7 +69,7 @@ PROJECT-ISIDORE/MAIN's web server:
                          answered with +COMMANDS-ONLY-REPLY+.
 
 `/book` takes the request in free-form English (see
-project-isidore/slack-bot/booking-nlp).  When a required piece is missing,
+bhw/slack-bot/booking-nlp).  When a required piece is missing,
 the BOOKING-INCOMPLETE report is posted back: it lists what was understood
 and asks the user to re-send the request with the missing piece.  A
 request that can be booked is not written straight away: the reply shows the
@@ -82,7 +82,7 @@ channel whose messages do not reach the bot.  `/view` takes a day or a range
 of days.
 
 A persistent /subscribe registry (graph-db-backed via
-project-isidore/slack-bot/database)
+bhw/slack-bot/database)
 plus an in-process scheduler thread DMs subscribers *REMINDER-LEAD-MINUTES*
 before the departure of each trip they are on, driving or riding, and before
 each return they drive, being the first listed for it.
@@ -101,7 +101,7 @@ the profile guess; without it users.info answers \"missing_scope\", which is
 handled like any other failure -- everyone simply has to run /iam once.  See
 the project plan for Slack app configuration details."))
 
-(in-package #:project-isidore/slack-bot/bot)
+(in-package #:bhw/slack-bot/bot)
 
 ;;; Configuration
 
@@ -738,7 +738,7 @@ synchronously or ignored."
 ;;; A request is a plist -- :REQUEST-METHOD, :PATH-INFO, :HEADERS (a hash
 ;;; table of lowercase names), :CONTENT-LENGTH, :RAW-BODY (a binary stream) --
 ;;; and a response a list (STATUS HEADERS BODY), HEADERS a plist and BODY a
-;;; list of strings: PROJECT-ISIDORE/MAIN converts them from and to
+;;; list of strings: BHW/MAIN converts them from and to
 ;;; Hunchentoot's request and reply, and the tests make them directly.
 
 (defparameter *max-body-octets* (* 1024 1024)

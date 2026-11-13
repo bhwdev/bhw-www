@@ -1,16 +1,16 @@
-(uiop:define-package #:project-isidore/tests/bible
+(uiop:define-package #:bhw/tests/bible
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
   (:import-from #:rove #:deftest #:ok #:signals #:skip #:setup #:teardown)
-  (:local-nicknames (#:bible-db #:project-isidore/bible/database)
-                    (#:bible #:project-isidore/bible/text)
-                    (#:reader #:project-isidore/bible/reader))
+  (:local-nicknames (#:bible-db #:bhw/bible/database)
+                    (#:bible #:bhw/bible/text)
+                    (#:reader #:bhw/bible/reader))
   (:documentation
    "Tests for the bible: lookups, links and search over the text, and the
 reader's paths.  They need the bible store, which only production has (see
-PROJECT-ISIDORE/BIBLE/DATABASE), so elsewhere they skip."))
+BHW/BIBLE/DATABASE), so elsewhere they skip."))
 
-(in-package #:project-isidore/tests/bible)
+(in-package #:bhw/tests/bible)
 
 (setup
   (bible-db:open-database)
@@ -176,7 +176,7 @@ PROJECT-ISIDORE/BIBLE/DATABASE), so elsewhere they skip."))
 ;; every distinct path requested would never be freed.  Needs no store.
 (deftest verse-reference-not-interned
   (ignore-errors (reader::parse-verse-arg "nosuchbook-1-1"))
-  (ok (null (find-symbol "NOSUCHBOOK-1-1" :project-isidore/bible/reader))))
+  (ok (null (find-symbol "NOSUCHBOOK-1-1" :bhw/bible/reader))))
 ;;; =====================================================================
 
 ;; Symbolic single-verse path resolves to a one-element UID list.

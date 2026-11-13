@@ -1,14 +1,14 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/slack-bot/bot
+(uiop:define-package #:bhw/tests/slack-bot/bot
   (:use #:common-lisp)
   (:import-from #:rove #:deftest #:ok #:ng #:fail)
-  (:local-nicknames (#:sb #:project-isidore/slack-bot/bot)
-                    (#:db #:project-isidore/slack-bot/database)
-                    (#:vb #:project-isidore/slack-bot/van-booking)
-                    (#:bn #:project-isidore/slack-bot/booking-nlp))
-  (:import-from #:project-isidore/tests/test-utils
+  (:local-nicknames (#:sb #:bhw/slack-bot/bot)
+                    (#:db #:bhw/slack-bot/database)
+                    (#:vb #:bhw/slack-bot/van-booking)
+                    (#:bn #:bhw/slack-bot/booking-nlp))
+  (:import-from #:bhw/tests/test-utils
                 #:with-mocked-functions #:with-temp-data-root)
   (:import-from #:alexandria #:plist-hash-table)
   (:import-from #:bordeaux-threads)
@@ -17,7 +17,7 @@
   (:import-from #:flexi-streams)
   (:import-from #:ironclad)
   (:documentation
-   "Tests for project-isidore/slack-bot/bot.
+   "Tests for bhw/slack-bot/bot.
 
 Covers pure helpers (form decoding, initial parsing, dispatch table,
 docstring-driven help output, reminder-key determinism, date-rollover
@@ -27,7 +27,7 @@ scheduler tick, and graph-db-backed subscription CRUD.  Everything that
 would hit the Slack API or Google Sheets is mocked with
 WITH-MOCKED-FUNCTIONS."))
 
-(in-package #:project-isidore/tests/slack-bot/bot)
+(in-package #:bhw/tests/slack-bot/bot)
 
 ;;; --- Pure helpers ---
 
@@ -109,8 +109,8 @@ WITH-MOCKED-FUNCTIONS."))
 ;;; --- Subscription CRUD (graph-db round-trip) ---
 ;;;
 ;;; Each CRUD test runs against a fresh store under a temporary data root, so
-;;; nothing leaks into ~/.local/share/project-isidore/ (or wherever
-;;; PROJECT_ISIDORE_DATA points).
+;;; nothing leaks into ~/.local/share/bhw-www/ (or wherever
+;;; BHW_WWW_DATA points).
 
 (defparameter +test-user-id+ "__TEST_USER_slack_bot_tests__"
   "Sentinel Slack user_id used inside the temp DB.")
@@ -149,16 +149,16 @@ WITH-MOCKED-FUNCTIONS."))
 ;;; --- Where the store lives ---
 
 (deftest store-path-honors-env-var
-  (let ((saved (uiop:getenvp "PROJECT_ISIDORE_DATA")))
+  (let ((saved (uiop:getenvp "BHW_WWW_DATA")))
     (unwind-protect
          (progn
-           (setf (uiop:getenv "PROJECT_ISIDORE_DATA") "/tmp/pi-env-var-test/")
+           (setf (uiop:getenv "BHW_WWW_DATA") "/tmp/pi-env-var-test/")
            (ok (equal #p"/tmp/pi-env-var-test/slack-bot/" (db:store-path)))
            ;; Empty / unset: the XDG default
-           (setf (uiop:getenv "PROJECT_ISIDORE_DATA") "")
-           (ok (equal (uiop:xdg-data-home "project-isidore/slack-bot/")
+           (setf (uiop:getenv "BHW_WWW_DATA") "")
+           (ok (equal (uiop:xdg-data-home "bhw-www/slack-bot/")
                       (db:store-path))))
-      (setf (uiop:getenv "PROJECT_ISIDORE_DATA") (or saved "")))))
+      (setf (uiop:getenv "BHW_WWW_DATA") (or saved "")))))
 
 (deftest open-database-creates-missing-directory
   (with-temp-data-root (root)

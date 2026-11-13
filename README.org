@@ -1,8 +1,8 @@
-* Project Isidore
+* bhw-www
 
 The third iteration of my personal website. It was quite fun building this with
 Common Lisp circa 2020-2024. The use of Large Language Models has taken over
-post 2025. Pull requests and patches -- see "project-isidore.asd" for the
+post 2025. Pull requests and patches -- see "bhw.asd" for the
 correct mailing address -- are most welcome.
 
 Copyright (c) 2021  Ben H. W. Source code is under the [[https://www.gnu.org/licenses/agpl-3.0-standalone.html][GNU-AGPL-3.0
@@ -44,7 +44,7 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
 1. Clone the repository and enter the development environment,
 
    #+begin_src bash
-   $ git clone https://github.com/bhwdev/project-isidore.git && cd project-isidore
+   $ git clone https://github.com/bhwdev/bhw-www.git && cd bhw-www
    $ guix shell -D -f guix.scm
    #+end_src
 
@@ -59,17 +59,17 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
    costs fewer tokens than reading files; =CLAUDE.md= says when and how it is
    set up.
 
-3. Load Project Isidore, run its tests & start a local development server.
+3. Load bhw-www, run its tests & start a local development server.
    Loading opens nothing; =initialize-application= opens the databases. The
    bible pages and search need the bible store and Montezuma index under
-   =/var/local/project-isidore/=, which are not in the repository, so the
+   =/var/local/bhw-www/=, which are not in the repository, so the
    bible tests skip without them.
 
    #+begin_src lisp
-     CL-USER> (asdf:test-system "project-isidore")
+     CL-USER> (asdf:test-system "bhw-www")
      ;; Starts web server at http://localhost:8080.
-     CL-USER> (project-isidore/main:initialize-application)
-     CL-USER> (project-isidore/main:terminate-application)
+     CL-USER> (bhw/main:initialize-application)
+     CL-USER> (bhw/main:terminate-application)
    #+end_src
 
 4. To build the executable, which compiles the system, runs the tests and
@@ -77,7 +77,7 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
 
    #+begin_src bash
      $ guix build -f guix.scm
-     $ /gnu/store/...-project-isidore-2.0.0/bin/project-isidore
+     $ /gnu/store/...-bhw-www-2.0.0/bin/bhw-www
    #+end_src
 
    Prefix =guix time-machine --commit=COMMIT --= to build it with another
@@ -87,14 +87,14 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
    127.0.0.1:8080 and Slynk on 4005, with these in its environment:
 
    #+begin_src bash
-     HOME=/var/lib/project-isidore
-     PROJECT_ISIDORE_DATA=/var/lib/project-isidore/  # the bot's store, graph-db's system directory
+     HOME=/var/lib/bhw-www
+     BHW_WWW_DATA=/var/lib/bhw-www/  # the bot's store, graph-db's system directory
      SSL_CERT_DIR=/etc/ssl/certs                     # Guix's OpenSSL looks in its own store directory otherwise
      SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
      # and SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, VAN_SCHEDULE_SECRET
    #+end_src
 
-   The bible store and Montezuma index are in =/var/local/project-isidore/=.
+   The bible store and Montezuma index are in =/var/local/bhw-www/=.
 
 ** Deployment
 
@@ -105,7 +105,7 @@ hook in =SSH_ORIGINAL_COMMAND=, and the hook refuses (exit 64) anything but 40
 hex digits. It fetches GitHub's archive of that commit, builds =guix.scm= with
 the host's Guix (the build runs the test suites; a failure stops the deploy
 before the restart), installs the program as the next generation of the
-profile =/var/guix/profiles/per-user/deploy/project-isidore=, and restarts the
+profile =/var/guix/profiles/per-user/deploy/bhw-www=, and restarts the
 service. The hook runs as the unprivileged account =deploy=, not root:
 evaluating =guix.scm= runs this repository's code, and sudo allows =deploy=
 only the two =herd= commands that enable and restart the service. The host
@@ -113,14 +113,14 @@ runs Guix System; the hook, the service and Caddy are its system
 configuration, kept outside this repository. So the host's Guix, not this
 repository, fixes the SBCL and Lisp libraries that production builds with.
 To roll back, as =deploy= (=sudo -u deploy= from root): =guix package
--p /var/guix/profiles/per-user/deploy/project-isidore --roll-back=, then, as
-root, =herd restart project-isidore=. One-time setup:
+-p /var/guix/profiles/per-user/deploy/bhw-www --roll-back=, then, as
+root, =herd restart bhw-www=. One-time setup:
 
 1. On the host, allow a new deploy key in the =deploy= account's authorized
    keys, for the hook only:
 
    #+begin_src text
-     restrict,command="/gnu/store/...-project-isidore-deploy" ssh-ed25519 AAAA... project-isidore-deploy
+     restrict,command="/gnu/store/...-bhw-www-deploy" ssh-ed25519 AAAA... bhw-www-deploy
    #+end_src
 
 2. In the repository's settings on GitHub, create the environment =production=,
@@ -132,5 +132,5 @@ The Slack bot reads and writes the van schedule through a Google Apps Script
 web app, =src/slack-bot/van-booking.gs=, which is deployed by hand: its header
 says how. Deploy a change to it before the Lisp that relies on it.
 
-Please visit https://www.bhw.name/assets/blog/project-isidore-doc.html for
+Please visit https://www.bhw.name/assets/blog/bhw-www-doc.html for
 online documentation.

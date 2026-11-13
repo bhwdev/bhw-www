@@ -1,30 +1,30 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/slack-bot/van-booking
+(uiop:define-package #:bhw/tests/slack-bot/van-booking
   (:use #:common-lisp)
   (:import-from #:rove #:deftest #:testing #:ok #:ng #:signals)
-  (:local-nicknames (#:vb #:project-isidore/slack-bot/van-booking)
-                    (#:bn #:project-isidore/slack-bot/booking-nlp))
-  (:import-from #:project-isidore/slack-bot/van-booking
+  (:local-nicknames (#:vb #:bhw/slack-bot/van-booking)
+                    (#:bn #:bhw/slack-bot/booking-nlp))
+  (:import-from #:bhw/slack-bot/van-booking
                 #:make-trip
                 #:trip-block-start-row #:trip-day #:trip-vehicle #:trip-destination
                 #:trip-departure #:trip-return-time
                 #:trip-dep-passengers #:trip-ret-passengers
                 #:trip-dep-col #:trip-ret-col #:trip-sheet-name
                 #:remind-driver #:view-schedule)
-  (:import-from #:project-isidore/tests/test-utils #:with-mocked-functions)
+  (:import-from #:bhw/tests/test-utils #:with-mocked-functions)
   (:import-from #:local-time)
   (:import-from #:com.inuoe.jzon)
   (:import-from #:dexador)
   (:import-from #:quri)
   (:documentation
-   "Tests for project-isidore/slack-bot/van-booking: sheet parsing, trip
+   "Tests for bhw/slack-bot/van-booking: sheet parsing, trip
 lookup, booking writes (with the Google Sheets calls mocked), the
 BOOK-NATURAL front end, reminders and the schedule view.  Natural-language
 parsing itself is covered in booking-nlp-tests."))
 
-(in-package #:project-isidore/tests/slack-bot/van-booking)
+(in-package #:bhw/tests/slack-bot/van-booking)
 
 ;;; --- Helper: build fake spreadsheet rows ---
 

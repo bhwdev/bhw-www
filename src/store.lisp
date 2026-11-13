@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/store
+(uiop:define-package #:bhw/store
   (:use #:common-lisp)
   (:import-from #:alexandria #:with-gensyms)
   (:import-from #:graph-db)
@@ -12,23 +12,23 @@
            #:close-store
            #:with-transaction)
   (:documentation
-   "The graph-db plumbing that every Project Isidore database shares.
+   "The graph-db plumbing that every bhw-www database shares.
 
 Each part of the application owns its own store and schema:
-PROJECT-ISIDORE/BIBLE/DATABASE the bible's, PROJECT-ISIDORE/SLACK-BOT/DATABASE
+BHW/BIBLE/DATABASE the bible's, BHW/SLACK-BOT/DATABASE
 the bot's.  What they cannot avoid sharing is graph-db's system directory,
 which holds the registry giving every vertex type one id across all the
 stores a process opens; graph-db keeps exactly one per image."))
 
-(in-package #:project-isidore/store)
+(in-package #:bhw/store)
 
 (defun data-root ()
-  "Return the directory that holds Project Isidore's writable data:
-$PROJECT_ISIDORE_DATA, or else $XDG_DATA_HOME/project-isidore/."
-  (let ((env (uiop:getenvp "PROJECT_ISIDORE_DATA")))
+  "Return the directory that holds bhw-www's writable data:
+$BHW_WWW_DATA, or else $XDG_DATA_HOME/bhw-www/."
+  (let ((env (uiop:getenvp "BHW_WWW_DATA")))
     (if env
         (uiop:ensure-directory-pathname env)
-        (uiop:xdg-data-home "project-isidore/"))))
+        (uiop:xdg-data-home "bhw-www/"))))
 
 (defun system-directory ()
   "Return graph-db's system directory, <data-root>/system/.

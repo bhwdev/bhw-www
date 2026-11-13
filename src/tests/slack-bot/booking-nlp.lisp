@@ -1,20 +1,20 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/tests/slack-bot/booking-nlp
+(uiop:define-package #:bhw/tests/slack-bot/booking-nlp
   (:use #:common-lisp)
   (:import-from #:rove #:deftest #:ok #:ng)
-  (:local-nicknames (#:bn #:project-isidore/slack-bot/booking-nlp)
-                    (#:nlp #:project-isidore/slack-bot/nlp))
+  (:local-nicknames (#:bn #:bhw/slack-bot/booking-nlp)
+                    (#:nlp #:bhw/slack-bot/nlp))
   (:import-from #:local-time)
   (:documentation
-   "Tests for project-isidore/slack-bot/booking-nlp.
+   "Tests for bhw/slack-bot/booking-nlp.
 
 *BOOKING-CORPUS* is the regression corpus: every phrasing the old regex
 parser was tested with, plus free-form sentences the new pipeline must
 handle.  Add a line there whenever a user's message is misread."))
 
-(in-package #:project-isidore/tests/slack-bot/booking-nlp)
+(in-package #:bhw/tests/slack-bot/booking-nlp)
 
 ;;; --- Helpers ---
 

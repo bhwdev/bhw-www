@@ -1,10 +1,10 @@
 ;;;; SPDX-FileCopyrightText: 2021  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/bible/database
+(uiop:define-package #:bhw/bible/database
   (:use #:common-lisp)
   (:import-from #:graph-db)
-  (:local-nicknames (#:store #:project-isidore/store))
+  (:local-nicknames (#:store #:bhw/store))
   (:export #:*database*
            #:*store-path*
            #:open-database
@@ -32,9 +32,9 @@ The store lives at *STORE-PATH*, the same path in development and
 production; a machine without it (the guix.scm build sandbox, a fresh
 checkout) simply has no bible, and OPEN-DATABASE returns NIL there."))
 
-(in-package #:project-isidore/bible/database)
+(in-package #:bhw/bible/database)
 
-(defvar *store-path* #p"/var/local/project-isidore/bible/"
+(defvar *store-path* #p"/var/local/bhw-www/bible/"
   "The directory of the bible's store.")
 
 (defvar *database* nil

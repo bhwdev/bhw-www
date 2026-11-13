@@ -1,7 +1,7 @@
 ;;;; SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
 ;;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-(uiop:define-package #:project-isidore/slack-bot/van-booking
+(uiop:define-package #:bhw/slack-bot/van-booking
   (:use #:common-lisp)
   (:import-from #:alexandria)
   (:import-from #:cl-ppcre)
@@ -9,7 +9,7 @@
   (:import-from #:dexador)
   (:import-from #:quri)
   (:import-from #:local-time)
-  (:import-from #:project-isidore/slack-bot/booking-nlp
+  (:import-from #:bhw/slack-bot/booking-nlp
                 #:parse-booking #:revise-booking #:possible-initials
                 #:booking-request-destination #:booking-request-day
                 #:booking-request-passengers #:booking-request-dep-time
@@ -74,7 +74,7 @@
     - the slot was booked by somebody else since the schedule was read
   Times are half-open, so a van due back at 11:00 can go out again at 11:00,
   and a booked trip whose own times cannot be read blocks unconditionally
-  - book-natural — free-form English frontend to book (see project-isidore/slack-bot/booking-nlp).
+  - book-natural — free-form English frontend to book (see bhw/slack-bot/booking-nlp).
     Signals BOOKING-INCOMPLETE, whose report asks the user to re-send the request
     with the missing pieces, when destination, day or passengers cannot be found.
   - propose-booking / propose-natural — book and book-natural up to the write:
@@ -84,7 +84,7 @@
     revise-proposal applies an edit (\"8 to 10 pm\", \"take the LGH\")
   - view-schedule — render a plaintext table of booked trips for a natural-language date range"))
 
-(in-package #:project-isidore/slack-bot/van-booking)
+(in-package #:bhw/slack-bot/van-booking)
 
 (defparameter *spreadsheet-id* "1qxx5mDsrqAqGBrwLeSs0V6R_70FSNm1-ruFWxvHVgu8")
 
@@ -777,7 +777,7 @@ returned keeps REQ."
   "PROPOSE-BOOKING from free-form English TEXT: the PROPOSAL BOOK-NATURAL
 would write, or NIL, having printed why, when it would write nothing.
 
-TEXT is parsed by project-isidore/slack-bot/BOOKING-NLP:PARSE-BOOKING.  Destination, day
+TEXT is parsed by bhw/slack-bot/BOOKING-NLP:PARSE-BOOKING.  Destination, day
 and passengers are required; if any is missing, BOOKING-INCOMPLETE is signalled
 and its report tells the user what was understood and how to phrase the
 missing pieces.  That happens before the sheet is read, unless TEXT has a

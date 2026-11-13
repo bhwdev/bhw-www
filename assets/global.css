@@ -506,7 +506,7 @@ button:disabled {
    column's left edge.
 
    Org puts the footnotes at the end of the page, so the blog's export
-   (bhw-org-publish.el in project-carlo) copies each into a .sidenote beside
+   (bhw-org-publish.el in bhw-rig) copies each into a .sidenote beside
    its first reference.  Every copy is a right float with
    a negative margin wider than itself: it sits on the reference's line,
    clear:right stacks a note under the one before rather than over it, and
