@@ -528,15 +528,6 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
 
 ;;; --- Run all tests ---
 
-(deftest month-abbrev-num
-  (ok (= 1 (vb::month-abbrev-num "Jan")))
-  (ok (= 3 (vb::month-abbrev-num "Mar")))
-  (ok (= 4 (vb::month-abbrev-num "Apr")))
-  (ok (= 5 (vb::month-abbrev-num "May")))
-  (ok (= 12 (vb::month-abbrev-num "Dec")))
-  (ok (= 1 (vb::month-abbrev-num "January")))
-  (ok (signals (vb::month-abbrev-num "Xyz") 'error)))
-
 (deftest date-key
   (ok (= 20260420 (vb::date-key (bn:parse-day "April 20 2026"))))
   (ok (= 20260101 (vb::date-key (bn:parse-day "January 1 2026"))))
@@ -1182,12 +1173,6 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
                (error (c) c))))
       (ok c)
       (ok (search "this week and nonsense" (princ-to-string c))))))
-
-(deftest parse-passenger-initials
-  (ok (equal '("CG" "BW") (vb::parse-passenger-initials "CG and BW")))
-  (ok (equal '("MM" "DM" "CG") (vb::parse-passenger-initials "MM, DM and CG")))
-  (ok (equal '("MM") (vb::parse-passenger-initials "MM")))
-  (ok (equal '() (vb::parse-passenger-initials "no initials here"))))
 
 (deftest trips-and-destinations
   (testing "known-initials-from-both-legs"

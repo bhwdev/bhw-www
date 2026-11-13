@@ -9,7 +9,9 @@
                 #:head-element #:html-document #:property)
   (:import-from #:quri)
   (:export #:with-page-chrome
+           #:link-global-stylesheet
            #:escape-html
+           #:request-header
            #:theme-preference
            #:theme-toggle-response
            #:inject-theme)
@@ -43,6 +45,12 @@ quoted attribute value in HTML.  CLOG's ESCAPE-FOR-HTML does only < and >."
                (#\' (write-string "&#39;" out))
                (t (write-char ch out))))))
 
+(defun request-header (env name)
+  "The value of the header NAME, in lowercase, of the request plist ENV, or
+NIL."
+  (let ((headers (getf env :headers)))
+    (and headers (gethash name headers))))
+
 ;;; Colour theme
 
 (defparameter *themes* '("light" "dark" "auto")
@@ -64,8 +72,7 @@ document.cookie, names, or the default."
 
 (defun theme-preference (env)
   "The colour theme the request ENV's theme cookie names, or the default."
-  (let ((headers (getf env :headers)))
-    (cookie-theme (and headers (gethash "cookie" headers)))))
+  (cookie-theme (request-header env "cookie")))
 
 (defun next-theme (theme)
   "The theme after THEME in the toggle's cycle."
@@ -96,14 +103,13 @@ else \"/\": where /theme sends the reader back to."
   "The response to the toggle's POST /theme: set the theme after the one the
 request names and send the reader back to the page they were on.  Not
 HttpOnly: WITH-PAGE-CHROME reads it as document.cookie."
-  (let ((headers (getf env :headers)))
-    (list 303
-          (list :location (local-target (and headers (gethash "referer" headers)))
-                :set-cookie (format nil "theme=~A; Path=/; Max-Age=31536000; SameSite=Lax"
-                                    (next-theme (theme-preference env)))
-                :cache-control "no-store"
-                :content-length 0)
-          '())))
+  (list 303
+        (list :location (local-target (request-header env "referer"))
+              :set-cookie (format nil "theme=~A; Path=/; Max-Age=31536000; SameSite=Lax"
+                                  (next-theme (theme-preference env)))
+              :cache-control "no-store"
+              :content-length 0)
+        '()))
 
 (defun inject-theme (html theme)
   "HTML, a static page, with THEME stated on its <html> and the dark palette
@@ -118,13 +124,21 @@ CLOG builds."
 
 ;;; The frame
 
+(defun theme-name (theme)
+  "What the toggle's label calls THEME."
+  (cdr (assoc theme *theme-names* :test #'string=)))
+
+(defun link-global-stylesheet (document)
+  "Link the site's stylesheet in the head of DOCUMENT, a page's HTML-DOCUMENT."
+  (create-child (head-element document)
+                "<link rel='stylesheet' href='/assets/global.css' type='text/css'>"))
+
 (defun create-navbar (parent theme)
   "Create the site navbar matching the blog archive style, with the theme
 toggle labelled for THEME.  Styled via global.css.  The toggle is a form,
 so that it needs no script."
   (let ((label (format nil "Theme: ~A. Switch to ~A."
-                       (cdr (assoc theme *theme-names* :test #'string=))
-                       (cdr (assoc (next-theme theme) *theme-names* :test #'string=)))))
+                       (theme-name theme) (theme-name (next-theme theme)))))
     (create-child parent
                   (format nil "<div class='header header-fixed'><div class='navbar container'><div class='logo'><a href='/'>BHW</a></div><input type='checkbox' id='navbar-toggle'><label for='navbar-toggle'><i></i></label><nav class='menu'><ul><li><a href='/about'>About</a></li><li><a href='/work'>Work</a></li><li><a href='/assets/blog/archive.html'>Blog</a></li><li><a href='/contact'>Contact</a></li></ul></nav><form class='theme-form' method='post' action='/theme'><button type='submit' class='theme-toggle' title='~A' aria-label='~:*~A'></button></form></div></div>"
                           (escape-html label)))))
@@ -141,8 +155,7 @@ div as argument."
   (let* ((document (html-document body))
          (theme (cookie-theme (property document "cookie")))
          (dark (dark-stylesheet theme)))
-    (create-child (head-element document)
-                  "<link rel='stylesheet' href='/assets/global.css' type='text/css'>")
+    (link-global-stylesheet document)
     (when dark
       (create-child (head-element document) dark))
     (setf (attribute (document-element document) "data-theme-pref") theme)

@@ -4,6 +4,7 @@
 (uiop:define-package #:bhw/slack-bot/booking-nlp
   (:use #:common-lisp)
   (:local-nicknames (#:nlp #:bhw/slack-bot/nlp))
+  (:import-from #:bhw/slack-bot/nlp #:*number-words*)
   (:import-from #:cl-ppcre)
   (:import-from #:local-time)
   (:export
@@ -26,7 +27,7 @@
    #:booking-incomplete-text #:booking-incomplete-preamble
    #:missing-piece-hint #:slot-label
    ;; days and times, shared with van-booking
-   #:*now* #:today #:parse-day #:parse-clock #:month-number
+   #:*now* #:today #:monday-index #:parse-day #:parse-clock #:month-number
    #:format-time-12h #:format-booking-day #:*month-names*)
   (:documentation
    "Natural-language understanding for van booking requests.
@@ -84,8 +85,11 @@ month-day written without one are reckoned from it; tests bind it.")
   "Midnight at the start of today (see *NOW*), in the local time zone."
   (local-time:timestamp-minimize-part (or *now* (local-time:now)) :hour))
 
-(defun current-year ()
-  (local-time:timestamp-year (today)))
+(defun monday-index (date)
+  "The weekday of DATE, a LOCAL-TIME timestamp, from 0 for Monday to 6 for
+Sunday, as *WEEKDAY-NAMES* and the sheet's weeks count; LOCAL-TIME counts
+from Sunday."
+  (mod (+ (local-time:timestamp-day-of-week date) 6) 7))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Lexicons
@@ -93,6 +97,10 @@ month-day written without one are reckoned from it; tests bind it.")
 
 (defparameter *booking-slots* '(:destination :day :passengers :dep-time :ret-time)
   "The pieces a booking needs, in report order.")
+
+(defparameter *reported-slots* (append *booking-slots* '(:vehicle))
+  "The pieces of a booking echoed back to its asker, in report order: those
+it needs and the vehicle it may name.")
 
 (defparameter *weekday-names*
   '("monday" "tuesday" "wednesday" "thursday" "friday" "saturday" "sunday"))
@@ -114,10 +122,6 @@ month-day written without one are reckoned from it; tests bind it.")
   "How \"o'clock\" is written after an hour: \"9 o'clock\", \"nine o’clock pm\".")
 
 (defparameter *day-parts* '("morning" "afternoon" "evening" "night"))
-
-(defparameter *number-words*
-  '("one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
-    "eleven" "twelve"))
 
 (defparameter *range-connectors* '("to" "-" "until" "till" "through" "thru"))
 
@@ -197,15 +201,10 @@ trade-off DGH and LGH have always carried.")
   (let ((r (nlp:make-entity-ruler))
         (weekday (weekday-regex)))
     ;; Vehicles (a preference for the booking).
-    (nlp:add-entity-patterns r :vehicle 10
-                             '(((:lower ("the" "our") :op "?") (:lower "dgh")))
-                             :value :dgh)
-    (nlp:add-entity-patterns r :vehicle 10
-                             '(((:lower ("the" "our") :op "?") (:lower "lgh")))
-                             :value :lgh)
-    (nlp:add-entity-patterns r :vehicle 10
-                             '(((:lower ("the" "our") :op "?") (:lower ("chevy" "chevrolet"))))
-                             :value :chevy)
+    (loop for (vehicle . names) in '((:dgh "dgh") (:lgh "lgh") (:chevy "chevy" "chevrolet"))
+          do (nlp:add-entity-patterns r :vehicle 10
+                                      `(((:lower ("the" "our") :op "?") (:lower ,names)))
+                                      :value vehicle))
     ;; "personal" only counts with a vehicle cue before it or a vehicle noun
     ;; after it, so "a personal matter" is not a vehicle.
     (nlp:add-entity-patterns r :vehicle 10
@@ -373,7 +372,7 @@ Slack-ready message asking the user to re-send the request.")
          (understood (booking-incomplete-understood condition))
          (needed (join-with-and (mapcar (lambda (slot) (format nil "the ~a" (slot-label slot)))
                                         missing)))
-         (known (loop for slot in (append *booking-slots* '(:vehicle))
+         (known (loop for slot in *reported-slots*
                       for value = (getf understood slot)
                       when value collect (cons slot value))))
     (when (booking-incomplete-preamble condition)
@@ -534,9 +533,9 @@ Returns (values DEP-TIME RET-TIME DEP-PHRASE RET-PHRASE)."
         (setf dep-min (mod (+ dep-min 720) 1440)))
       (when (and dep-min ret-min (not ret-mer) (<= ret-min dep-min))
         (setf ret-min (mod (+ ret-min 720) 1440)))
-      (values (and dep-min (format-time-12h (floor dep-min 60) (mod dep-min 60)))
-              (and ret-min (format-time-12h (floor ret-min 60) (mod ret-min 60)))
-              dep-phrase ret-phrase))))
+      (flet ((clock (minutes)
+               (and minutes (multiple-value-call #'format-time-12h (floor minutes 60)))))
+        (values (clock dep-min) (clock ret-min) dep-phrase ret-phrase)))))
 
 ;;; Days
 
@@ -595,8 +594,7 @@ leaves PHRASE unread."
          (single (and words (null (rest words)) (first words)))
          (today (today))
          (year (local-time:timestamp-year today))
-         ;; Monday is 0, as in *WEEKDAY-NAMES*; LOCAL-TIME counts from Sunday
-         (today-index (mod (+ (local-time:timestamp-day-of-week today) 6) 7))
+         (today-index (monday-index today))
          (month (some #'month-number words))
          (day (some #'day-of-month words))
          (weekday (some #'weekday-index words))
@@ -779,16 +777,15 @@ REQUEST."
                       :day (booking-request-day request)
                       :passengers (booking-request-passengers request)
                       :dep-time (booking-request-dep-time request)
-                      :ret-time (booking-request-ret-time request)))
-        (vehicle (booking-request-vehicle request)))
+                      :ret-time (booking-request-ret-time request)
+                      :vehicle (booking-request-vehicle request))))
     (setf (booking-request-missing request)
           (loop for slot in *booking-slots*
                 unless (getf values slot) collect slot)
           (booking-request-understood request)
-          (append (loop for slot in *booking-slots*
-                        for v = (getf values slot)
-                        when v append (list slot v))
-                  (when vehicle (list :vehicle vehicle))))
+          (loop for slot in *reported-slots*
+                for value = (getf values slot)
+                when value append (list slot value)))
     request))
 
 (defun parse-booking (text &key known-destinations known-initials fragment)
@@ -878,7 +875,7 @@ CHANGED is NIL."
   (let* ((edit (parse-booking text :known-destinations known-destinations
                                    :known-initials known-initials
                                    :fragment t))
-         (changed (loop for slot in (append *booking-slots* '(:vehicle))
+         (changed (loop for slot in *reported-slots*
                         when (getf (booking-request-understood edit) slot)
                           collect slot)))
     (if (null changed)

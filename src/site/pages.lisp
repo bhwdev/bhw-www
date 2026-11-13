@@ -8,7 +8,8 @@
                 #:create-img #:create-list-item #:create-p #:create-section
                 #:create-style-block #:create-unordered-list #:head-element
                 #:html-document #:location #:path-name #:set-on-new-window #:title)
-  (:import-from #:bhw/site/layout #:escape-html #:with-page-chrome)
+  (:import-from #:bhw/site/layout
+                #:escape-html #:link-global-stylesheet #:with-page-chrome)
   (:export #:on-index-handler
            #:register-routes)
   (:documentation
@@ -108,8 +109,7 @@ the spans share a few keyframes and differ in their delays."
 
 (defun on-index-handler (body)
   "Index page with background slideshow and typewriter greeting. No navbar."
-  (create-child (head-element (html-document body))
-                "<link rel='stylesheet' href='/assets/global.css' type='text/css'>")
+  (link-global-stylesheet (html-document body))
   (setf (title (html-document body)) "BHW.name")
   ;; Index page styles for slideshow overlay
   (let ((sb (create-style-block body)))
@@ -182,30 +182,29 @@ the spans share a few keyframes and differ in their delays."
     (add-style sb :element "@media screen and (max-width: 767px)"
                '((".portfolio-container" "flex-direction:column"))))
   (multiple-value-bind (slides slides-css) (slideshow)
-    (create-child (head-element (html-document body))
-                  (format nil "<style>~%~A~%~A~%</style>"
-                          slides-css (nth-value 1 (typewriter *greetings*))))
-    ;; At the top of BODY, so that it is behind everything after it.
-    (create-child body slides :auto-place :top))
-  (let ((wrapper (create-div body :class "slideshow-content")))
-    (let ((inner (create-child wrapper "<header>")))
-      (let ((portfolio (create-div inner :class "portfolio-container")))
-        (let ((left (create-div portfolio :class "portfolio-section")))
-          (create-img left :url-src "/assets/profile.webp"
-                           :alt-text "Author Profile Picture"))
-        (let ((right (create-div portfolio :class "portfolio-section")))
-          (create-section right :h1 :content (typewriter *greetings*)
-                                    :html-id "greeting")
-          (create-section right :h2 :content "I'm Ben.")
-          (create-section right :h2 :content "Nice to meet you.")))
-      (create-child inner "<hr>")
-      (create-p inner
-                :content "Welcome to my personal website! This website was built with <a href=\"https://edicl.github.io/hunchentoot/\" target=\"_blank\" rel=\"noreferrer\">Hunchentoot</a> and <a href=\"/assets/blog/bhw-www-doc.html#Project-History-Credits\" target=\"_blank\" rel=\"noreferrer\">Common Lisp.</a> My resume can be found under the work tab. I hope you find what you're looking for, and may the wind be always at your back.")
-      (let ((buttons (create-p inner)))
-        (create-a buttons :content "About" :link "/about")
-        (create-a buttons :content "Work" :link "/work")
-        (create-a buttons :content "Blog" :link "/assets/blog/archive.html")
-        (create-a buttons :content "Contact" :link "/contact")))))
+    (multiple-value-bind (greeting greeting-css) (typewriter *greetings*)
+      (create-child (head-element (html-document body))
+                    (format nil "<style>~%~A~%~A~%</style>" slides-css greeting-css))
+      ;; At the top of BODY, so that it is behind everything after it.
+      (create-child body slides :auto-place :top)
+      (let* ((wrapper (create-div body :class "slideshow-content"))
+             (inner (create-child wrapper "<header>"))
+             (portfolio (create-div inner :class "portfolio-container"))
+             (left (create-div portfolio :class "portfolio-section"))
+             (right (create-div portfolio :class "portfolio-section")))
+        (create-img left :url-src "/assets/profile.webp"
+                         :alt-text "Author Profile Picture")
+        (create-section right :h1 :content greeting :html-id "greeting")
+        (create-section right :h2 :content "I'm Ben.")
+        (create-section right :h2 :content "Nice to meet you.")
+        (create-child inner "<hr>")
+        (create-p inner
+                  :content "Welcome to my personal website! This website was built with <a href=\"https://edicl.github.io/hunchentoot/\" target=\"_blank\" rel=\"noreferrer\">Hunchentoot</a> and <a href=\"/assets/blog/bhw-www-doc.html#Project-History-Credits\" target=\"_blank\" rel=\"noreferrer\">Common Lisp.</a> My resume can be found under the work tab. I hope you find what you're looking for, and may the wind be always at your back.")
+        (let ((buttons (create-p inner)))
+          (create-a buttons :content "About" :link "/about")
+          (create-a buttons :content "Work" :link "/work")
+          (create-a buttons :content "Blog" :link "/assets/blog/archive.html")
+          (create-a buttons :content "Contact" :link "/contact"))))))
 
 (defun on-about-handler (body)
   "About page."

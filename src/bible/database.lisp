@@ -21,6 +21,7 @@
            #:make-bible
            #:unique-id-of #:heading-of #:text-of #:cross-references-of #:footnotes-of
            #:bible-obj-with-id
+           #:heading-numbers
 
            #:+bible-book-numbers-alist+
            #:+bible-chapter-url-alist+
@@ -88,6 +89,11 @@ checkout) simply has no bible, and OPEN-DATABASE returns NIL there."))
   "UID -> BIBLE vertex, memoized by BIBLE-OBJ-WITH-ID.  Safe because the store
 is read-only at runtime; CLOSE-DATABASE empties it.")
 
+(defun heading-numbers (heading)
+  "The book, chapter and verse numbers of HEADING, a BIBLE vertex's heading
+alist, as three values."
+  (values (cdr (first heading)) (cdr (second heading)) (cdr (third heading))))
+
 (defun load-tables ()
   "Fill the lookup tables from *DATABASE* in one pass over its BIBLE vertices."
   (let ((heading-to-uid (make-hash-table :test 'equalp :size 40000))
@@ -100,7 +106,7 @@ is read-only at runtime; CLOSE-DATABASE empties it.")
        (let ((heading (heading-of v))
              (uid (unique-id-of v)))
          (when (and heading uid)
-           (setf (gethash (list (cdar heading) (cdadr heading) (cdaddr heading))
+           (setf (gethash (multiple-value-list (heading-numbers heading))
                           heading-to-uid)
                  uid
                  (gethash uid uid-to-heading) heading))))
@@ -129,10 +135,6 @@ store, or NIL when there is none at *STORE-PATH*."
 (defun bible-obj-with-id (bible-uid)
   "Return the BIBLE vertex whose UNIQUE-ID is BIBLE-UID, or NIL."
   (or (gethash bible-uid *bible-obj-cache*)
-      (let* ((rows (graph-db:invoke-graph-view 'bible 'bible-by-uid
-                                               :key bible-uid
-                                               :graph *database*))
-             (id (cdr (assoc :id (first rows)))))
-        (when id
-          (setf (gethash bible-uid *bible-obj-cache*)
-                (graph-db:lookup-vertex id :graph *database*))))))
+      (let ((vertex (store:find-by-view *database* 'bible 'bible-by-uid bible-uid)))
+        (when vertex
+          (setf (gethash bible-uid *bible-obj-cache*) vertex)))))

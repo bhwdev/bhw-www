@@ -121,6 +121,24 @@ is an HMAC key anyone can sign with."
   (setf *slack-bot-token* (uiop:getenvp "SLACK_BOT_TOKEN"))
   (setf *slack-signing-secret* (uiop:getenvp "SLACK_SIGNING_SECRET")))
 
+(defun trim (text)
+  "TEXT, or \"\" for NIL, without the spaces, tabs and newlines around it."
+  (string-trim '(#\Space #\Tab #\Newline) (or text "")))
+
+(defun blank-p (text)
+  "True when TEXT is NIL or holds nothing but spaces, tabs and newlines."
+  (zerop (length (trim text))))
+
+(defmacro capturing-output (&body body)
+  "Run BODY and return its first value and, as a second, what it printed to
+*STANDARD-OUTPUT*: the booking functions print what they did or why they did
+nothing, and the bot posts that."
+  (alexandria:with-gensyms (value output)
+    `(let* ((,value nil)
+            (,output (with-output-to-string (*standard-output*)
+                       (setf ,value (progn ,@body)))))
+       (values ,value ,output))))
+
 (defvar *slash-commands* ()
   "Dispatch alist: slash command name -> handler symbol.
 Populated by DEFSLASH-COMMAND. Each handler takes the decoded params
@@ -354,7 +372,7 @@ it under the lock is what stops two quick `y`s writing one booking twice."
 is the second value; NIL for anything else.  Case and trailing punctuation do
 not matter, but a yes or a no must stand alone: \"no van needed after all\"
 is not an answer."
-  (let ((trimmed (string-trim '(#\Space #\Tab #\Newline) (or text ""))))
+  (let ((trimmed (trim text)))
     (cond ((cl-ppcre:scan "(?i)^(?:y|yes)[.!]*$" trimmed) :yes)
           ((cl-ppcre:scan "(?i)^(?:n|no|cancel)[.!]*$" trimmed) :no)
           (t (multiple-value-bind (match groups)
@@ -407,15 +425,13 @@ there is a booking to make, it is held for USER-ID's answer (HOLD-BOOKING)
 and the reply is its confirmation (CONFIRMATION-REPLY); otherwise the reply
 is what PROPOSE-NATURAL printed about why there is none, or a placeholder
 when it printed nothing.  Conditions propagate."
-  (let* ((proposal nil)
-         (output (with-output-to-string (*standard-output*)
-                   (setf proposal (propose-natural
-                                   text :registered-initials (registered-initials))))))
+  (multiple-value-bind (proposal output)
+      (capturing-output
+        (propose-natural text :registered-initials (registered-initials)))
     (cond (proposal
            (confirmation-reply proposal :replaced (hold-booking user-id proposal)))
-          ((plusp (length (string-trim '(#\Space #\Newline) output)))
-           output)
-          (t "Nothing was booked (no output)."))))
+          ((blank-p output) "Nothing was booked (no output).")
+          (t output))))
 
 (defun run-booking (text user-id)
   "Propose TEXT as a booking held for USER-ID (PROPOSE-REPLY) and return the
@@ -592,13 +608,11 @@ propagate to the caller."
 (defun commit-reply (proposal)
   "Write PROPOSAL (COMMIT-BOOKING) and return what it printed: what was
 written, or why nothing was."
-  (let* ((written nil)
-         (output (with-output-to-string (*standard-output*)
-                   (setf written (commit-booking proposal)))))
+  (multiple-value-bind (written output) (capturing-output (commit-booking proposal))
     (cond ((null written)
            (format nil "~aSend the `/book` request again to try afresh." output))
-          ((plusp (length (string-trim '(#\Space #\Newline) output))) output)
-          (t "Booked."))))
+          ((blank-p output) "Booked.")
+          (t output))))
 
 (defun edit-booking (proposal change user-id)
   "Apply CHANGE, the words after `edit`, to PROPOSAL, the booking held for
@@ -606,7 +620,7 @@ USER-ID (REVISE-PROPOSAL), and return the reply: the confirmation of the
 changed booking, which is held in PROPOSAL's place, or why it could not be
 changed, with PROPOSAL left waiting.  \"me\" in CHANGE is the sender, as in
 `/book` (RESOLVE-SENDER)."
-  (if (zerop (length (string-trim '(#\Space #\Tab #\Newline) change)))
+  (if (blank-p change)
       (format nil "What should I change? Reply `edit` and the change, e.g. ~a." +edit-examples+)
       (multiple-value-bind (resolved notice) (resolve-sender change user-id)
         (if (null resolved)
@@ -675,8 +689,7 @@ must not then be read as a booking for a destination named \"view\"."
   (multiple-value-bind (match groups)
       (cl-ppcre:scan-to-strings "(?s)^(/[A-Za-z][A-Za-z0-9_-]*)\\s*(.*)$" text)
     (when match
-      (values (aref groups 0)
-              (string-trim '(#\Space #\Tab #\Newline) (aref groups 1))))))
+      (values (aref groups 0) (trim (aref groups 1))))))
 
 (defun message-command-params (event command args)
   "Build the params hash-table a command handler expects from a message EVENT
@@ -706,7 +719,7 @@ synchronously or ignored."
     (when (or bot-id subtype (null text) (null channel))
       (return-from handle-message-event nil))
     (let ((clean-text (strip-mention text)))
-      (when (zerop (length (string-trim '(#\Space) clean-text)))
+      (when (blank-p clean-text)
         (return-from handle-message-event nil))
       (multiple-value-bind (command args) (parse-slash-text clean-text)
         (let ((handler (and command
@@ -760,6 +773,24 @@ or return NIL when there is none or it is longer than *MAX-BODY-OCTETS*."
         (when (< end (length buffer))
           (flexi-streams:octets-to-string buffer :end end :external-format :utf-8))))))
 
+(defun verified-body (env)
+  "The body of the request plist ENV as a string when it carries Slack's
+signature of it (VERIFY-SLACK-SIGNATURE), or else NIL and, as a second value,
+the response refusing the request: 400 without a readable body, 403 without
+a valid signature."
+  (let ((body-string (read-body-string env))
+        (headers (getf env :headers)))
+    (flet ((header (name)
+             (and headers (gethash name headers))))
+      (cond ((null body-string)
+             (values nil '(400 () ("bad request"))))
+            ((verify-slack-signature (header "x-slack-request-timestamp")
+                                     body-string
+                                     (header "x-slack-signature"))
+             body-string)
+            (t
+             (values nil '(403 () ("invalid signature"))))))))
+
 (defun json-response (status hash-table)
   "Return a response (STATUS HEADERS BODY) with JSON content."
   (list status
@@ -784,35 +815,30 @@ before the body is read."
 (defun handle-slack-request (env)
   "Handle an incoming Slack Events API request.
 Verifies the signature, dispatches on event type, returns an appropriate response."
-  (let ((body-string (read-body-string env)))
-    (unless body-string
-      (return-from handle-slack-request '(400 () ("bad request"))))
-    ;; Verify signature
-    (let* ((headers (getf env :headers))
-           (timestamp (and headers (gethash "x-slack-request-timestamp" headers)))
-           (signature (and headers (gethash "x-slack-signature" headers))))
-      (unless (verify-slack-signature timestamp body-string signature)
-        (return-from handle-slack-request '(403 () ("invalid signature"))))
+  (multiple-value-bind (body-string refusal) (verified-body env)
+    (cond
+      (refusal refusal)
       ;; Skip retries (deduplication)
-      (when (gethash "x-slack-retry-num" headers)
-        (return-from handle-slack-request '(200 () ("")))))
-    ;; Parse and dispatch
-    (let* ((payload (com.inuoe.jzon:parse body-string))
-           (type (gethash "type" payload)))
-      (cond
-        ;; Slack URL verification handshake
-        ((string= type "url_verification")
-         (json-response 200 (plist-hash-table
-                             (list "challenge" (gethash "challenge" payload))
-                             :test #'equal)))
-        ;; Event callback — respond immediately, process async
-        ((string= type "event_callback")
-         (let ((event (gethash "event" payload)))
-           (when event
-             (handle-message-event event)))
-         '(200 () ("")))
-        ;; Unknown type
-        (t '(200 () ("")))))))
+      ((gethash "x-slack-retry-num" (getf env :headers))
+       '(200 () ("")))
+      ;; Parse and dispatch
+      (t
+       (let* ((payload (com.inuoe.jzon:parse body-string))
+              (type (gethash "type" payload)))
+         (cond
+           ;; Slack URL verification handshake
+           ((string= type "url_verification")
+            (json-response 200 (plist-hash-table
+                                (list "challenge" (gethash "challenge" payload))
+                                :test #'equal)))
+           ;; Event callback — respond immediately, process async
+           ((string= type "event_callback")
+            (let ((event (gethash "event" payload)))
+              (when event
+                (handle-message-event event)))
+            '(200 () ("")))
+           ;; Unknown type
+           (t '(200 () ("")))))))))
 
 ;;; Slash Commands
 
@@ -825,8 +851,7 @@ Verifies the signature, dispatches on event type, returns an appropriate respons
 
 (defun parse-initial (text)
   "Extract the first 2-3 uppercase letter initial from TEXT, or NIL."
-  (let ((m (cl-ppcre:scan-to-strings "[A-Z]{2,3}" (or text ""))))
-    (and m m)))
+  (values (cl-ppcre:scan-to-strings "[A-Z]{2,3}" (or text ""))))
 
 (defun parse-initial-argument (text)
   "Read TEXT as the initials argument of `/iam` or `/subscribe`, or NIL.
@@ -837,12 +862,11 @@ so `/subscribe DMMM` asks again instead of quietly registering the DMM its
 first three letters spell.  Anything longer than one word falls back to
 PARSE-INITIAL's scan for an uppercase run, which is what lets a sentence
 \(\"my initials are BW\") still work.  The result is upcased for the sheet."
-  (let ((trimmed (string-trim '(#\Space #\Tab #\Newline) (or text ""))))
+  (let ((trimmed (trim text)))
     (cond
       ((cl-ppcre:scan "^[A-Za-z]{2,3}$" trimmed) (string-upcase trimmed))
       ((cl-ppcre:scan "^[A-Za-z]+$" trimmed) nil)
-      (t (let ((scanned (parse-initial trimmed)))
-           (and scanned (string-upcase scanned)))))))
+      (t (parse-initial trimmed)))))
 
 (defun code-block-chunks (text &key (limit 3500) (header-lines 0))
   "Wrap TEXT in Slack code fences so a fixed-width table keeps its columns in
@@ -900,7 +924,7 @@ can also come as the argument of `/book` itself:
   /book edit 8 to 10 pm"
   (let ((text (gethash "text" params))
         (user-id (gethash "user_id" params)))
-    (when (or (null text) (zerop (length (string-trim '(#\Space) text))))
+    (when (blank-p text)
       (return-from cmd-book
         "Usage: type `/book` followed by the trip in your own words, e.g. `/book take the DGH to the dentist tomorrow for BW, leaving at 8:30 and back by 11`. Type `/help` for more."))
     (handler-case (if (answer-word text)
@@ -924,8 +948,8 @@ Examples:
   /view Apr 20 to Apr 26
   /view Sept 19-22
 A range it cannot read gets examples of ones it can."
-  (let* ((text (string-trim '(#\Space) (or (gethash "text" params) "")))
-         (range (if (zerop (length text)) "today" text)))
+  (let* ((text (trim (gethash "text" params)))
+         (range (if (blank-p text) "today" text)))
     (unless (date-range-phrase-p range)
       (return-from cmd-view
         (format nil "I can't read \"~A\" as a day or a range of days. Try `/view` on its own for today, or `/view tomorrow`, `/view Friday`, `/view the weekend`, `/view next week` or `/view Apr 20 to Apr 26`."
@@ -956,8 +980,7 @@ currently registered, so it doubles as `/whoami`."
       ((null user-id) "Could not identify Slack user.")
       ;; Bare `/iam` asks rather than sets: report the registration, or the
       ;; guess that would be used, so someone can check before booking.
-      ((and (null initial)
-            (or (null text) (zerop (length (string-trim '(#\Space #\Tab) text)))))
+      ((and (null initial) (blank-p text))
        (multiple-value-bind (current source name) (sender-initials user-id)
          (cond
            ((eq source :registered)
@@ -993,13 +1016,13 @@ Persists across restarts. Use /unsubscribe to stop."
       ((null user-id) "Could not identify Slack user.")
       ((null initial) "Usage: type `/subscribe` followed by your initials, e.g. `/subscribe BW`. Two or three letters, exactly as they appear on the schedule sheet.")
       (t
-       (add-slack-subscription user-id (string-upcase initial))
+       (add-slack-subscription user-id initial)
        ;; Subscribing also says who you are, so nobody has to register twice
        ;; to get both reminders and "book me a van".  /unsubscribe drops only
        ;; the subscription; the identity outlives it.
-       (add-slack-identity user-id (string-upcase initial))
+       (add-slack-identity user-id initial)
        (format nil "Subscribed. You will be DM'd ~D minutes before each trip ~A is on, with the vehicle, driver and passengers, and before each return ~:*~A drives. I'll also read \"me\" as ~:*~A in your messages."
-               *reminder-lead-minutes* (string-upcase initial))))))
+               *reminder-lead-minutes* initial)))))
 
 (defslash-command "/unsubscribe" (params)
   "/unsubscribe — stop receiving trip reminder DMs."
@@ -1029,28 +1052,23 @@ Subscribe/unsubscribe go to the user as a DM; others go to the channel."
   "Verify and dispatch a Slack slash-command POST.
 Responds 200 immediately with an empty body; the handler's output is
 posted back asynchronously via chat.postMessage."
-  (let ((body-string (read-body-string env)))
-    (unless body-string
-      (return-from handle-slash-command '(400 () ("bad request"))))
-    (let* ((headers (getf env :headers))
-           (timestamp (and headers (gethash "x-slack-request-timestamp" headers)))
-           (signature (and headers (gethash "x-slack-signature" headers))))
-      (unless (verify-slack-signature timestamp body-string signature)
-        (return-from handle-slash-command '(403 () ("invalid signature")))))
-    (let* ((params (decode-form-body body-string))
-           (cmd (gethash "command" params))
-           (handler (cdr (assoc cmd *slash-commands* :test #'string=)))
-           (reply-to (reply-channel-for params)))
-      (cond
-        ((null handler)
-         (list 200 '(:content-type "text/plain")
-               (list (format nil "Unknown command: ~A. Type /help to see what I can do." cmd))))
-        (t
-         (with-slack-error-reply (reply-to
-                                  :context (format nil "Command ~A" cmd)
-                                  :thread-name (format nil "slack-cmd-~A" cmd))
-           (post-command-reply reply-to (funcall handler params)))
-         '(200 () ("")))))))
+  (multiple-value-bind (body-string refusal) (verified-body env)
+    (if refusal
+        refusal
+        (let* ((params (decode-form-body body-string))
+               (cmd (gethash "command" params))
+               (handler (cdr (assoc cmd *slash-commands* :test #'string=)))
+               (reply-to (reply-channel-for params)))
+          (cond
+            ((null handler)
+             (list 200 '(:content-type "text/plain")
+                   (list (format nil "Unknown command: ~A. Type /help to see what I can do." cmd))))
+            (t
+             (with-slack-error-reply (reply-to
+                                      :context (format nil "Command ~A" cmd)
+                                      :thread-name (format nil "slack-cmd-~A" cmd))
+               (post-command-reply reply-to (funcall handler params)))
+             '(200 () (""))))))))
 
 ;;; Reminder Scheduler
 
@@ -1140,8 +1158,8 @@ than that is still reminded, on the next sweep."
 
 (defun stop-reminder-scheduler ()
   "Stop the reminder scheduler thread if running. Idempotent."
-  (bordeaux-threads:with-lock-held (*scheduler-lock*)
+  (bt:with-lock-held (*scheduler-lock*)
     (when (and *scheduler-thread*
-               (bordeaux-threads:thread-alive-p *scheduler-thread*))
-      (bordeaux-threads:destroy-thread *scheduler-thread*))
+               (bt:thread-alive-p *scheduler-thread*))
+      (bt:destroy-thread *scheduler-thread*))
     (setf *scheduler-thread* nil)))

@@ -15,7 +15,7 @@
    #:span-data #:span-text #:span-tokens #:span-length #:spans-overlap-p
    #:span-covers-p
    ;; pipeline
-   #:tokenize #:make-doc #:word-shape #:*max-input-length*
+   #:tokenize #:make-doc #:word-shape #:*max-input-length* #:*number-words*
    ;; matcher
    #:matcher #:make-matcher #:add-pattern #:run-matcher #:match-tokens
    ;; entity ruler
@@ -51,7 +51,8 @@ The pipeline is TOKENIZE -> rule-based matching:
 (defparameter *number-words*
   '("one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
     "eleven" "twelve")
-  "Word forms that count as numbers for the :LIKE-NUM token flag.")
+  "Word forms that count as numbers for the :LIKE-NUM token flag, in order
+from one.")
 
 (defstruct (token (:constructor %make-token))
   "One token of a DOC.  START/END are character offsets into DOC-TEXT.  FLAGS is a plist of booleans:
@@ -256,48 +257,53 @@ starting at I, or NIL when they do not match."
              (op (getf spec :op))
              (n (length tokens))
              (best nil))
-        (flet ((try-rest (j)
-                 (let ((e (match-from (rest specs) tokens j)))
-                   (when (and e (or (null best) (> e best)))
-                     (setf best e)))))
-          (cond ((null op)
-                 (when (and (< i n) (match-tokens spec (aref tokens i)))
-                   (try-rest (1+ i))))
-                ((string= op "?")
-                 (try-rest i)
-                 (when (and (< i n) (match-tokens spec (aref tokens i)))
-                   (try-rest (1+ i))))
-                ((string= op "*")
-                 (try-rest i)
-                 (loop for j from i below n
-                       while (match-tokens spec (aref tokens j))
-                       do (try-rest (1+ j))))
-                ((string= op "+")
-                 (loop for j from i below n
-                       while (match-tokens spec (aref tokens j))
-                       do (try-rest (1+ j))))
+        (labels ((try-rest (j)
+                   (let ((e (match-from (rest specs) tokens j)))
+                     (when (and e (or (null best) (> e best)))
+                       (setf best e))))
+                 (try-one ()
+                   (when (and (< i n) (match-tokens spec (aref tokens i)))
+                     (try-rest (1+ i))))
+                 (try-many ()
+                   (loop for j from i below n
+                         while (match-tokens spec (aref tokens j))
+                         do (try-rest (1+ j)))))
+          (cond ((null op) (try-one))
+                ((string= op "?") (try-rest i) (try-one))
+                ((string= op "*") (try-rest i) (try-many))
+                ((string= op "+") (try-many))
                 (t (error "Unknown pattern operator ~s" op))))
         best)))
+
+(defun leftmost-matches (doc label match-at)
+  "The spans of DOC labelled LABEL that MATCH-AT finds, scanning left to
+right: MATCH-AT is called with a token index and returns the end index
+\(exclusive) of the match starting there, or NIL, and the span's data as a
+second value.  The scan resumes at a match's end, so the spans do not
+overlap."
+  (let ((n (doc-length doc))
+        (results '())
+        (i 0))
+    (loop while (< i n)
+          do (multiple-value-bind (end data) (funcall match-at i)
+               (cond ((and end (> end i))
+                      (push (make-span :doc doc :start i :end end
+                                       :label label :data data)
+                            results)
+                      (setf i end))
+                     (t (incf i)))))
+    (nreverse results)))
 
 (defun run-matcher (matcher doc)
   "Run every pattern of MATCHER over DOC.  Returns spans sorted by start;
 per pattern, matches are leftmost-longest and do not overlap each other."
-  (let ((tokens (doc-tokens doc))
-        (results '()))
-    (dolist (entry (matcher-patterns matcher))
-      (destructuring-bind (label specs data) entry
-        (let ((i 0)
-              (n (length tokens)))
-          (loop while (< i n)
-                do (let ((e (match-from specs tokens i)))
-                     (if (and e (> e i))
-                         (progn
-                           (push (make-span :doc doc :start i :end e
-                                            :label label :data data)
-                                 results)
-                           (setf i e))
-                         (incf i)))))))
-    (stable-sort (nreverse results) #'< :key #'span-start)))
+  (let ((tokens (doc-tokens doc)))
+    (stable-sort
+     (loop for (label specs data) in (matcher-patterns matcher)
+           append (leftmost-matches
+                   doc label
+                   (lambda (i) (values (match-from specs tokens i) data))))
+     #'< :key #'span-start)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; Entity ruler
@@ -403,22 +409,15 @@ words are skipped), else NIL."
 (defun run-phrase-matcher (pm doc)
   "Return spans of DOC matching the matcher's phrases; the longest phrase wins
 at each position."
-  (let* ((tokens (doc-tokens doc))
-         (n (length tokens))
-         (results '())
-         (i 0))
-    (loop while (< i n)
-          do (let ((best nil))
-               (dolist (entry (phrase-matcher-entries pm))
-                 (let ((e (phrase-match-at (car entry) tokens i)))
-                   (when (and e (or (null best) (> e (car best))))
-                     (setf best (cons e (cdr entry))))))
-               (if best
-                   (progn
-                     (push (make-span :doc doc :start i :end (car best)
-                                      :label (phrase-matcher-label pm)
-                                      :data (list :value (cdr best)))
-                           results)
-                     (setf i (car best)))
-                   (incf i))))
-    (nreverse results)))
+  (let ((tokens (doc-tokens doc)))
+    (leftmost-matches
+     doc (phrase-matcher-label pm)
+     (lambda (i)
+       (let ((best-end nil)
+             (best-phrase nil))
+         (loop for (keys . phrase) in (phrase-matcher-entries pm)
+               for end = (phrase-match-at keys tokens i)
+               when (and end (or (null best-end) (> end best-end)))
+                 do (setf best-end end
+                          best-phrase phrase))
+         (values best-end (list :value best-phrase)))))))

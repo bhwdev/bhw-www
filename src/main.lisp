@@ -77,11 +77,10 @@ has not been asked for into an array of Content-Length octets before it
 replies, as it does a form posted to one of CLOG's pages, so a single request
 declaring a huge length would exhaust the heap and kill the process; and the
 Slack endpoints read the body before checking its signature."
-  (let ((length (getf env :content-length))
-        (headers (getf env :headers)))
+  (let ((length (getf env :content-length)))
     (cond ((not (safe-path-p (getf env :path-info)))
            '(400 (:content-type "text/plain") ("Bad Request")))
-          ((and headers (gethash "transfer-encoding" headers))
+          ((layout:request-header env "transfer-encoding")
            '(411 (:content-type "text/plain") ("Length Required")))
           ((and length (not (<= 0 length *max-request-octets*)))
            '(413 (:content-type "text/plain") ("Payload Too Large"))))))

@@ -84,12 +84,7 @@ subscribed to reminder DMs, and which initials each Slack account goes by."))
 
 (defun find-by-user (type view user-id)
   "The TYPE vertex for USER-ID, looked up through VIEW, or NIL."
-  (let* ((rows (graph-db:invoke-graph-view type view
-                                           :key (string-downcase user-id)
-                                           :graph *database*))
-         (id (cdr (assoc :id (first rows)))))
-    (when id
-      (graph-db:lookup-vertex id :graph *database*))))
+  (store:find-by-view *database* type view (string-downcase user-id)))
 
 (defun all-of-type (type)
   "An alist of (user-id . initial) for every TYPE vertex."

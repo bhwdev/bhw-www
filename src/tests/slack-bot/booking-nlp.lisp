@@ -479,6 +479,14 @@ new parser's terms (no articles in destinations, no default day).")
         do (ok (eql minutes (bn:parse-clock text))
                (format nil "~s reads as ~a" text minutes))))
 
+(deftest month-number
+  ;; the months as the sheet's tab names abbreviate them, among others
+  (loop for (month word) in '((1 "Jan") (3 "Mar") (4 "apr") (5 "May") (9 "Sept.")
+                              (12 "Dec") (1 "January") (nil "Xyz") (nil "Ma")
+                              (nil "Week") (nil ""))
+        do (ok (eql month (bn:month-number word))
+               (format nil "~s reads as ~a" word month))))
+
 (deftest coming-weekday-is-one-date-span
   ;; "this coming Tuesday" is one date span, so "coming" is not left over
   ;; as a destination, and it resolves to a Tuesday

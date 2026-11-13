@@ -16,7 +16,7 @@
                 #:booking-request-ret-time #:booking-request-vehicle
                 #:booking-request-missing #:booking-request-understood
                 #:booking-incomplete
-                #:today #:parse-day #:parse-clock #:month-number
+                #:today #:monday-index #:parse-day #:parse-clock #:month-number
                 #:format-time-12h #:format-booking-day #:*month-names*)
   (:export
    ;; struct
@@ -141,16 +141,25 @@ spreadsheet on this code's behalf.")
 
 (defun non-blank-p (s)
   "Return T if S is a non-empty, non-blank string."
-  (and (stringp s) (plusp (length (string-trim '(#\Space #\Tab) s)))))
+  (and (stringp s) (plusp (length (trim-cell s)))))
 
 (defun safe-nth (n list)
   "Like NTH but returns \"\" if out of bounds."
   (or (nth n list) ""))
 
+(defun trim-cell (cell)
+  "CELL without the spaces and tabs around its text."
+  (string-trim '(#\Space #\Tab) cell))
+
+(defun row-cell (row col)
+  "The trimmed text of ROW's cell in column COL (0-indexed), \"\" when ROW
+is that short."
+  (trim-cell (safe-nth col row)))
+
 (defun extract-day-from-header (row)
   "Extract day string from the merged header row (col A has repeated day text).
    Returns e.g. \"Monday March 30\" or NIL."
-  (let ((cell (string-trim '(#\Space #\Tab) (safe-nth 0 row))))
+  (let ((cell (row-cell row 0)))
     (when (non-blank-p cell)
       (let ((pos (search "  " cell)))
         (if pos (subseq cell 0 pos) cell)))))
@@ -175,7 +184,7 @@ dropped them), the row found there for a block with no times is that weekday
 reminder, and reading it as data made every unbooked block look like a
 Personal trip departing at \"Saturday\"."
   (every (lambda (cell)
-           (let ((c (string-trim '(#\Space #\Tab) cell)))
+           (let ((c (trim-cell cell)))
              (or (not (non-blank-p c)) (header-cell-p c))))
          (nthcdr 2 row)))
 
@@ -183,13 +192,17 @@ Personal trip departing at \"Saturday\"."
   "Collect non-blank passenger initials from column COL starting at START-OFFSET in ROWS.
    Stops at empty cells, block headers, or after MAX-ROWS."
   (loop for i from start-offset below (min (+ start-offset max-rows) (length rows))
-        for cell = (string-trim '(#\Space #\Tab) (safe-nth col (nth i rows)))
+        for cell = (row-cell (nth i rows) col)
         until (or (not (non-blank-p cell)) (header-cell-p cell))
         collect cell))
 
 (defun filter-new-passengers (passengers existing)
   "Return elements of PASSENGERS not already in EXISTING (string-equal comparison)."
   (remove-if (lambda (p) (member p existing :test #'string-equal)) passengers))
+
+(defun trip-passengers (trip)
+  "Everyone written on TRIP, out or back; someone on both legs is listed twice."
+  (append (trip-dep-passengers trip) (trip-ret-passengers trip)))
 
 (defun parse-schedule (rows &key sheet-name)
   "Parse spreadsheet ROWS into a list of TRIP structs.
@@ -201,57 +214,44 @@ Personal trip departing at \"Saturday\"."
    block below it, and a booking placed by counting blocks then landed that
    many rows too high, over the \"Dep./Ret.\" labels."
   (let ((trips '())
-        (current-day nil)
-        (i 0))
-    (loop while (< i (length rows))
-          for row = (nth i rows)
-          do (cond
-               ((and (>= (length row) 3)
-                     (string-equal (string-trim " " (safe-nth 2 row)) "Chevy"))
-                (let ((day (extract-day-from-header row)))
-                  (when day (setf current-day day)))
-                (let ((sheet-row (1+ i)))
-                  ;; The row after the header is the destination row, unless
-                  ;; that row is missing and "Dep./Ret." follows directly.
-                  (let* ((next-row (nth (1+ i) rows))
-                         (has-dest-row (and next-row
-                                            (not (string-equal "Dep."
-                                                               (string-trim " " (safe-nth 2 next-row))))))
-                         (dest-row (if has-dest-row next-row nil))
-                         (time-offset (if has-dest-row 3 2))
-                         (pass-offset (if has-dest-row 4 3)))
-                    (when (and current-day (< (+ i time-offset) (length rows)))
-                      (let* ((time-row (nth (+ i time-offset) rows))
-                             ;; With no times the row is blank, or, in a
-                             ;; read that has lost the block's empty rows,
-                             ;; it is the next block header, a "Dep./Ret."
-                             ;; row, or the weekday reminder in column L.
-                             ;; LABEL-ROW-P covers all four.
-                             (time-row-empty (label-row-p time-row)))
-                        (dolist (vspec *vehicles*)
-                          (destructuring-bind (vname dep-col ret-col) vspec
-                            (let ((dest (if dest-row
-                                            (string-trim " " (safe-nth dep-col dest-row))
-                                            ""))
-                                  (dep-time (if time-row-empty ""
-                                                (string-trim " " (safe-nth dep-col time-row))))
-                                  (ret-time (if time-row-empty ""
-                                                (string-trim " " (safe-nth ret-col time-row)))))
-                              (push (make-trip
-                                     :day current-day
-                                     :vehicle vname
-                                     :destination dest
-                                     :departure dep-time
-                                     :return-time ret-time
-                                     :dep-passengers (collect-passengers rows (+ i pass-offset) dep-col 10)
-                                     :ret-passengers (collect-passengers rows (+ i pass-offset) ret-col 10)
-                                     :block-start-row sheet-row
-                                     :dep-col dep-col
-                                     :ret-col ret-col
-                                     :sheet-name sheet-name)
-                                    trips))))))))
-                (incf i))
-               (t (incf i))))
+        (current-day nil))
+    (loop for row in rows
+          for i from 0
+          when (and (>= (length row) 3)
+                    (string-equal (row-cell row 2) "Chevy"))
+            do (setf current-day (or (extract-day-from-header row) current-day))
+               ;; The row after the header is the destination row, unless
+               ;; that row is missing and "Dep./Ret." follows directly.
+               (let* ((next-row (nth (1+ i) rows))
+                      (dest-row (and next-row
+                                     (not (string-equal "Dep." (row-cell next-row 2)))
+                                     next-row))
+                      (time-offset (if dest-row 3 2))
+                      (pass-offset (1+ time-offset)))
+                 (when (and current-day (< (+ i time-offset) (length rows)))
+                   (let* ((time-row (nth (+ i time-offset) rows))
+                          ;; With no times the row is blank, or, in a read
+                          ;; that has lost the block's empty rows, it is the
+                          ;; next block header, a "Dep./Ret." row, or the
+                          ;; weekday reminder in column L.  LABEL-ROW-P
+                          ;; covers all four.
+                          (time-row-empty (label-row-p time-row)))
+                     (flet ((cell (row col)
+                              (if row (row-cell row col) "")))
+                       (loop for (vehicle dep-col ret-col) in *vehicles*
+                             do (push (make-trip
+                                       :day current-day
+                                       :vehicle vehicle
+                                       :destination (cell dest-row dep-col)
+                                       :departure (cell (unless time-row-empty time-row) dep-col)
+                                       :return-time (cell (unless time-row-empty time-row) ret-col)
+                                       :dep-passengers (collect-passengers rows (+ i pass-offset) dep-col 10)
+                                       :ret-passengers (collect-passengers rows (+ i pass-offset) ret-col 10)
+                                       :block-start-row (1+ i)
+                                       :dep-col dep-col
+                                       :ret-col ret-col
+                                       :sheet-name sheet-name)
+                                      trips)))))))
     (nreverse trips)))
 
 (defun find-trips (trips &key day destination)
@@ -352,9 +352,7 @@ against the first."
                                    (find-trips trips :day day))))
     (loop for p in passengers
           for clash = (find-if (lambda (tr)
-                                 (member p (append (trip-dep-passengers tr)
-                                                   (trip-ret-passengers tr))
-                                         :test #'string-equal))
+                                 (member p (trip-passengers tr) :test #'string-equal))
                                candidates)
           when clash collect (cons p clash))))
 
@@ -404,14 +402,41 @@ through here first, so the second request sees what the first one booked."
   (let ((sheet (trip-sheet-name trip)))
     (if (null sheet)
         (values trip nil)
-        (let ((fresh (parse-schedule (read-sheet sheet)
-                                     :sheet-name sheet)))
+        (let ((fresh (sheet-trips sheet)))
           (values (find-if (lambda (tr)
                              (and (eql (trip-block-start-row tr)
                                        (trip-block-start-row trip))
                                   (eql (trip-dep-col tr) (trip-dep-col trip))))
                            fresh)
                   fresh)))))
+
+(defparameter *destination-row-offset* 1
+  "How many rows below its header row a block's destinations are written.")
+
+(defparameter *time-row-offset* 3
+  "How many rows below its header row a block's times are written.")
+
+(defparameter *passenger-row-offset* 4
+  "How many rows below its header row a block's first passengers are written.")
+
+(defun write-cell (trip col row-offset value)
+  "Write VALUE to the cell of TRIP's sheet in column COL (0-indexed),
+ROW-OFFSET rows below TRIP's block header."
+  (write-range (format nil "~a~a" (col-letter col) (+ (trip-block-start-row trip) row-offset))
+               (list (list value))
+               :sheet-name (trip-sheet-name trip)))
+
+(defun write-column (trip col row-offset values)
+  "Write VALUES, a list of cell values, down column COL (0-indexed) of TRIP's
+sheet, from ROW-OFFSET rows below TRIP's block header.  Writes nothing when
+VALUES is empty."
+  (when values
+    (let ((letter (col-letter col))
+          (first-row (+ (trip-block-start-row trip) row-offset)))
+      (write-range (format nil "~a~a:~a~a" letter first-row
+                           letter (+ first-row (length values) -1))
+                   (mapcar #'list values)
+                   :sheet-name (trip-sheet-name trip)))))
 
 (defun write-passengers (trip passengers)
   "Write PASSENGERS (list of initials) into TRIP's dep and ret columns.
@@ -420,26 +445,14 @@ through here first, so the second request sees what the first one booked."
    TRIP must be current: the rows written are counted from the passengers it
    already carries, so a stale TRIP writes over whoever was added since.
    ADD-PASSENGERS is the entry point that guarantees that."
-  (let* ((new-dep (filter-new-passengers passengers (trip-dep-passengers trip)))
-         (new-ret (filter-new-passengers passengers (trip-ret-passengers trip)))
-         (passenger-start-offset 4)
-         (dep-col-letter (col-letter (trip-dep-col trip)))
-         (ret-col-letter (col-letter (trip-ret-col trip)))
-         (sn (trip-sheet-name trip)))
-    (when new-dep
-      (let* ((dep-start-row (+ (trip-block-start-row trip) passenger-start-offset
-                               (length (trip-dep-passengers trip))))
-             (dep-range (format nil "~a~a:~a~a"
-                                dep-col-letter dep-start-row
-                                dep-col-letter (+ dep-start-row (length new-dep) -1))))
-        (write-range dep-range (mapcar #'list new-dep) :sheet-name sn)))
-    (when new-ret
-      (let* ((ret-start-row (+ (trip-block-start-row trip) passenger-start-offset
-                               (length (trip-ret-passengers trip))))
-             (ret-range (format nil "~a~a:~a~a"
-                                ret-col-letter ret-start-row
-                                ret-col-letter (+ ret-start-row (length new-ret) -1))))
-        (write-range ret-range (mapcar #'list new-ret) :sheet-name sn)))
+  (let ((new-dep (filter-new-passengers passengers (trip-dep-passengers trip)))
+        (new-ret (filter-new-passengers passengers (trip-ret-passengers trip))))
+    (write-column trip (trip-dep-col trip)
+                  (+ *passenger-row-offset* (length (trip-dep-passengers trip)))
+                  new-dep)
+    (write-column trip (trip-ret-col trip)
+                  (+ *passenger-row-offset* (length (trip-ret-passengers trip)))
+                  new-ret)
     (let* ((added (remove-duplicates (append new-dep new-ret) :test #'string-equal))
            (skipped (set-difference passengers added :test #'string-equal)))
       (when added
@@ -555,30 +568,13 @@ booking decided on a stale snapshot cannot write over one made since."
                (princ obstacle)
                (return-from write-booking nil)))))
         (setf slot current))))
-  (let ((sn (trip-sheet-name slot)))
-    (let ((dest-row (1+ (trip-block-start-row slot)))
-          (dep-col-letter (col-letter (trip-dep-col slot))))
-      (write-range (format nil "~a~a" dep-col-letter dest-row)
-                   (list (list destination)) :sheet-name sn))
-    (let ((time-row (+ (trip-block-start-row slot) 3))
-          (dep-col-letter (col-letter (trip-dep-col slot)))
-          (ret-col-letter (col-letter (trip-ret-col slot))))
-      (write-range (format nil "~a~a" dep-col-letter time-row)
-                   (list (list dep-time)) :sheet-name sn)
-      (write-range (format nil "~a~a" ret-col-letter time-row)
-                   (list (list ret-time)) :sheet-name sn))
-    (let* ((pass-start (+ (trip-block-start-row slot) 4))
-           (dep-col-letter (col-letter (trip-dep-col slot)))
-           (ret-col-letter (col-letter (trip-ret-col slot)))
-           (dep-range (format nil "~a~a:~a~a"
-                              dep-col-letter pass-start
-                              dep-col-letter (+ pass-start (length passengers) -1)))
-           (ret-range (format nil "~a~a:~a~a"
-                              ret-col-letter pass-start
-                              ret-col-letter (+ pass-start (length passengers) -1)))
-           (values (mapcar #'list passengers)))
-      (write-range dep-range values :sheet-name sn)
-      (write-range ret-range values :sheet-name sn)))
+  (let ((dep-col (trip-dep-col slot))
+        (ret-col (trip-ret-col slot)))
+    (write-cell slot dep-col *destination-row-offset* destination)
+    (write-cell slot dep-col *time-row-offset* dep-time)
+    (write-cell slot ret-col *time-row-offset* ret-time)
+    (write-column slot dep-col *passenger-row-offset* passengers)
+    (write-column slot ret-col *passenger-row-offset* passengers))
   (format t "Created ~a booking on ~a → ~a (~a - ~a) for ~{~a~^, ~}~%"
           (trip-vehicle slot) day destination dep-time ret-time passengers)
   slot)
@@ -602,12 +598,15 @@ booking decided on a stale snapshot cannot write over one made since."
     (when slot
       (write-booking slot day destination dep-time ret-time passengers :verify verify))))
 
+(defun sheet-trips (sheet-name)
+  "The trips on the tab SHEET-NAME, read afresh (READ-SHEET, PARSE-SCHEDULE)."
+  (parse-schedule (read-sheet sheet-name) :sheet-name sheet-name))
+
 (defun fetch-all-trips (&key week)
   "Read and parse the schedule for every week sheet (see WEEK-SHEETS), or only
    WEEK (a sheet name such as \"Apr 20-26\") when given.  Returns a list of
    TRIP structs."
-  (loop for sheet-name in (if week (list week) (week-sheets))
-        append (parse-schedule (read-sheet sheet-name) :sheet-name sheet-name)))
+  (mapcan #'sheet-trips (if week (list week) (week-sheets))))
 
 (defun known-destinations (trips)
   "Return the distinct non-blank destinations found in TRIPS, in the sheet's
@@ -621,8 +620,7 @@ booking decided on a stale snapshot cannot write over one made since."
 Used by BOOK-NATURAL so a request can name them in lowercase."
   (remove-duplicates
    (loop for trip in trips
-         append (loop for cell in (append (trip-dep-passengers trip)
-                                          (trip-ret-passengers trip))
+         append (loop for cell in (trip-passengers trip)
                       when (cl-ppcre:scan "^[A-Za-z]{2,3}$" cell)
                         collect (string-upcase cell)))
    :test #'string= :from-end t))
@@ -755,10 +753,6 @@ minutes, and a booking made meanwhile must not be written over."
     (when proposal
       (commit-booking proposal))))
 
-(defun parse-passenger-initials (text)
-  "Extract uppercase 2-3 character initials from TEXT."
-  (cl-ppcre:all-matches-as-strings "[A-Z]{2,3}" text))
-
 (defun propose-request (req trips)
   "PROPOSE-BOOKING for REQ, a BOOKING-REQUEST, against TRIPS; the proposal
 returned keeps REQ."
@@ -772,6 +766,11 @@ returned keeps REQ."
     (when proposal
       (setf (proposal-request proposal) req))
     proposal))
+
+(defun readable-initials (trips registered-initials)
+  "The initials a request may write in lowercase: REGISTERED-INITIALS and
+those of everyone on TRIPS (KNOWN-INITIALS)."
+  (union registered-initials (known-initials trips) :test #'string=))
 
 (defun propose-natural (text &key week registered-initials)
   "PROPOSE-BOOKING from free-form English TEXT: the PROPOSAL BOOK-NATURAL
@@ -799,9 +798,8 @@ to one sheet."
              (setf trips (fetch-all-trips :week week)
                    req (parse-booking text
                                       :known-destinations (known-destinations trips)
-                                      :known-initials (union registered-initials
-                                                             (known-initials trips)
-                                                             :test #'string=)))))
+                                      :known-initials (readable-initials
+                                                       trips registered-initials)))))
       (when (and (incomplete) (possible-initials text))
         (read-sheet-and-reparse))
       (when (incomplete)
@@ -826,8 +824,7 @@ REGISTERED-INITIALS is as for PROPOSE-NATURAL."
     (multiple-value-bind (req changed)
         (revise-booking (proposal-request proposal) text
                         :known-destinations (known-destinations trips)
-                        :known-initials (union registered-initials (known-initials trips)
-                                               :test #'string=))
+                        :known-initials (readable-initials trips registered-initials))
       (values (and changed (propose-request req trips))
               changed))))
 
@@ -845,27 +842,23 @@ COMMIT-BOOKING."
     (when proposal
       (commit-booking proposal))))
 
-(defun month-abbrev-num (abbrev)
-  "Return 1-based month number from ABBREV like \"Mar\", \"Apr\", or \"May\".
-Matches case-insensitively as a prefix of *month-names*."
-  (1+ (or (position abbrev *month-names*
-                    :test (lambda (a b)
-                            (and (>= (length b) (length a))
-                                 (string-equal a b :end2 (length a)))))
-          (error "Unknown month abbreviation: ~a" abbrev))))
+(defun make-date-key (year month day)
+  "The YYYYMMDD integer of YEAR, MONTH and DAY, which orders as the dates do."
+  (+ (* year 10000) (* month 100) day))
 
 (defun date-key (dt)
   "Return YYYYMMDD integer for the LOCAL-TIME timestamp DT, suitable for ordering."
-  (+ (* (local-time:timestamp-year dt) 10000)
-     (* (local-time:timestamp-month dt) 100)
-     (local-time:timestamp-day dt)))
+  (make-date-key (local-time:timestamp-year dt)
+                 (local-time:timestamp-month dt)
+                 (local-time:timestamp-day dt)))
 
 (defun current-year-date-key (dt)
   "Like DATE-KEY but always uses today's year. Use this when comparing
    against ranges from *WEEKS*, which PARSE-WEEK-RANGE anchors to the
    current year."
-  (+ (* (local-time:timestamp-year (today)) 10000)
-     (mod (date-key dt) 10000)))
+  (make-date-key (local-time:timestamp-year (today))
+                 (local-time:timestamp-month dt)
+                 (local-time:timestamp-day dt)))
 
 (defun parse-week-range (sheet-name)
   "Parse SHEET-NAME like \"Apr 20-26\" or \"Mar 30-Apr 5 (Holy wk)\".
@@ -875,13 +868,11 @@ year, or (values nil nil) if the name does not match the expected shape
   (cl-ppcre:register-groups-bind (sm sd em ed)
       ("^([A-Za-z]+)\\s+(\\d+)\\s*-\\s*(?:([A-Za-z]+)\\s+)?(\\d+)" sheet-name)
     (let* ((year (local-time:timestamp-year (today)))
-           (start-month (ignore-errors (month-abbrev-num sm)))
-           (end-month (if em (ignore-errors (month-abbrev-num em)) start-month))
-           (start-day (parse-integer sd))
-           (end-day (parse-integer ed)))
+           (start-month (month-number sm))
+           (end-month (if em (month-number em) start-month)))
       (when (and start-month end-month)
-        (values (+ (* year 10000) (* start-month 100) start-day)
-                (+ (* year 10000) (* end-month 100) end-day))))))
+        (values (make-date-key year start-month (parse-integer sd))
+                (make-date-key year end-month (parse-integer ed)))))))
 
 (defun discover-week-sheets ()
   "Return the names of the spreadsheet's tabs that parse as a
@@ -908,10 +899,7 @@ discovered from the spreadsheet (DISCOVER-WEEK-SHEETS) and cached for
   "Return the sheet-name from WEEK-SHEETS whose date range covers TARGET-DT
 \(inclusive), or NIL if none match."
   (let ((target-key (current-year-date-key target-dt)))
-    (loop for name in (week-sheets)
-          do (multiple-value-bind (start end) (parse-week-range name)
-               (when (and start (<= start target-key end))
-                 (return name))))))
+    (first (find-week-sheets-in-range target-key target-key))))
 
 (defun vehicle-phrase (vehicle)
   "VEHICLE, a key of *VEHICLES*, as a sentence names it: \"the DGH\", \"the
@@ -933,6 +921,20 @@ the leg's passengers besides its driver."
     (t
      (format nil "~a and ~{~a~^, ~} are passengers." lead others))))
 
+(defun drives-p (initial passengers)
+  "True when INITIAL drives a leg whose PASSENGERS are as listed: the driver
+is the first of them."
+  (and passengers (string-equal initial (first passengers))))
+
+(defun day-trips (date)
+  "The trips in the block for DATE, a LOCAL-TIME timestamp, of the week sheet
+that covers it, read afresh, or NIL when no sheet covers it.  The sheet's name
+is the second value."
+  (let ((sheet (find-week-sheet date)))
+    (when sheet
+      (values (find-trips (sheet-trips sheet) :day (format-booking-day date))
+              sheet))))
+
 (defun remind-departure (trip)
   "Return the reminder for TRIP's departure, the same for everyone on it: the
 driver (the first of its dep-passengers), the vehicle (VEHICLE-PHRASE), the
@@ -951,23 +953,17 @@ The driver is the first initial in dep-passengers.  Each trip is worded by
 REMIND-DEPARTURE.  If multiple trips match, all are listed in one string
 separated by spaces."
   (let* ((day-dt (parse-day day-phrase))
-         (day-str (format-booking-day day-dt))
-         (sheet (find-week-sheet day-dt)))
-    (unless sheet
-      (return-from remind-driver
-        (format nil "No schedule sheet covers ~a." day-str)))
-    (let* ((rows (read-sheet sheet))
-           (trips (parse-schedule rows :sheet-name sheet))
-           (day-trips (find-trips trips :day day-str))
-           (driver-trips
-             (remove-if-not
-              (lambda (tr)
-                (let ((pax (trip-dep-passengers tr)))
-                  (and pax (string-equal driver (first pax)))))
-              day-trips)))
-      (if (null driver-trips)
-          (format nil "~a is not driving on ~a." driver day-str)
-          (format nil "~{~a~^ ~}" (mapcar #'remind-departure driver-trips))))))
+         (day-str (format-booking-day day-dt)))
+    (multiple-value-bind (trips sheet) (day-trips day-dt)
+      (let ((driver-trips (remove-if-not
+                           (lambda (tr) (drives-p driver (trip-dep-passengers tr)))
+                           trips)))
+        (cond ((null sheet)
+               (format nil "No schedule sheet covers ~a." day-str))
+              ((null driver-trips)
+               (format nil "~a is not driving on ~a." driver day-str))
+              (t
+               (format nil "~{~a~^ ~}" (mapcar #'remind-departure driver-trips))))))))
 
 (defun remind-return-driver (trip)
   "Return the reminder for the driver of TRIP's return leg, the first of its
@@ -982,12 +978,7 @@ ret-passengers, worded like REMIND-DEPARTURE's and naming the vehicle likewise."
 (defun todays-trips ()
   "The trips in today's block of the week sheet that covers today, or NIL
 when no sheet covers today.  Reads the sheet afresh on every call."
-  (let* ((day-dt (today))
-         (day-str (format-booking-day day-dt))
-         (sheet (find-week-sheet day-dt)))
-    (when sheet
-      (find-trips (parse-schedule (read-sheet sheet) :sheet-name sheet)
-                  :day day-str))))
+  (values (day-trips (today))))
 
 (defun trips-for-passenger-today (initial)
   "Return the trips departing today with INITIAL among the dep-passengers,
@@ -1003,11 +994,8 @@ scheduler. Returns NIL when no sheet covers today or no matching trips exist."
 ret-passenger.  The return can have a different driver from the departure,
 so it is looked up on its own.  Used by the slack-bot reminder scheduler;
 NIL when no sheet covers today or no matching trips exist."
-  (remove-if-not
-   (lambda (tr)
-     (let ((pax (trip-ret-passengers tr)))
-       (and pax (string-equal initial (first pax)))))
-   (todays-trips)))
+  (remove-if-not (lambda (tr) (drives-p initial (trip-ret-passengers tr)))
+                 (todays-trips)))
 
 (defun today-universal-time (time-str)
   "Return the CL universal-time at which the 12h TIME-STR (\"8:35 am\") falls
@@ -1157,8 +1145,7 @@ as expected."
             ((member noun '("week" "weekend") :test #'string=)
              (let ((monday (local-time:timestamp+
                             today
-                            ;; local-time counts Sunday as day 0
-                            (- (* 7 shift) (mod (+ (local-time:timestamp-day-of-week today) 6) 7))
+                            (- (* 7 shift) (monday-index today))
                             :day)))
                (values (if (string= noun "weekend")
                            (local-time:timestamp+ monday 5 :day)
@@ -1328,31 +1315,21 @@ first."
                (start-label (format-booking-day start-dt))
                (end-label (format-booking-day end-dt))
                (sheets (find-week-sheets-in-range start-key end-key)))
-          (if (null sheets)
-              (let ((msg (format nil "No schedule sheets cover ~a~@[ through ~a~].~%"
-                                 start-label
-                                 (unless (= start-key end-key) end-label))))
-                (format t "~a" msg)
-                msg)
-              (let* ((all-trips
-                       (loop for sheet in sheets
-                             append (parse-schedule
-                                     (read-sheet sheet)
-                                     :sheet-name sheet)))
-                     (in-range
-                       (remove-if-not
-                        (lambda (tr)
-                          (let ((k (trip-date-key tr)))
-                            (and k (<= start-key k end-key)
-                                 (booked-trip-p tr))))
-                        all-trips))
-                     (sorted (sort in-range #'schedule-order))
-                     (out (if sorted
-                              (format-schedule-table sorted)
-                              (format nil "No trips scheduled from ~a to ~a.~%"
-                                      start-label end-label))))
-                (format t "~a" out)
-                out)))))))
+          (flet ((in-range-p (tr)
+                   (let ((k (trip-date-key tr)))
+                     (and k (<= start-key k end-key) (booked-trip-p tr)))))
+            (let* ((trips (sort (remove-if-not #'in-range-p (mapcan #'sheet-trips sheets))
+                                #'schedule-order))
+                   (out (cond ((null sheets)
+                               (format nil "No schedule sheets cover ~a~@[ through ~a~].~%"
+                                       start-label
+                                       (unless (= start-key end-key) end-label)))
+                              ((null trips)
+                               (format nil "No trips scheduled from ~a to ~a.~%"
+                                       start-label end-label))
+                              (t (format-schedule-table trips)))))
+              (write-string out)
+              out)))))))
 
 (defun proposal-day-view (proposal)
   "The trips already booked on PROPOSAL's day, in the schedule it was decided

@@ -6,7 +6,7 @@
   (:import-from #:cl-ppcre)
   (:import-from #:montezuma)
   (:import-from #:bhw/bible/database
-                #:bible-obj-with-id
+                #:bible-obj-with-id #:heading-numbers
                 #:heading-of #:text-of #:cross-references-of #:footnotes-of
                 #:+bible-book-numbers-alist+
                 #:+bible-chapter-url-alist+
@@ -75,29 +75,29 @@ SIMPLE-TYPE-ERROR
 invalid return NIL. The BIBLE-UID can be found by calling `get-bible-uid'."
   (text-of (bible-obj-with-id bible-uid)))
 
+(defun heading-text (heading &key (verse t))
+  "HEADING, a BIBLE vertex's heading alist, as \"Book Chapter:Verse\", or as
+\"Book Chapter\" when VERSE is NIL."
+  (multiple-value-bind (book chapter verse-number) (heading-numbers heading)
+    (format nil "~@[~A~] ~D~:[~;:~D~]"
+            (bible-book-convert-dwim book) chapter verse verse-number)))
+
 (defun get-bible-verse-data (bible-uid)
   "Fetch a bible object once and return all display-relevant data as a plist.
 Returns (:heading STRING :text STRING :cross-references STRING-OR-NIL
          :footnotes STRING-OR-NIL :internal-chapter INTEGER)."
   (let* ((obj (bible-obj-with-id bible-uid))
-         (heading-alist (heading-of obj))
-         (book (bible-book-convert-dwim (cdar heading-alist)))
-         (chapter (write-to-string (cdadr heading-alist)))
-         (verse (write-to-string (cdaddr heading-alist))))
-    (list :heading (concatenate 'string book " " chapter ":" verse)
+         (heading (heading-of obj)))
+    (list :heading (heading-text heading)
           :text (text-of obj)
           :cross-references (cross-references-of obj)
           :footnotes (footnotes-of obj)
-          :internal-chapter (cdar heading-alist))))
+          :internal-chapter (heading-numbers heading))))
 
 (defun get-heading-text (bible-uid)
   "Returns the title slot of object class `bible' in a string. If BIBLE-UID is
  invalid return NIL. The BIBLE-UID can be found by calling `get-bible-uid'."
-  (let* ((heading-alist (heading-of (bible-obj-with-id bible-uid)))
-         (book (bible-book-convert-dwim (cdar heading-alist)))
-         (chapter (write-to-string (cdadr heading-alist)))
-         (verse (write-to-string (cdaddr heading-alist))))
-    (concatenate 'string book " " chapter ":" verse )))
+  (heading-text (heading-of (bible-obj-with-id bible-uid))))
 
 (defun get-footnotes-text (bible-uid)
   "Returns a string if bible-uid is valid else return NIL.
@@ -144,7 +144,7 @@ Example:
 
 => \"/bible/3-6-20\" "
   (let ((internal-chapter (or internal-chapter
-                              (cdar (heading-of (bible-obj-with-id bible-uid)))))
+                              (heading-numbers (heading-of (bible-obj-with-id bible-uid)))))
         (book nil)
         (chapter nil)
         (verse nil))
@@ -216,6 +216,13 @@ Joel 2:11</a>.;<a href=\"/bible/41-1-15\"> Sophonias 1:15</a>.\", T "
                  (format nil "<a href=\"~a\">~a</a>" url y)))))
     (cl-ppcre:regex-replace-all *reference-regex* string #'convert :simple-calls t)))
 
+(defun linked (text bible-uid)
+  "TEXT, the footnotes or cross-references of the verse BIBLE-UID, with its
+references made links (ENCODE-CROSS-REFERENCES-TO-HTML-LINKS), or NIL for no
+TEXT."
+  (when text
+    (encode-cross-references-to-html-links text bible-uid)))
+
 (defun get-footnotes-text-with-links (bible-uid)
   "Unlike `get-footnotes-text', the 'with-links' variation will take the cross
 references in the footnote text (if any exist) and
@@ -231,9 +238,7 @@ aside by his ordinance for the use of his priests. (Challoner) --- All was to be
 eaten or consumed in the tabernacle. The high priest offered a gomor full of
 flour and oil, rather baked, every day,<a href=\"/bible/3-6-20\"> Leviticus
 6:20</a>. (Calmet)\", T "
-  (let ((footnotes-text (get-footnotes-text bible-uid)))
-    (when footnotes-text
-      (encode-cross-references-to-html-links footnotes-text bible-uid))))
+  (linked (get-footnotes-text bible-uid) bible-uid))
 
 (defun get-cross-references-text-with-links (bible-uid)
   "Unlike `get-cross-references-text', the 'with-links' variation will take the
@@ -246,9 +251,7 @@ Example:
  (get-bible-uid (bible-book-convert-dwim \"Leviticus\") 2 3))
 
 => \"<a href=\"/bible/26-7-34\">Ecclesiasticus 7:34</a>.\", T"
-  (let ((cross-references-text (get-cross-references-text bible-uid)))
-    (when cross-references-text
-      (encode-cross-references-to-html-links cross-references-text bible-uid))))
+  (linked (get-cross-references-text bible-uid) bible-uid))
 
 (defun make-bible-chapter-url-list (uid-list)
   "Selects the right links from `+bible-chapter-url-alist+' based on the interval
@@ -267,56 +270,28 @@ Example:
  (\"/bible/1-3-1/1-3-24\" . \"Genesis 3\"))"
   (let* ((beginning-uid (first uid-list))
          (ending-uid (first (last uid-list)))
-         (beginning-heading (gethash beginning-uid +bible-uid-to-heading+))
-         (ending-heading (gethash ending-uid +bible-uid-to-heading+))
-         (beginning-book (cdar beginning-heading))
-         (ending-book (cdar ending-heading))
-         (beginning-chapter (cdadr beginning-heading))
-         (ending-chapter (cdadr ending-heading)))
-    (flet ((heading-text (uid)
-             (let* ((h (gethash uid +bible-uid-to-heading+))
-                    (book (bible-book-convert-dwim (cdar h)))
-                    (chapter (write-to-string (cdadr h))))
-               (concatenate 'string book " " chapter))))
+         (beginning-book (heading-numbers (gethash beginning-uid +bible-uid-to-heading+)))
+         (ending-book (heading-numbers (gethash ending-uid +bible-uid-to-heading+))))
+    (flet ((chapters-from (uid)
+             ;; The tail of the chapter links that starts at UID's chapter.
+             (member (heading-text (gethash uid +bible-uid-to-heading+) :verse nil)
+                     +bible-chapter-url-alist+
+                     :key #'cdr :test #'string-equal)))
       ;; Special case: last book of the bible.
       (cond ((<= (get-bible-uid 73 0 0) beginning-uid)
              (nthcdr 1312 +bible-chapter-url-alist+))
             ((= beginning-book ending-book)
              (make-bible-chapter-url-list
-              (list (get-bible-uid
-                     beginning-book
-                     ;; call with 1, as `+bible-chapter-url-alist+' has no chapter 0's.
-                     1 1)
-                    (get-bible-uid
-                     (+ 1 ending-book)
-                     1 1))))
-            ((and (= beginning-book ending-book)
-                  (= beginning-chapter ending-chapter))
-             (make-bible-chapter-url-list
-              (list (get-bible-uid
-                     beginning-book
-                     1 1)
-                    (get-bible-uid
-                     (+ 1 ending-book)
-                     1 1))))
+              ;; call with 1, as `+bible-chapter-url-alist+' has no chapter 0's.
+              (list (get-bible-uid beginning-book 1 1)
+                    (get-bible-uid (+ 1 ending-book) 1 1))))
             (t
-             (reverse
-              (set-difference
-               (nthcdr
-                (position
-                 (rassoc (heading-text beginning-uid)
-                         +bible-chapter-url-alist+
-                         :test #'string-equal)
-                 +bible-chapter-url-alist+)
-                +bible-chapter-url-alist+)
-               (nthcdr
-                (position
-                 (rassoc (heading-text ending-uid)
-                         +bible-chapter-url-alist+
-                         :test #'string-equal)
-                 +bible-chapter-url-alist+)
-                +bible-chapter-url-alist+))))))))
-
+             (let ((from (chapters-from beginning-uid))
+                   (to (chapters-from ending-uid)))
+               ;; The links from the first chapter up to, not including, the
+               ;; last one's.
+               (and from to (tailp to from) (ldiff from to))))))))
+
 ;;; Search
 
 (defvar *search-index-path* #p"/var/local/bhw-www/montezuma/"

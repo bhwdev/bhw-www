@@ -10,6 +10,7 @@
            #:store-exists-p
            #:open-store
            #:close-store
+           #:find-by-view
            #:with-transaction)
   (:documentation
    "The graph-db plumbing that every bhw-www database shares.
@@ -78,6 +79,13 @@ loads that costs ~130 MB and starts a thread that outlives CLOSE-GRAPH."
   (when graph
     (graph-db:close-graph graph :snapshot-p nil))
   nil)
+
+(defun find-by-view (graph type view key)
+  "The TYPE vertex of GRAPH that the view VIEW lists first under KEY, or NIL."
+  (let* ((rows (graph-db:invoke-graph-view type view :key key :graph graph))
+         (id (cdr (assoc :id (first rows)))))
+    (when id
+      (graph-db:lookup-vertex id :graph graph))))
 
 (defmacro with-transaction ((graph &key (context "transaction")) &body body)
   "Run BODY in a graph-db transaction on GRAPH, logging an error that escapes
