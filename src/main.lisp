@@ -24,7 +24,10 @@
                     (#:bot #:bhw/slack-bot/bot)
                     (#:plp-db #:bhw/plp/database)
                     (#:plp-live #:bhw/plp/live)
-                    (#:plp #:bhw/plp/console))
+                    (#:plp #:bhw/plp/console)
+                    ;; Not called here: named so that the program has
+                    ;; LOAD-STAGING, which is run in production over Slynk.
+                    (#:plp-import #:bhw/plp/import))
   (:export #:initialize-application
            #:terminate-application
            #:application-toplevel)
