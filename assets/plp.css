@@ -1,0 +1,262 @@
+/* SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
+   SPDX-License-Identifier: AGPL-3.0-or-later
+
+   The praise lyrics presenter: its screen (/plp-screen), its console
+   (/plp-console) and its front page (/plp).  Always dark: the site's colour
+   theme does not apply to a projector. */
+
+html { color-scheme: dark; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: "Atkinson Hyperlegible", Verdana, "DejaVu Sans", Arial, sans-serif;
+}
+
+a { color: #9cc4ff; }
+
+/* The screen */
+
+.plp-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  cursor: none;
+}
+
+.plp-lines {
+  position: absolute;
+  inset: 4vh 5vw 14vh 5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.25;
+  font-weight: 600;
+  text-shadow: 0 0 0.2em #000;
+}
+
+.plp-line { white-space: nowrap; }
+
+.plp-footer-left, .plp-footer-right, .plp-copyright {
+  position: absolute;
+  bottom: 2vh;
+  font-size: 2.4vh;
+  color: #b8b8b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plp-footer-left { left: 2vw; max-width: 30vw; font-variant-numeric: tabular-nums; }
+.plp-footer-right { right: 2vw; max-width: 60vw; text-align: right; }
+
+.plp-copyright {
+  left: 5vw;
+  right: 5vw;
+  bottom: 7vh;
+  font-size: 1.7vh;
+  color: #8a8a8a;
+  text-align: center;
+  white-space: normal;
+}
+
+.plp-waiting {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background: #000 center / cover no-repeat;
+}
+
+.plp-waiting::after {
+  /* Darkens the foot of the picture, where the footer is read. */
+  content: "";
+  position: absolute;
+  inset: 60% 0 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+}
+
+.plp-waiting-text {
+  position: absolute;
+  left: 5vw;
+  right: 5vw;
+  bottom: 12vh;
+  z-index: 1;
+  text-align: center;
+  font-size: 6vh;
+  font-weight: 600;
+  text-shadow: 0 0 0.4em #000, 0 0 0.1em #000;
+}
+
+.plp-image-credit {
+  position: absolute;
+  top: 1vh;
+  right: 1vw;
+  z-index: 1;
+  font-size: 1.4vh;
+  color: #ddd;
+  text-shadow: 0 0 0.3em #000;
+}
+
+.plp-is-waiting .plp-waiting { display: block; }
+.plp-is-waiting .plp-lines, .plp-is-waiting .plp-copyright { display: none; }
+.plp-is-waiting .plp-footer-left { color: #fff; z-index: 1; }
+.plp-is-waiting .plp-footer-right { display: none; }
+
+.plp-black .plp-lines, .plp-black .plp-copyright,
+.plp-black .plp-footer-left, .plp-black .plp-footer-right,
+.plp-no-footer .plp-footer-left, .plp-no-footer .plp-footer-right { display: none; }
+
+.plp-tap { position: absolute; top: 0; bottom: 0; z-index: 2; }
+.plp-tap-back { left: 0; width: 30%; }
+.plp-tap-forward { right: 0; width: 70%; }
+
+.plp-notice { padding: 10vh 10vw; font-size: 3vh; }
+
+/* The front page */
+
+.plp-front {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 8vh 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.plp-front h1 { font-size: 2rem; }
+.plp-front button { font-size: 1.2rem; padding: 0.7rem 1.4rem; margin-top: 1rem; }
+
+/* The console */
+
+.plp-console {
+  display: grid;
+  grid-template-columns: 22rem 1fr 24rem;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.6rem;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 0.6rem;
+  font-size: 0.95rem;
+}
+
+.plp-console input, .plp-console select, .plp-console textarea, .plp-console button,
+.plp-front button {
+  background: #1c1c1c;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+}
+
+.plp-console button, .plp-front button { cursor: pointer; }
+.plp-console button:hover, .plp-front button:hover { background: #333; }
+.plp-console button.plp-on { background: #7a5c00; border-color: #e0b020; }
+
+.plp-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plp-bar .plp-code { font-weight: 700; letter-spacing: 0.1em; }
+.plp-bar .plp-grow { flex: 1; }
+
+.plp-column {
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.plp-column h2 {
+  margin: 0.6rem 0 0.3rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9a9a9a;
+}
+
+.plp-column h2:first-child { margin-top: 0; }
+
+.plp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.2rem;
+  border-radius: 4px;
+}
+
+.plp-row .plp-name { flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plp-row .plp-name small { color: #9a9a9a; }
+.plp-row.plp-current { background: #26364f; }
+.plp-row button { padding: 0 0.4rem; }
+.plp-fields { display: flex; gap: 0.3rem; margin: 0.3rem 0; }
+.plp-fields input, .plp-fields select { flex: 1; min-width: 0; }
+
+.plp-pane:focus { outline: 2px solid #e0b020; }
+.plp-pane .plp-song-title { font-size: 1.3rem; font-weight: 700; }
+.plp-pane .plp-song-writers { color: #9a9a9a; margin-bottom: 0.5rem; }
+
+.plp-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.plp-card {
+  border: 2px solid #333;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.plp-card .plp-card-label { color: #e0b020; font-weight: 700; margin-bottom: 0.2rem; }
+.plp-card .plp-card-label kbd {
+  display: inline-block;
+  min-width: 1.2em;
+  margin-right: 0.4em;
+  padding: 0 0.3em;
+  border: 1px solid #e0b020;
+  border-radius: 3px;
+  text-align: center;
+}
+.plp-card.plp-live { border-color: #fff; background: #1d2b1d; }
+
+.plp-preview {
+  aspect-ratio: 16 / 9;
+  border: 1px solid #555;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+
+.plp-preview.plp-next { color: #9a9a9a; aspect-ratio: auto; min-height: 4rem; padding: 0.3rem; }
+.plp-console textarea { width: 100%; box-sizing: border-box; min-height: 14rem; font-family: monospace; font-size: 0.8rem; }
+.plp-message { color: #e0b020; min-height: 1.3em; white-space: pre-wrap; }
+
+.plp-keys {
+  grid-column: 1 / -1;
+  color: #9a9a9a;
+  font-size: 0.8rem;
+}
+
+.plp-keys kbd { border: 1px solid #555; border-radius: 3px; padding: 0 0.3em; color: #ddd; }
+
+@media (max-width: 60rem) {
+  .plp-console { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
+}

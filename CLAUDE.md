@@ -2,7 +2,7 @@
 
 ## Architecture
 
-One SBCL process serves three parts, each a group of package-inferred
+One SBCL process serves four parts, each a group of package-inferred
 systems under `src/`:
 
 - `site/` -- the personal website (`pages`) and the frame every page shares
@@ -13,6 +13,19 @@ systems under `src/`:
   `nlp` / `booking-nlp`, the schedule spreadsheet
   (`van-booking`, through the Apps Script in `van-booking.gs`), and the Slack
   endpoints and reminder scheduler (`bot`).
+- `plp/` -- the praise lyrics presenter: a song as data, its text format and
+  its slides (`song`), its graph-db store of songs, tags and setlists
+  (`database`), the chord book's import (`import`), the rooms that tie a
+  console to its screens (`live`), and the pages `/plp`, `/plp-console/CODE`
+  (`console`) and `/plp-screen/CODE` (`screen`). Its pages are public; saving
+  a song or a setlist needs `$BHW_PLP_PASSPHRASE`. The lyrics are not in the
+  repository: store, staging files and waiting images are under
+  `<data root>/plp/`, and the tests use a public-domain hymn. `import` runs
+  poppler's `pdftotext`, on a development machine only:
+  `(bhw/plp/import:import-book PDF)` stages the songs with a `REPORT.txt`,
+  `(bhw/plp/import:load-staging)` stores them, as often as they are corrected.
+  The one script of the site's own is the expression that asks a browser its
+  clock's offset from UTC (`screen:timezone-offset`).
 
 `main.lisp` is the composition root: `initialize-application` opens the
 stores, starts the scheduler and CLOG, and has each part register its routes.
@@ -21,7 +34,8 @@ CLOG's `*break-on-error*`, as an error in a page's thread would otherwise
 exit the process; there is no static root, so only `assets/` (and the
 favicon) of the checkout is served. The web server is `site-acceptor`
 there, a Hunchentoot acceptor subclassing the CLOG fork's `clog-acceptor`: it
-answers the request guard, the Slack endpoints and POST /theme before CLOG,
+answers the request guard, the Slack endpoints, POST /theme and the
+presenter's `/plp-images/` before CLOG,
 and sends files with ETags (its `serve-static-file` method). Those handlers
 take a request plist and return `(status headers body)`; `request-env` and
 `reply` convert, so they are tested without a server. `store.lisp` is the

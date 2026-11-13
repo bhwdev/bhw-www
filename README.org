@@ -17,7 +17,7 @@ Prerequisite(s): [[https://guix.gnu.org/][GNU Guix]], which provides [[http://ww
 the development environment. Production builds it with the host's own Guix
 (see "Deployment").
 
-The code is three parts served by one process, each a group of
+The code is four parts served by one process, each a group of
 package-inferred systems under =src/=:
 
 - =site/= -- the personal website's pages, and the layout every page shares.
@@ -27,9 +27,16 @@ package-inferred systems under =src/=:
   language layers (=nlp=, =booking-nlp=), the schedule
   spreadsheet (=van-booking=, with the Apps Script it talks to in
   =van-booking.gs=), and the Slack endpoints and reminders (=bot=).
+- =plp/= -- the praise lyrics presenter, at =/plp=: songs and their slides
+  (=song=), their graph-db store with tags and setlists (=database=), the
+  import of the Companions of the Cross chord book (=import=), the rooms
+  that tie an operator's console to its screens (=live=), and the two pages
+  (=console=, =screen=). The screen is put full screen on the display the
+  congregation sees; the console jumps to a verse, the refrain or the bridge
+  at a key press.
 
 =main.lisp= starts them all (=initialize-application=); =store.lisp= is the
-graph-db plumbing the two databases share. The tests mirror this tree under
+graph-db plumbing the databases share. The tests mirror this tree under
 =src/tests/= and use [[https://github.com/fukamachi/rove][Rove]].
 
 The pages are built by [[https://github.com/rabbibotton/clog][CLOG]] over its websocket (a browser without
@@ -91,8 +98,19 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
      BHW_WWW_DATA=/var/lib/bhw-www/  # the bot's store, graph-db's system directory
      SSL_CERT_DIR=/etc/ssl/certs                     # Guix's OpenSSL looks in its own store directory otherwise
      SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-     # and SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, VAN_SCHEDULE_SECRET
+     # and SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, VAN_SCHEDULE_SECRET,
+     # BHW_PLP_PASSPHRASE (without it the presenter saves nothing)
    #+end_src
+
+   The presenter's songs are not in this repository. They are staged on a
+   development machine from the chord book's PDF
+   (=(bhw/plp/import:import-book #p"...pdf")=, which needs poppler's
+   =pdftotext=), read and corrected in =<data root>/plp/staging/=, and copied
+   to the host with the waiting images (=<data root>/plp/images/=, with a
+   =credits.txt= of =file<TAB>credit= lines). The store is not copied: its
+   type ids belong to the host's graph-db system directory. On the host,
+   through Slynk, =(bhw/plp/import:load-staging)= stores the staged songs, as
+   often as they change.
 
    The bible store and Montezuma index are in =/var/local/bhw-www/=.
 

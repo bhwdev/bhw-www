@@ -21,7 +21,10 @@
                     (#:bible #:bhw/bible/text)
                     (#:reader #:bhw/bible/reader)
                     (#:bot-db #:bhw/slack-bot/database)
-                    (#:bot #:bhw/slack-bot/bot))
+                    (#:bot #:bhw/slack-bot/bot)
+                    (#:plp-db #:bhw/plp/database)
+                    (#:plp-live #:bhw/plp/live)
+                    (#:plp #:bhw/plp/console))
   (:export #:initialize-application
            #:terminate-application
            #:application-toplevel)
@@ -201,6 +204,10 @@ the connection, whose unread body would be taken for the next request."
                        env))))
           ((theme-toggle-p env)
            (reply (layout:theme-toggle-response env)))
+          ;; The presenter's waiting images are under the data root, which
+          ;; CLOG's file server does not reach.
+          ((plp-live:image-file (getf env :path-info))
+           (conn:serve-static-file acceptor (plp-live:image-file (getf env :path-info))))
           (t
            (call-next-method)))))
 
@@ -270,6 +277,8 @@ source, are not served."
   (bot-db:open-database)
   (bot:load-config)
   (bot:start-reminder-scheduler)
+  (plp-db:open-database)
+  (plp-db:load-config)
   (initialize 'pages:on-index-handler
               :host "127.0.0.1"
               :port port
@@ -278,6 +287,7 @@ source, are not served."
               :static-root nil)
   (pages:register-routes)
   (reader:register-routes)
+  (plp:register-routes)
   (conn:add-plugin-path "^/assets/"
                         (namestring (asdf:system-relative-pathname :bhw "./")))
   (conn:add-plugin-path "^/favicon\\.ico"
@@ -308,6 +318,7 @@ Idempotent."
   (bible:close-search-index)
   (bible-db:close-database)
   (bot-db:close-database)
+  (plp-db:close-database)
   t)
 
 (defun reset-network-state ()

@@ -197,6 +197,12 @@ it."
              ;; CLOG's own file, which its boot page loads
              (ok (= 200 (http-status 8293 "GET /js/boot.js HTTP/1.0")))
              (ok (= 404 (http-status 8293 "GET /js/jquery.min.js HTTP/1.0")) "no jQuery")
+             ;; The presenter: its pages, its stylesheet, and no waiting
+             ;; image where the data root has none.
+             (dolist (path '("/plp" "/plp-console/AB12CD" "/plp-screen/AB12CD"
+                             "/assets/plp.css"))
+               (ok (= 200 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))
+             (ok (= 404 (http-status 8293 "GET /plp-images/chapel.jpg HTTP/1.0")))
              ;; No static root: the checkout's files outside assets/ are not served.
              (dolist (path '("/guix.scm" "/clog.asd" "/bhw.asd" "/README.org"))
                (ok (= 404 (http-status 8293 (format nil "GET ~A HTTP/1.0" path))) path))

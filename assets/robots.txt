@@ -1,3 +1,4 @@
 User-agent: *
 Disallow: /_matrix/
 Disallow: /_synapse/
+Disallow: /plp
