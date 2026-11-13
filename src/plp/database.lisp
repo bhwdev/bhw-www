@@ -173,21 +173,24 @@ the time taken does not tell how many were right."
 
 (defun catalog-entry (vertex)
   "What a search needs of the SONG vertex VERTEX: a plist of its :ID, :TITLE,
-:WRITERS, :NUMBER, :FIRST-LINE, :TAGS (as \"mass=Communion\") and :HAYSTACK,
-the text a query is looked for in."
+:WRITERS, :NUMBER, :FIRST-LINE, :TAGS (as \"mass=Communion\"), :HAYSTACK, its
+number, titles and writers as the text a query is looked for in, and :LINES,
+every line of its words as (text-to-look-in . line)."
   (let* ((song (vertex-song vertex))
-         (first-line (song:song-first-line song)))
+         (lines (loop for section in (song:song-sections song)
+                      append (loop for slide in (song:section-slides section)
+                                   append slide))))
     (list :id (song:song-id song)
           :title (song:song-title song)
           :writers (song:song-writers song)
           :number (song:song-number song)
-          :first-line first-line
+          :first-line (first lines)
           :tags (mapcar #'tag-key (song:song-tags song))
           :haystack (string-downcase
-                     (format nil "~@[~D ~]~A ~{~A ~}~@[~A ~]~@[~A~]"
+                     (format nil "~@[~D ~]~A ~{~A ~}~@[~A~]"
                              (song:song-number song) (song:song-title song)
-                             (song:song-alt-titles song) (song:song-writers song)
-                             first-line)))))
+                             (song:song-alt-titles song) (song:song-writers song)))
+          :lines (mapcar (lambda (line) (cons (string-downcase line) line)) lines))))
 
 (defun rebuild-catalog ()
   (setf *catalog*
@@ -270,22 +273,35 @@ tags; a song without an id is given one.  Returns the id."
 
 (defun search-songs (query &key tag (limit 40))
   "The catalog entries, at most LIMIT, that have every word of QUERY in
-their number, titles, writers or first line and, when TAG is given (as
-\"mass=Communion\"), that tag.  A song whose number QUERY is comes first."
+their number, titles, writers or words and, when TAG is given (as
+\"mass=Communion\"), that tag.  A song whose number QUERY is comes first,
+then those found by their number, titles, writers and first line, then those
+found only further into their words.  Each entry has a :LINE as well: the
+first line of the song that has a word of QUERY its number, titles and
+writers lack, or else its first line."
   (let* ((words (cl-ppcre:split "\\s+" (string-downcase (string-trim " " (or query "")))))
          (number (and (= (length words) 1) (parse-integer (first words) :junk-allowed t)))
-         (found (remove-if-not
-                 (lambda (entry)
-                   (and (or (null tag) (member tag (getf entry :tags) :test #'string=))
-                        (every (lambda (word) (search word (getf entry :haystack)))
-                               words)))
-                 *catalog*))
-         (found (if number
-                    (stable-sort (copy-list found)
-                                 (lambda (a b) (and a (not b)))
-                                 :key (lambda (entry) (eql (getf entry :number) number)))
-                    found)))
-    (subseq found 0 (min limit (length found)))))
+         (ranks (list '() '() '())))
+    (dolist (entry *catalog*)
+      (when (or (null tag) (member tag (getf entry :tags) :test #'string=))
+        (let* ((lines (getf entry :lines))
+               (missing (remove-if (lambda (word) (search word (getf entry :haystack)))
+                                   words))
+               (line (find-if (lambda (line)
+                                (some (lambda (word) (search word (car line))) missing))
+                              lines)))
+          (when (every (lambda (word)
+                         (some (lambda (line) (search word (car line))) lines))
+                       missing)
+            (push (list* :line (cdr (or line (first lines))) entry)
+                  (nth (cond ((and number (eql (getf entry :number) number)) 0)
+                             ((every (lambda (word) (search word (car (first lines))))
+                                     missing)
+                              1)
+                             (t 2))
+                       ranks))))))
+    (let ((found (mapcan #'nreverse ranks)))
+      (subseq found 0 (min limit (length found))))))
 
 (defun all-tags ()
   "Every tag as (category name note), by category and name."

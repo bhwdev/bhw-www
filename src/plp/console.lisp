@@ -172,7 +172,7 @@ The refrain
           (place-holder waiting-input) "Line on the waiting slide"
           (place-holder passphrase) "Passphrase"
           (place-holder name-input) "Name of the setlist"
-          (place-holder search) "Title, number, writer, first line")
+          (place-holder search) "Title, number, writer, words")
     (labels ((say (control &rest arguments)
                (setf (inner-html message)
                      (escape-html (apply #'format nil control arguments))))
@@ -279,8 +279,8 @@ The refrain
                                :content (format nil "~@[~D. ~]~A~@[ <small>~A</small>~]"
                                                 (getf entry :number)
                                                 (escape-html (getf entry :title))
-                                                (and (getf entry :first-line)
-                                                     (escape-html (getf entry :first-line)))))))
+                                                (and (getf entry :line)
+                                                     (escape-html (getf entry :line)))))))
                    (click name (lambda () (show id)))
                    (click (create-button row :content "Show") (lambda () (show id)))
                    (click (create-button row :content "+") (lambda () (live:add-item room id))))))
