@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2026-11-10 Tue 13:07 -->
+<!-- 2026-11-14 Sat 00:31 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Communication Setup in Emacs</title>
@@ -31,10 +31,10 @@
                                     </div>
                                     <h1 class="title">Communication Setup in Emacs</h1>
                                     <p class="subtitle">Much ink has been spilled on&hellip;how best to spill ink?</p> <br/>
-                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-10-12 Mon 19:48</p>
+                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-11-14 Sat 00:18</p>
 </div>
 <div id="content" class="content">
-<div class="abstract" id="orgca060ed">
+<div class="abstract" id="org972c549">
 <p>
 
 </p>
@@ -324,7 +324,7 @@ room our first user was invited to upon registration. Send the following
 message to the admin room, pasting in the contents of <code>registration.yaml</code>.
 </p>
 
-<pre class="example" id="org2ce9b62">
+<pre class="example" id="orga87a5f8">
   !admin appservices register
   ```yaml
   id: whatsapp
@@ -399,7 +399,7 @@ Install <a href="https://github.com/alphapapa/ement.el">ement.el</a> and login,
 </div>
 
 <p>
-My own <a href="dotemacs.html#ID-20220829T170131.891099">config</a> is available <a href="https://www.bhw.name/assets/blog/dotspacemacs.html">here.</a> Three parting thoughts. I am somewhat
+Three parting thoughts. I am somewhat
 optimistic about Matrix&rsquo;s longevity <a href="https://element.io/case-studies/bundeswehr">as the German armed forces has adopted the
 standard</a> as well as the <a href="https://cfp.matrix.org/matrixconf2024/talk/FUXFHY/">Swiss Government</a>. Secondly, Emacs users often have to
 deal with their complex configurations falling apart on mobile phones but this
@@ -437,13 +437,13 @@ Operation Analogy (<a href="https://explained-from-first-principles.com/email/%2
   uname -a
   <span class="org-comment-delimiter"># </span><span class="org-comment">Linux bhw-yoga 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 GNU/Linux</span>
   <span class="org-comment-delimiter"># </span><span class="org-comment">Isync is the name of the program, but mbsync is the name of the binary.</span>
-  <span class="org-comment-delimiter"># </span><span class="org-comment">See and tangle .mbsyncrc in dotfiles.org.</span>
+  <span class="org-comment-delimiter"># </span><span class="org-comment">.mbsyncrc: see the excerpt below.</span>
   <span class="org-type">sudo</span> apt install mu4e gnutls-bin sendmail isync
 </code></pre>
 </div>
 
 <p>
-<code>dotfiles.org</code> is not public, but here is the relevant excerpt. Please note to
+My configuration is not public, but here is the relevant excerpt. Please note to
 access the Gmail mail server you need an <a href="https://irreal.org/blog/?p=9501">app password.</a> <code>M-x Woman RET mbsync</code> to
 read isync&rsquo;s manpage to understand what&rsquo;s going on. I do not delete email,
 instead I mark it as read and move it out of my inbox to &ldquo;All mail&rdquo;.

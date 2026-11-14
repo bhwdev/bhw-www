@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2026-11-10 Tue 13:07 -->
+<!-- 2026-11-14 Sat 00:31 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bhw-www Design Notebook</title>
@@ -31,10 +31,10 @@
                                     </div>
                                     <h1 class="title">bhw-www Design Notebook</h1>
                                     <p class="subtitle">Divus Isidorus Hispalensis ora pro nobis</p> <br/>
-                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-10-15 Thu 23:36</p>
+                                    <p class="updated"><a href="/contact#article-history">Updated:</a> 2026-11-12 Thu 23:06</p>
 </div>
 <div id="content" class="content">
-<div class="abstract" id="org06c1c0d">
+<div class="abstract" id="org7627f31">
 <p>
 
 </p>
@@ -155,7 +155,7 @@ otherwise noted.
 <h2 id="Common-Lisp-Environment-Setup"><a href="#table-of-contents">&#8689;</a><span class="section-number-2">2.</span> Common Lisp Environment Setup</h2>
 <div class="outline-text-2" id="text-Common-Lisp-Environment-Setup">
 <ul class="org-ul">
-<li><a href="dotemacs.html#ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c">&lt;&ndash;Common Lisp Config</a></li>
+<li><a href="../emacs.html#ID-0d5cd091-ec8a-420d-9585-8d6ed856a00c">&lt;&ndash;Common Lisp Config</a></li>
 <li><a href="../bibtex-notes/seibelPracticalCommonLisp2005.html#ID-031a3b02-b36c-4875-b714-6ff8e9a3978c">&lt;&ndash;Practical Common Lisp</a></li>
 <li><a href="../cpb.html#ID-6588253f-4a2e-4a8c-ac23-bcb073e47213">&lt;&ndash;Linux Program Directory</a></li>
 <li><a href="https://www.creativetension.co/posts/common-lisp-development-tooling">Common Lisp Development Tooling — creative:tension</a></li>
@@ -352,7 +352,7 @@ browser <a href="https://www.gnu.org/software/emacs/manual/html_mono/eww.html">E
 </p>
 
 <div class="org-src-container">
-<pre class="src src-emacs-lisp"><code>    (<span class="org-keyword">setf</span> common-lisp-hyperspec-root <span class="org-string">"file:///home/$USER/HyperSpec/"</span>)
+<pre class="src src-emacs-lisp"><code>    (<span class="org-keyword">setf</span> <span class="org-variable-name">common-lisp-hyperspec-root</span> <span class="org-string">"file:///home/$USER/HyperSpec/"</span>)
     <span class="org-comment-delimiter">;; </span><span class="org-comment">Optionally, execute the HYPERSPEC-LOOKUP function with local variable</span>
     <span class="org-comment-delimiter">;; </span><span class="org-comment">changes to view HyperSpec links exclusively in EWW.</span>
     (<span class="org-constant">advice-add</span> <span class="org-highlight-quoted-quote">'</span><span class="org-highlight-quoted-symbol">hyperspec-lookup</span>
@@ -564,7 +564,7 @@ Call <code>sly-eval-buffer</code> on the following code block to update the grap
 </div>
 
 
-<figure id="org63da0b6">
+<figure id="org045e75e">
 <img src="../bhw-www-dependency-graph.png" alt="bhw-www dependency graph">
 
 <figcaption><span class="figure-number">Figure 1: </span>bhw-www dependency graph</figcaption>
@@ -853,7 +853,7 @@ text, e.g., &ldquo;OK&rdquo;
 </div>
 <div id="outline-container-ID-20260901T134924.956001" class="outline-5">
 <h5 id="ID-20260901T134924.956001"><a href="#table-of-contents">&#8689;</a>Notes on CL-SMTP</h5>
-<div class="outline-text-5" id="text-orgcfd3345">
+<div class="outline-text-5" id="text-org3863ccb">
 <p>
 <a href="https://jay.gooby.org/2022/05/06/use-a-basic-gmail-account-to-send-mail-as-with-a-domain-that-uses-cloudflare-email-routing">Use a basic Gmail account to “Send mail as” with a domain that uses Cloudflar&hellip;</a>
 </p>
@@ -2711,7 +2711,7 @@ system, I would try a library like <a href="https://gitlab.common-lisp.net/dkoch
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Includes COMMON LISP USER package symbols as defined in the Hyperspec.</span>
   (sb-sprof:profile-call-counts <span class="org-string">"CL-USER"</span>)
   <span class="org-comment-delimiter">;; </span><span class="org-comment">Profile and output both graph and flat formats.</span>
-  (sb-sprof:with-profiling (<span class="org-builtin">:max-samples</span> 5000
+  (<span class="org-keyword">sb-sprof:with-profiling</span> (<span class="org-builtin">:max-samples</span> 5000
                             <span class="org-builtin">:report</span> <span class="org-builtin">:graph</span>
                             <span class="org-builtin">:loop</span> t
                             <span class="org-builtin">:show-progress</span> t)
@@ -3169,7 +3169,7 @@ it will regenerate the reference manual and include changes into the commit.
 <pre class="src src-lisp"><code><span class="org-comment-delimiter">;;;; </span><span class="org-comment">SPDX-FileCopyrightText: 2021  Ben H. W.<a href="mailto:foss%40bhw.name">&lt;foss@bhw.name&gt;</a></span>
 <span class="org-comment-delimiter">;;;; </span><span class="org-comment">SPDX-License-Identifier: AGPL-3.0-or-later</span>
 
-(uiop:define-package <span class="org-builtin">#:bhw/migration</span>
+(<span class="org-keyword">uiop:define-package</span> <span class="org-builtin">#:bhw/migration</span>
   (<span class="org-builtin">:use</span> <span class="org-builtin">#:common-lisp</span>
         <span class="org-builtin">#:series</span>
         <span class="org-builtin">#:bhw/bible</span>
@@ -3263,7 +3263,7 @@ it will regenerate the reference manual and include changes into the commit.
 
                ((string-equal <span class="org-string">"\\v"</span> (car (ppcre:split <span class="org-string">" "</span> line)))
                 (<span class="org-keyword">progn</span>
-                  (ppcre:do-matches-as-strings (match <span class="org-string">"\\\\v [0-9]{1,3}"</span> line)
+                  (<span class="org-keyword">ppcre:do-matches-as-strings</span> (match <span class="org-string">"\\\\v [0-9]{1,3}"</span> line)
                     (setf verse (parse-integer (car (last (ppcre:split <span class="org-string">" "</span> match))))))
                   (create-bible (nreverse (pairlis '(bhw/bible::book
                                                      bhw/bible::chapter
@@ -3279,7 +3279,7 @@ it will regenerate the reference manual and include changes into the commit.
                 (setf book (bible-book-convert-dwim (ppcre:regex-replace-all <span class="org-string">"\\\\mt1 "</span> line <span class="org-string">""</span>))))
 
                ((string-equal <span class="org-string">"\\f"</span> (car (ppcre:split <span class="org-string">" "</span> line)))
-                (ppcre:do-matches-as-strings (match <span class="org-string">"\\\\fr [0-9]{1,3}:[0-9]{1,3}"</span> line)
+                (<span class="org-keyword">ppcre:do-matches-as-strings</span> (match <span class="org-string">"\\\\fr [0-9]{1,3}:[0-9]{1,3}"</span> line)
                   (<span class="org-keyword">progn</span>
                     (setf chapter (parse-integer (car (cl-ppcre:split <span class="org-string">":"</span> (car (last (ppcre:split <span class="org-string">" "</span> match)))))))
                     (setf verse (parse-integer (cadr (cl-ppcre:split <span class="org-string">":"</span> (car (last (ppcre:split <span class="org-string">" "</span> match)))))))
@@ -3293,7 +3293,7 @@ it will regenerate the reference manual and include changes into the commit.
                     (setf text nil))))
 
                ((string-equal <span class="org-string">"\\x"</span> (car (ppcre:split <span class="org-string">" "</span> line)))
-                (ppcre:do-matches-as-strings (match <span class="org-string">"\\\\xo [0-9]{1,3}:[0-9]{1,3}"</span> line)
+                (<span class="org-keyword">ppcre:do-matches-as-strings</span> (match <span class="org-string">"\\\\xo [0-9]{1,3}:[0-9]{1,3}"</span> line)
                   (<span class="org-keyword">progn</span>
                     (setf chapter (parse-integer (car (cl-ppcre:split <span class="org-string">":"</span> (car (last (ppcre:split <span class="org-string">" "</span> match)))))))
                     (setf verse (parse-integer (cadr (cl-ppcre:split <span class="org-string">":"</span> (car (last (ppcre:split <span class="org-string">" "</span> match)))))))
