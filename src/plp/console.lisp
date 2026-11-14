@@ -206,6 +206,9 @@ row is left, the last card; INDEX itself where there is no row to go to."
          (parts '()) (places '())
          (cards '()) (live-card nil)
          (results '()) (result-rows '()) (selected 0)
+         ;; The song text that Save last held back as likely in the store
+         ;; already: Save on the same text again stores it.
+         (doubted nil)
          ;; Events come each in its own thread: one draws a list at a time.
          (lock (bordeaux-threads:make-recursive-lock "plp-console")))
     (declare (ignore screen-link))
@@ -551,16 +554,32 @@ row is left, the last card; INDEX itself where there is no row to go to."
       (click save-song
              (lambda ()
                (when (authorized)
-                 (let* ((parsed (song:parse-song (text-value editor)))
-                        (problems (song:song-problems parsed)))
-                   (if problems
-                       (say "~{~A~^~%~}" problems)
-                       (let ((id (db:save-song parsed))
-                             (showing (getf (live:snapshot room) :song)))
-                         (say "Saved as ~A." id)
-                         (when (and showing (equal (song:song-id showing) id))
-                           (live:show-song room id))
-                         (draw-results)))))))
+                 (let* ((text (text-value editor))
+                        (parsed (song:parse-song text))
+                        (problems (song:song-problems parsed))
+                        ;; A new song is looked for among those stored,
+                        ;; unless this very text was held back just before.
+                        (similar (and (not problems)
+                                      (not (equal text doubted))
+                                      (db:similar-songs parsed))))
+                   (cond (problems
+                          (say "~{~A~^~%~}" problems))
+                         (similar
+                          (setf doubted text)
+                          (say "Not saved: there ~:[are songs~;is a song~] like it already.~%~:{~@[~D. ~]~A (~A)~%~}Save again to add it all the same."
+                               (null (rest similar))
+                               (mapcar (lambda (entry)
+                                         (list (getf entry :number) (getf entry :title)
+                                               (getf entry :id)))
+                                       similar)))
+                         (t
+                          (let ((id (db:save-song parsed))
+                                (showing (getf (live:snapshot room) :song)))
+                            (setf doubted nil)
+                            (say "Saved as ~A." id)
+                            (when (and showing (equal (song:song-id showing) id))
+                              (live:show-song room id))
+                            (draw-results))))))))
       (click delete-song
              (lambda ()
                (when (authorized)

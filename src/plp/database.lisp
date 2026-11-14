@@ -21,6 +21,7 @@
            #:delete-song
            #:catalog
            #:search-songs
+           #:similar-songs
            #:all-tags
 
            #:save-setlist
@@ -171,11 +172,42 @@ the time taken does not tell how many were right."
                   :reviewed (reviewed-of vertex)
                   :tags (tags-of vertex)))
 
+(defun song-names (song)
+  "What SONG goes by, as slugs: its title, its title without what it has in
+parentheses, its other titles and its first line.  Two songs that share one
+are taken for the same song (SIMILAR-SONGS)."
+  (let ((title (or (song:song-title song) "")))
+    (remove-duplicates
+     (remove "" (mapcar #'song:slug
+                        (list* title
+                               (cl-ppcre:regex-replace-all "\\([^)]*\\)" title "")
+                               (or (song:song-first-line song) "")
+                               (song:song-alt-titles song)))
+             :test #'string=)
+     :test #'string=)))
+
+(defun song-line-keys (song)
+  "The distinct lines of SONG's words as slugs, so that they compare whatever
+their capitals and punctuation."
+  (remove-duplicates
+   (remove "" (loop for section in (song:song-sections song)
+                    append (loop for slide in (song:section-slides section)
+                                 append (mapcar #'song:slug slide)))
+           :test #'string=)
+   :test #'string=))
+
+(defun same-words-p (keys other-keys)
+  "True when KEYS and OTHER-KEYS (see SONG-LINE-KEYS) are likely the words of
+one song: they share two lines or more, and half the lines of the shorter."
+  (let ((shared (length (intersection keys other-keys :test #'string=))))
+    (and (>= shared 2)
+         (>= (* 2 shared) (min (length keys) (length other-keys))))))
+
 (defun catalog-entry (vertex)
   "What a search needs of the SONG vertex VERTEX: a plist of its :ID, :TITLE,
 :WRITERS, :NUMBER, :FIRST-LINE, :TAGS (as \"mass=Communion\"), :HAYSTACK, its
-number, titles and writers as the text a query is looked for in, and :LINES,
-every line of its words as (text-to-look-in . line)."
+number, titles and writers as the text a query is looked for in, :NAMES (see
+SONG-NAMES), :LINE-KEYS (see SONG-LINE-KEYS), and :LINES, every line of its words as (text-to-look-in . line)."
   (let* ((song (vertex-song vertex))
          (lines (loop for section in (song:song-sections song)
                       append (loop for slide in (song:section-slides section)
@@ -190,6 +222,8 @@ every line of its words as (text-to-look-in . line)."
                      (format nil "~@[~D ~]~A ~{~A ~}~@[~A~]"
                              (song:song-number song) (song:song-title song)
                              (song:song-alt-titles song) (song:song-writers song)))
+          :names (song-names song)
+          :line-keys (song-line-keys song)
           :lines (mapcar (lambda (line) (cons (string-downcase line) line)) lines))))
 
 (defun rebuild-catalog ()
@@ -302,6 +336,19 @@ writers lack, or else its first line."
                        ranks))))))
     (let ((found (mapcan #'nreverse ranks)))
       (subseq found 0 (min limit (length found))))))
+
+(defun similar-songs (song)
+  "The catalog entries that SONG, were it saved, would likely double: those
+that share a title, another title or the first line with it (SONG-NAMES), and
+those with much the same words under any title (SAME-WORDS-P).  NIL when SONG
+has the id of a stored song, which saving it would replace."
+  (unless (and (song:song-id song) (song-vertex (song:song-id song)))
+    (let ((names (song-names song))
+          (keys (song-line-keys song)))
+      (remove-if-not (lambda (entry)
+                       (or (intersection names (getf entry :names) :test #'string=)
+                           (same-words-p keys (getf entry :line-keys))))
+                     *catalog*))))
 
 (defun all-tags ()
   "Every tag as (category name note), by category and name."
