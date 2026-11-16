@@ -476,7 +476,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
     (ok (equal '("TABLE for Apr 20 to Apr 26")
                (sb::cmd-view (make-params "text" " Apr 20 to Apr 26 ")))))
   ;; the schedule is posted as it is listed, mrkdwn and all, with no code
-  ;; fences: a fenced table's rows wrap on a phone
+  ;; fences: the rows of a fixed-width table wrap on a phone
   (with-mocked-functions ((vb:view-schedule
                            (lambda (&optional range) (declare (ignore range))
                              (format t "*Mon Apr 20*~%• *8 am* · DGH · SHMS~%      MM~%")
@@ -526,50 +526,6 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
       (ok (<= (length p) 300)))
     (ok (equal lines
                (loop for p in (rest parts) append (cl-ppcre:split "\\n" p))))))
-
-(deftest code-block-chunks
-  ;; short text: one fenced part
-  (let ((parts (sb::code-block-chunks (format nil "a~%b~%"))))
-    (ok (= 1 (length parts)))
-    (ok (string= (format nil "```~%a~%b~%```") (first parts))))
-  ;; long text is split on line boundaries under the limit, each part
-  ;; repeating the header lines, and no row is lost or duplicated
-  (let* ((header (format nil "Date  Vehicle~%----  -------"))
-         (rows (loop for i from 1 to 40
-                     collect (format nil "row ~2d ~a" i (make-string 60 :initial-element #\x))))
-         (text (format nil "~a~%~{~a~%~}" header rows))
-         (parts (sb::code-block-chunks text :limit 1000 :header-lines 2)))
-    (ok (> (length parts) 1))
-    (dolist (p parts)
-      (ok (<= (length p) (+ 1000 8)))
-      (ok (uiop:string-prefix-p (format nil "```~%Date  Vehicle~%----  -------~%") p))
-      (ok (uiop:string-suffix-p p "```")))
-    (let ((all (apply #'concatenate 'string parts)))
-      (dolist (r rows)
-        (ok (= 1 (loop for start = (search r all) then (search r all :start2 (1+ start))
-                       while start count t))))))
-  ;; a split prefers the blank line between groups (the days of a schedule),
-  ;; so no part opens in the middle of a day or with a blank line
-  (let* ((header (format nil "  Vehicle  Destination~%  -------  -----------"))
-         (groups (loop for d from 1 to 8
-                       collect (format nil "Day ~d~%~{~a~%~}" d
-                                       (loop for r from 1 to 5
-                                             collect (format nil "  ROW ~d-~d ~a" d r
-                                                             (make-string 30 :initial-element #\z))))))
-         (text (format nil "~a~%~{~a~^~%~}" header groups))
-         (parts (sb::code-block-chunks text :limit 700 :header-lines 2)))
-    (ok (> (length parts) 1))
-    (dolist (p parts)
-      (let ((lines (uiop:split-string p :separator '(#\Newline))))
-        (ok (string= "```" (first lines)))
-        (ok (string= "  Vehicle  Destination" (second lines)))
-        (ok (uiop:string-prefix-p "Day " (fourth lines)))))
-    (let ((all (apply #'concatenate 'string parts)))
-      (loop for d from 1 to 8
-            for needle = (format nil "Day ~d~%" d)
-            do (ok (= 1 (loop for start = (search needle all)
-                              then (search needle all :start2 (1+ start))
-                              while start count t)))))))
 
 (deftest message-events
   (let ((posted '())
@@ -1125,7 +1081,9 @@ nothing held for anyone beforehand."
         (ok (listp reply))
         (ok (search "Booked on *Thursday April 9* so far" (first reply)))
         (ok (search "SHMS" (first reply)))
-        (ok (search "```" (first reply)))
+        ;; as /view lists a day, which reads on a phone: no code fences
+        (ok (search "• *" (first reply)))
+        (ng (search "```" (first reply)))
         (let ((last (car (last reply))))
           (ok (search "I'd book this trip" last))
           (ok (search "Dentist" last))

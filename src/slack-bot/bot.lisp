@@ -389,35 +389,26 @@ is not an answer."
   "The last line of every reply that leaves a booking waiting, so the way to
 answer is the last thing read.")
 
-(defun fenced-table (heading table &optional footer)
-  "TABLE, a schedule from FORMAT-SCHEDULE-TABLE, in code fences
-(CODE-BLOCK-CHUNKS) as a list of messages, with HEADING above the first and
-FOOTER, when given, below the last."
-  (let ((parts (code-block-chunks table :header-lines 2)))
-    (setf (first parts) (format nil "~a~%~a" heading (first parts)))
-    (when footer
-      (setf (car (last parts)) (format nil "~a~%~a" (car (last parts)) footer)))
-    parts))
-
 (defun confirmation-reply (proposal &key replaced)
   "The messages that put PROPOSAL to its asker: the day as booked now, then
 the trip as it would be written and how to answer.  REPLACED says PROPOSAL
 took the place of a booking that was still waiting."
   (let ((day (proposal-day proposal))
         (day-view (proposal-day-view proposal)))
-    (append
+    (list
      (if day-view
-         (fenced-table (format nil "Booked on *~a* so far:" day) day-view)
-         (list (format nil "Nothing is booked on *~a* yet." day)))
-     (fenced-table
-      (if (eq (proposal-action proposal) :join)
-          (format nil "I'd add ~{~a~^, ~} to this trip, which would then read:"
-                  (proposal-passengers proposal))
-          "I'd book this trip:")
-      (proposal-trip-view proposal)
-      (format nil "~:[Note: I can't read this trip's times as a window, so I haven't checked it against the other trips that day.~%~;~]~:[~;This replaces the booking you had waiting.~%~]Nothing is written until you answer, and I'll wait ~D minutes. To change something, reply `edit` and the change, e.g. ~a. If a plain reply doesn't reach me here, start it with `/book`, as in `/book y`.~2%~a"
-              (proposal-clash-checked-p proposal) replaced
-              *confirmation-minutes* +edit-examples+ +answer-reminder+)))))
+         (format nil "Booked on *~a* so far:~2%~a" day
+                 (string-right-trim '(#\Newline) day-view))
+         (format nil "Nothing is booked on *~a* yet." day))
+     (format nil "~a~2%~a~%~a"
+             (if (eq (proposal-action proposal) :join)
+                 (format nil "I'd add ~{~a~^, ~} to this trip, which would then read:"
+                         (proposal-passengers proposal))
+                 "I'd book this trip:")
+             (proposal-trip-view proposal)
+             (format nil "~:[Note: I can't read this trip's times as a window, so I haven't checked it against the other trips that day.~%~;~]~:[~;This replaces the booking you had waiting.~%~]Nothing is written until you answer, and I'll wait ~D minutes. To change something, reply `edit` and the change, e.g. ~a. If a plain reply doesn't reach me here, start it with `/book`, as in `/book y`.~2%~a"
+                     (proposal-clash-checked-p proposal) replaced
+                     *confirmation-minutes* +edit-examples+ +answer-reminder+)))))
 
 (defun propose-reply (text user-id)
   "Propose TEXT as a booking (PROPOSE-NATURAL) and return the reply.  When
@@ -867,43 +858,6 @@ PARSE-INITIAL's scan for an uppercase run, which is what lets a sentence
       ((cl-ppcre:scan "^[A-Za-z]{2,3}$" trimmed) (string-upcase trimmed))
       ((cl-ppcre:scan "^[A-Za-z]+$" trimmed) nil)
       (t (parse-initial trimmed)))))
-
-(defun code-block-chunks (text &key (limit 3500) (header-lines 0))
-  "Wrap TEXT in Slack code fences so a fixed-width table keeps its columns in
-the proportional-font chat view.  Slack splits or truncates messages past
-4000 characters, which would cut a code block in two, so TEXT longer than
-LIMIT characters is split into several fenced strings, each repeating the
-first HEADER-LINES lines (column titles and rule) so every part reads on its
-own.  A split lands on the last blank line of the part when there is one (the
-gap between two days of a schedule), otherwise between lines.  Returns a list
-of strings."
-  (let* ((lines (cl-ppcre:split "\\n" (string-right-trim '(#\Newline #\Space) text)))
-         (header (subseq lines 0 (min header-lines (length lines))))
-         (body (nthcdr (length header) lines))
-         (chunks '())
-         (current '())                  ; body lines of the open part, newest first
-         (size 0))
-    (flet ((fence (body-lines)
-             (format nil "```~%~{~a~%~}```" (append header body-lines)))
-           (line-size (line) (1+ (length line))))
-      (setf size (reduce #'+ header :key #'line-size :initial-value 0))
-      (dolist (line body)
-        (when (and current (> (+ size (line-size line)) limit))
-          (let* ((ordered (reverse current))
-                 (blank (position "" ordered :test #'string= :from-end t))
-                 (split-at-blank (and blank (plusp blank)))
-                 (kept (if split-at-blank (subseq ordered 0 blank) ordered))
-                 (carried (if split-at-blank (subseq ordered (1+ blank)) '())))
-            (push (fence kept) chunks)
-            (setf current (reverse carried)
-                  size (reduce #'+ (append header carried)
-                               :key #'line-size :initial-value 0))))
-        ;; a part never opens with the blank line that closed the previous one
-        (unless (and (null current) (string= line ""))
-          (push line current)
-          (incf size (line-size line))))
-      (push (fence (reverse current)) chunks))
-    (nreverse chunks)))
 
 (defun message-chunks (text &key (limit 3500))
   "TEXT as a list of messages of at most LIMIT characters each, for a reply

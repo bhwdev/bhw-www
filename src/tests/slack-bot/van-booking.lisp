@@ -119,7 +119,15 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
                   '("Monday March 30           Monday March 30" "" "Chevy"))))
     (ng (vb::extract-day-from-header '("" "" "Chevy")))
     (ok (string= "Tuesday April 7"
-                 (vb::extract-day-from-header '("Tuesday April 7" "" "Chevy"))))))
+                 (vb::extract-day-from-header '("Tuesday April 7" "" "Chevy")))))
+  (testing "a double space inside the label (the Nov 16-22 tab's Monday)"
+    (ok (string= "Monday November 16"
+                 (vb::extract-day-from-header
+                  '("Monday November  16             Monday November  16" "" "Chevy")))))
+  (testing "a cell of another shape is still cut at its first double space"
+    (ok (string= "Week of the 16th"
+                 (vb::extract-day-from-header
+                  '("Week of the 16th   Week of the 16th" "" "Chevy"))))))
 
 ;;; --- Unit tests: collect-passengers ---
 
@@ -842,96 +850,12 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
     (ok (< (vb::departure-minutes "12:35 pm")
            (vb::departure-minutes "5:35 pm"))))
 
-  (testing "truncate-cell"
-    (ok (string= "hello"     (vb::truncate-cell "hello" 10)))
-    (ok (string= "hello"     (vb::truncate-cell "hello" 5)))
-    (ok (string= "hel..."    (vb::truncate-cell "hello world" 6)))
-    (ok (string= ""          (vb::truncate-cell "" 5)))
-    (ok (string= ""          (vb::truncate-cell nil 5))))
-
   (testing "booked-trip-p"
     (ok (vb::booked-trip-p (make-trip :destination "SHMS" :departure "")))
     (ok (vb::booked-trip-p (make-trip :destination "" :departure "8 am")))
     (ok (vb::booked-trip-p (make-trip :destination "SHMS" :departure "8 am")))
     (ng (vb::booked-trip-p (make-trip :destination "" :departure "")))
     (ng (vb::booked-trip-p (make-trip :destination nil :departure nil))))
-
-  (testing "format-schedule-table-shape"
-      (let* ((trips (list (make-trip :day "Monday April 20" :vehicle :dgh
-                                     :destination "SHMS" :departure "8:35 am"
-                                     :return-time "10:30 am"
-                                     :dep-passengers '("MM" "DM")
-                                     :ret-passengers '("MM" "DM" "BW"))))
-             (out (vb::format-schedule-table trips)))
-        ;; titles and rule are indented like the rows; the day is a flush-left
-        ;; heading over them
-        (ok (uiop:string-prefix-p "  Vehicle  " out))
-        (ok (search (format nil "~%Mon Apr 20~%  DGH") out))
-        (ok (search "Destination" out))
-        (ok (search "Dep Pax" out))
-        (ok (search "Ret Pax" out))
-        (ok (search "Mon Apr 20" out))
-        (ok (search "DGH" out))
-        (ok (search "SHMS" out))
-        (ok (search "8:35 am" out))
-        (ok (search "MM, DM" out))
-        (ok (search "MM, DM, BW" out))
-        ;; separator row present
-        (ok (search "---" out))))
-
-  (testing "format-schedule-table-caps-columns"
-      ;; Destination, Dep and Ret size themselves to their longest cell only up
-      ;; to *COLUMN-WIDTH-CAPS*: longer cells are shortened with "..." and the
-      ;; values stay under their titles.
-    (let* ((dest-cap (cdr (assoc "Destination" vb::*column-width-caps* :test #'string=)))
-           (ret-cap (cdr (assoc "Ret" vb::*column-width-caps* :test #'string=)))
-           (long-dest (make-string 60 :initial-element #\X))
-           (long-ret "after reception (around 2:30 pm)")
-           (trips (list (make-trip :day "Monday April 20" :vehicle :dgh
-                                   :destination long-dest :departure "8 am"
-                                   :return-time long-ret
-                                   :dep-passengers '("MM"))
-                        (make-trip :day "Tuesday April 21" :vehicle :lgh
-                                   :destination "SHMS" :departure "9 am"
-                                   :return-time "11 am"
-                                   :dep-passengers '("BW"))))
-           (out (vb::format-schedule-table trips))
-           (lines (cl-ppcre:split "\\n" out))
-           (header (first lines)))
-      (ng (search long-dest out))
-      (ng (search long-ret out))
-      (ok (search (concatenate 'string
-                               (make-string (- dest-cap 3) :initial-element #\X) "...")
-                  out))
-      (ok (search (concatenate 'string (subseq long-ret 0 (- ret-cap 3)) "...") out))
-      ;; lines: titles, rule, "Mon Apr 20", row, "", "Tue Apr 21", row
-      (let ((dep-col (search "Dep " header))
-            (ret-col (search "Ret " header))
-            (pax-col (search "Dep Pax" header))
-            (row1 (nth 3 lines))
-            (row2 (nth 6 lines)))
-        (ok (= dep-col (search "8 am" row1)))
-        (ok (= ret-col (search "after rec" row1)))
-        (ok (= pax-col (search "MM" row1)))
-        (ok (= dep-col (search "9 am" row2)))
-        (ok (= ret-col (search "11 am" row2)))
-        (ok (= pax-col (search "BW" row2)))))
-    ;; a destination exactly at the cap renders in full
-    (let* ((at-cap (make-string (cdr (assoc "Destination" vb::*column-width-caps*
-                                            :test #'string=))
-                                :initial-element #\Y))
-           (out (vb::format-schedule-table
-                 (list (make-trip :day "Monday April 20" :vehicle :dgh
-                                  :destination at-cap :departure "8 am"
-                                  :return-time "10 am" :dep-passengers '("MM"))))))
-      (ok (search at-cap out))
-      (ng (search "..." out)))
-    ;; short destinations keep the narrower, content-sized column
-    (let ((out (vb::format-schedule-table
-                (list (make-trip :day "Monday April 20" :vehicle :dgh
-                                 :destination "SHMS" :departure "8 am"
-                                 :return-time "10 am" :dep-passengers '("MM"))))))
-      (ok (search "Destination  Dep" out))))
 
   (testing "view-schedule-default-today"
       ;; With an empty sheet, view-schedule returns the "no trips" message.
@@ -1042,31 +966,6 @@ by date, so they neither depend on the live spreadsheet's tabs nor fetch them.")
     ;; no line is wider than a phone shows without wrapping, the long note aside
     (dolist (line (remove-if (lambda (line) (search "reception" line)) lines))
       (ok (<= (length line) 36)))))
-
-(deftest format-schedule-table-groups-by-day
-  (let* ((trips (list (make-trip :day "Monday April 20" :vehicle :dgh :destination "SHMS"
-                                 :departure "8 am" :return-time "10 am" :dep-passengers '("MM"))
-                      (make-trip :day "Monday April 20" :vehicle :lgh :destination "Bank"
-                                 :departure "1 pm" :return-time "2 pm" :dep-passengers '("DM"))
-                      (make-trip :day "Tuesday April 21" :vehicle :chevy :destination "Pool"
-                                 :departure "9 am" :return-time "11 am" :dep-passengers '("CG"))))
-         (out (vb::format-schedule-table trips))
-         (lines (cl-ppcre:split "\\n" out)))
-    ;; titles and rule first, indented like the rows
-    (ok (uiop:string-prefix-p "  Vehicle  Destination  " (first lines)))
-    (ok (uiop:string-prefix-p "  -------  -----------  " (second lines)))
-    ;; one flush-left heading per day over its indented rows, a blank line
-    ;; between days, and the date nowhere else
-    (ok (equal '("Mon Apr 20" "  DGH" "  LGH" "" "Tue Apr 21" "  CHEVY")
-               (mapcar (lambda (line)
-                         (if (uiop:string-prefix-p "  " line)
-                             (subseq line 0 (position #\Space line :start 2))
-                             line))
-                       (nthcdr 2 lines))))
-    (ok (= 1 (count "Apr 20" lines :test #'search)))
-    ;; no trailing spaces on any line
-    (dolist (line lines)
-      (ok (string= line (string-right-trim " " line))))))
 
 (deftest phrase-date-range-tests
   ;; Pinned to Wednesday April 22 2026 so the sample sheets "Apr 20-26" and
@@ -1864,7 +1763,9 @@ BOOKING-INCOMPLETE signalled, if any."
         (ok (search "DGH" view))
         (ok (search "Dentist" view))
         (ok (search "8:00 am" view))
-        (ok (search "BW, CG" view)))
+        (ok (search "BW, CG" view))
+        ;; the list /view gives, not a table
+        (ok (uiop:string-prefix-p (format nil "*Thu Apr 9*~%• *8:00 am ") view)))
       ;; nothing is booked that day yet
       (ng (vb:proposal-day-view proposal))
       ;; the write is BOOK's, after one re-read of the sheet

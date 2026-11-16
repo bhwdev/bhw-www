@@ -158,11 +158,20 @@ is that short."
 
 (defun extract-day-from-header (row)
   "Extract day string from the merged header row (col A has repeated day text).
-   Returns e.g. \"Monday March 30\" or NIL."
+   Returns e.g. \"Monday March 30\" or NIL.  The label is read by its shape,
+   weekday, month and day, and given back with single spaces: the copies of
+   it in the cell are separated by runs of spaces, but a label typed by hand
+   can hold a double space too (\"Monday November  16\" on 2026-11-16), and
+   cutting at the first double space made that day \"Monday November\", which
+   no day matched, so its trips were neither reminded nor found.  A cell of
+   another shape is cut at its first double space, as before."
   (let ((cell (row-cell row 0)))
     (when (non-blank-p cell)
-      (let ((pos (search "  " cell)))
-        (if pos (subseq cell 0 pos) cell)))))
+      (or (cl-ppcre:register-groups-bind (weekday month day)
+              ("^([A-Za-z]+)\\s+([A-Za-z]+)\\s+(\\d{1,2})(?!\\d)" cell)
+            (format nil "~a ~a ~a" weekday month day))
+          (let ((pos (search "  " cell)))
+            (if pos (subseq cell 0 pos) cell))))))
 
 (defun header-cell-p (cell)
   "Return T if CELL looks like a block header rather than a passenger initial."
@@ -1207,80 +1216,14 @@ year like the ranges in *WEEKS*, or NIL when it does not read as a day."
    to use where an unreadable time must not pass for midnight."
   (or (parse-clock time-str) 0))
 
-(defun truncate-cell (s width)
-  "Truncate S to WIDTH chars, appending '...' when shortened."
-  (let ((s (or s "")))
-    (if (> (length s) width)
-        (concatenate 'string (subseq s 0 (max 0 (- width 3))) "...")
-        s)))
-
 (defun booked-trip-p (trip)
   "Return T if TRIP has any booking data (destination or departure time)."
   (or (non-blank-p (trip-destination trip))
       (non-blank-p (trip-departure trip))))
 
-(defparameter *column-width-caps*
-  '(("Destination" . 24) ("Dep" . 12) ("Ret" . 12))
-  "Widest each named column of FORMAT-SCHEDULE-TABLE grows.  A column sizes
-itself to its longest cell up to its cap; longer cells are shortened with
-\"...\" (see TRUNCATE-CELL) so one long note on the sheet, such as \"SHMS &
-Appt approved (Not returning from SHMS)\" or \"after reception (around 2:30
-pm)\", does not widen every row past what Slack shows without wrapping inside
-a code block.  Times such as \"12:00 pm\" fit the Dep and Ret caps.")
-
-(defun format-schedule-table (trips)
-  "Render TRIPS as a plaintext fixed-width table grouped by day. Returns the
-   full string.  The column titles (Vehicle, Destination, Dep, Ret, Dep Pax,
-   Ret Pax) and their rule come first; then each day is a flush-left heading
-   such as \"Tue Sep 8\" over its indented rows, with a blank line between
-   days, so the eye finds a day without reading a date on every row.  TRIPS
-   must already be ordered by day.  Columns size themselves to their content
-   up to *COLUMN-WIDTH-CAPS*, and lines carry no trailing spaces."
-  (let* ((headers '("Vehicle" "Destination" "Dep" "Ret" "Dep Pax" "Ret Pax"))
-         (rows (mapcar
-                (lambda (tr)
-                  (list (string-upcase (symbol-name (trip-vehicle tr)))
-                        (or (trip-destination tr) "")
-                        (or (trip-departure tr) "")
-                        (or (trip-return-time tr) "")
-                        (format nil "~{~a~^, ~}" (trip-dep-passengers tr))
-                        (format nil "~{~a~^, ~}" (trip-ret-passengers tr))))
-                trips))
-         (widths
-           (loop for header in headers
-                 for i from 0
-                 for content-width = (max (length header)
-                                          (reduce #'max rows
-                                                  :key (lambda (r) (length (nth i r)))
-                                                  :initial-value 0))
-                 for cap = (cdr (assoc header *column-width-caps* :test #'string=))
-                 collect (if cap (min content-width cap) content-width)))
-         (out (make-string-output-stream)))
-    (labels ((emit-cells (cells)
-               (let ((line (with-output-to-string (s)
-                             (write-string "  " s)
-                             (loop for cell in cells
-                                   for w in widths
-                                   for i from 0
-                                   do (format s "~vA" w (truncate-cell cell w))
-                                      (when (< i (1- (length widths)))
-                                        (write-string "  " s))))))
-                 (format out "~a~%" (string-right-trim " " line)))))
-      (emit-cells headers)
-      (emit-cells (mapcar (lambda (w) (make-string w :initial-element #\-)) widths))
-      (let ((previous-day nil))
-        (loop for tr in trips
-              for cells in rows
-              do (unless (equal (trip-day tr) previous-day)
-                   (when previous-day (terpri out))
-                   (format out "~a~%" (format-short-date (trip-day tr)))
-                   (setf previous-day (trip-day tr)))
-                 (emit-cells cells))))
-    (get-output-stream-string out)))
-
 (defun format-schedule-list (trips)
-  "Render TRIPS as Slack mrkdwn that reads on a phone, where the rows of
-FORMAT-SCHEDULE-TABLE are wider than the screen and wrap.  Each day is a bold
+  "Render TRIPS as Slack mrkdwn that reads on a phone, where the rows of a
+fixed-width table are wider than the screen and wrap.  Each day is a bold
 heading such as \"*Tue Sep 8*\", with a blank line between days; under it each
 trip is a bullet -- its times in bold, then the vehicle and the destination --
 and, on the line below, its passengers, driver first:
@@ -1374,17 +1317,18 @@ first."
 
 (defun proposal-day-view (proposal)
   "The trips already booked on PROPOSAL's day, in the schedule it was decided
-against, as a table (FORMAT-SCHEDULE-TABLE), or NIL when none is."
+against, listed as VIEW-SCHEDULE lists them (FORMAT-SCHEDULE-LIST), or NIL
+when none is."
   (let ((booked (remove-if-not #'booked-trip-p
                                (find-trips (proposal-trips proposal)
                                            :day (proposal-day proposal)))))
     (when booked
-      (format-schedule-table (sort booked #'schedule-order)))))
+      (format-schedule-list (sort booked #'schedule-order)))))
 
 (defun proposal-trip-view (proposal)
-  "PROPOSAL's trip as it will read once written, as a table
-(FORMAT-SCHEDULE-TABLE)."
-  (format-schedule-table (list (proposal-trip proposal))))
+  "PROPOSAL's trip as it will read once written, listed as VIEW-SCHEDULE
+lists one (FORMAT-SCHEDULE-LIST)."
+  (format-schedule-list (list (proposal-trip proposal))))
 
 (defun proposal-clash-checked-p (proposal)
   "True when PROPOSAL's times could be read as a window, so that it was
