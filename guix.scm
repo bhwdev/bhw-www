@@ -28,8 +28,10 @@
       (const #t)))
 
 (define-public sbcl-graph-db
-  (let ((commit "bf2b972821da0ce9e0c5fe4bd4e6bb22b2b9ae39") ; v5.0.0
-        (revision "0"))
+  ;; v5.0.0 with #492 and #493 (on the experiment branch): the core no
+  ;; longer depends on cl-fad or cl-json.
+  (let ((commit "f91bf1b3c109fb551f76e74535cbc2c9f35be559")
+        (revision "1"))
     (package
       (name "sbcl-graph-db")
       (version (git-version "5.0.0" revision commit))
@@ -41,7 +43,7 @@
                (commit commit)))
          (file-name (git-file-name "cl-graph-db" version))
          (sha256
-          (base32 "0kxq07714rn95x6sglva0wcb7cm8hmi6k4kdyk82zfxgw1900zhj"))))
+          (base32 "0mnpzxrq0h9zmpb9q1rkjqpida0isw9ldpdfr3x2cgsybc5h41js"))))
       (build-system asdf-build-system/sbcl)
       (arguments
        ;; The engine and its replication transport only.  The full
@@ -54,8 +56,6 @@
        (list sbcl-alexandria
              sbcl-bordeaux-threads
              sbcl-cffi
-             sbcl-cl-fad
-             sbcl-cl-json
              sbcl-cl-ppcre
              sbcl-cl-store
              sbcl-ieee-floats
