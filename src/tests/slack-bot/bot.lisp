@@ -3,7 +3,7 @@
 
 (uiop:define-package #:bhw/tests/slack-bot/bot
   (:use #:common-lisp)
-  (:import-from #:rove #:deftest #:ok #:ng #:fail)
+  (:import-from #:rove #:deftest #:ok #:ng #:fail #:signals)
   (:local-nicknames (#:sb #:bhw/slack-bot/bot)
                     (#:db #:bhw/slack-bot/database)
                     (#:vb #:bhw/slack-bot/van-booking)
@@ -15,6 +15,7 @@
   (:import-from #:com.inuoe.jzon)
   (:import-from #:dexador)
   (:import-from #:flexi-streams)
+  (:import-from #:graph-db)
   (:import-from #:ironclad)
   (:documentation
    "Tests for bhw/slack-bot/bot.
@@ -145,6 +146,20 @@ WITH-MOCKED-FUNCTIONS."))
     (ng (find +test-user-id+ (db:all-slack-subscriptions)
               :key #'car :test #'string=))
     (ng (db:remove-slack-subscription +test-user-id+))))
+
+;; A Slack user id is one user whatever its case: it finds and updates the
+;; one vertex, and the store refuses a second.
+(deftest user-ids-are-unique-whatever-their-case
+  (with-temp-database
+    (db:add-slack-subscription "UABC123" "BW")
+    (ok (string= "BW" (db:initial-of (db:find-slack-subscription "uabc123"))))
+    (db:add-slack-subscription "uabc123" "CG")
+    (ok (equal '(("UABC123" . "CG")) (db:all-slack-subscriptions)))
+    (ok (signals (let ((graph-db:*graph* db:*database*))
+                   (graph-db:with-transaction ()
+                     (db:make-slack-subscription :user-id "Uabc123" :initial "DM")))
+                 'graph-db:unique-constraint-violation))
+    (ok (equal '(("UABC123" . "CG")) (db:all-slack-subscriptions)))))
 
 ;;; --- Where the store lives ---
 

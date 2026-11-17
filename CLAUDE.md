@@ -44,7 +44,14 @@ presenter's `/plp-images/` before CLOG,
 and sends files with ETags (its `serve-static-file` method). Those handlers
 take a request plist and return `(status headers body)`; `request-env` and
 `reply` convert, so they are tested without a server. `store.lisp` is the
-graph-db plumbing the stores share (one system directory per process). Pages
+graph-db plumbing the stores share (one system directory per process). A
+vertex is found by its key through a unique constraint, read with
+`graph-db:unique-lookup`: a `:unique` slot, or `def-unique` for a key of two
+slots or more (graph-db 5.0.0 cannot read a one-slot `def-unique`).
+`open-store` rebuilds their indexes, as graph-db's open builds no `:unique`
+missing from a store's `unique-indexes.dat` (one added later, or dropped by
+a rollback's older build); that reads the whole store, so the read-only
+bible keeps its own table of verse ids instead. Pages
 run no script of the site's own (CLOG's own runtime aside): the colour theme
 is a cookie set by POST /theme (`site/layout`), and the index's slideshow and
 greeting are CSS.

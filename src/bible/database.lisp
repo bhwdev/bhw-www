@@ -44,8 +44,11 @@ checkout) simply has no bible, and OPEN-DATABASE returns NIL there."))
 (defvar *database* nil
   "The open bible store, or NIL before OPEN-DATABASE or without a store.")
 
-;;; Schema.  OPEN-GRAPH and MAKE-GRAPH attach the types and views declared
-;;; for the store named :BIBLE.
+;;; Schema.  OPEN-GRAPH and MAKE-GRAPH attach the types declared for the
+;;; store named :BIBLE.  A verse is found by its UNIQUE-ID through
+;;; +BIBLE-UID-TO-ID+, not a unique constraint: the store is read-only, and
+;;; LOAD-TABLES reads every verse anyway, where rebuilding a constraint's
+;;; index at each open (BHW/STORE:OPEN-STORE) would take as long again.
 
 (graph-db:def-vertex bible-metadata ()
   ((book-numbers :accessor book-numbers-of)
@@ -60,13 +63,6 @@ checkout) simply has no bible, and OPEN-DATABASE returns NIL there."))
    (cross-references :accessor cross-references-of :type (or string null))
    (footnotes        :accessor footnotes-of        :type (or string null)))
   :bible)
-
-(graph-db:def-view bible-by-uid :lessp (bible :bible)
-  (:map
-   (lambda (v)
-     (let ((uid (graph-db:node-slot-value v :unique-id)))
-       (when uid
-         (graph-db:yield uid nil))))))
 
 ;;; Lookup tables, filled from the store by OPEN-DATABASE.
 
@@ -85,6 +81,9 @@ checkout) simply has no bible, and OPEN-DATABASE returns NIL there."))
 (defparameter +bible-uid-to-heading+ (make-hash-table :test 'eql)
   "Maps bible unique IDs to heading alists.")
 
+(defparameter +bible-uid-to-id+ (make-hash-table :test 'eql)
+  "Maps bible unique IDs to the ids of their vertices in the store.")
+
 (defvar *bible-obj-cache* (make-hash-table :test 'eql :size 40000)
   "UID -> BIBLE vertex, memoized by BIBLE-OBJ-WITH-ID.  Safe because the store
 is read-only at runtime; CLOSE-DATABASE empties it.")
@@ -98,6 +97,7 @@ alist, as three values."
   "Fill the lookup tables from *DATABASE* in one pass over its BIBLE vertices."
   (let ((heading-to-uid (make-hash-table :test 'equalp :size 40000))
         (uid-to-heading (make-hash-table :test 'eql :size 40000))
+        (uid-to-id (make-hash-table :test 'eql :size 40000))
         (metadata (first (graph-db:map-vertices #'identity *database*
                                                 :vertex-type 'bible-metadata
                                                 :collect-p t))))
@@ -105,6 +105,8 @@ alist, as three values."
      (lambda (v)
        (let ((heading (heading-of v))
              (uid (unique-id-of v)))
+         (when uid
+           (setf (gethash uid uid-to-id) (graph-db:id v)))
          (when (and heading uid)
            (setf (gethash (multiple-value-list (heading-numbers heading))
                           heading-to-uid)
@@ -116,7 +118,8 @@ alist, as three values."
           +bible-chapter-url-alist+ (and metadata (chapter-urls-of metadata))
           +bible-book-url-alist+ (and metadata (book-urls-of metadata))
           +bible-heading-to-uid+ heading-to-uid
-          +bible-uid-to-heading+ uid-to-heading)))
+          +bible-uid-to-heading+ uid-to-heading
+          +bible-uid-to-id+ uid-to-id)))
 
 (defun open-database ()
   "Open the bible store and fill the lookup tables from it.  Returns the
@@ -124,6 +127,8 @@ store, or NIL when there is none at *STORE-PATH*."
   (close-database)
   (when (store:store-exists-p *store-path*)
     (setf *database* (store:open-store :bible *store-path*))
+    ;; Before 2026-11-17 a view found a verse by its UNIQUE-ID.
+    (store:delete-views *database* '((bible bible-by-uid)))
     (load-tables)
     *database*))
 
@@ -135,6 +140,7 @@ store, or NIL when there is none at *STORE-PATH*."
 (defun bible-obj-with-id (bible-uid)
   "Return the BIBLE vertex whose UNIQUE-ID is BIBLE-UID, or NIL."
   (or (gethash bible-uid *bible-obj-cache*)
-      (let ((vertex (store:find-by-view *database* 'bible 'bible-by-uid bible-uid)))
+      (let* ((id (gethash bible-uid +bible-uid-to-id+))
+             (vertex (and id (graph-db:lookup-vertex id :graph *database*))))
         (when vertex
           (setf (gethash bible-uid *bible-obj-cache*) vertex)))))

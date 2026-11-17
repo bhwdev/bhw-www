@@ -37,7 +37,9 @@ is one heading of the chord book's indices (category and name: :TEMPO
 \"Slow\", :MASS \"Communion\", :LITURGY \"Advent\"), and a TAGGED edge runs
 from a song to each of its tags.  A SETLIST vertex holds a named, ordered
 list of song ids, each with a note, and how far from its written key each
-is played.
+is played.  No two songs share an id, no two setlists an id (the slug of
+the name) and no two tags a category and name: the store refuses a
+transaction that would make them.
 
 The package's name is part of the store: graph-db spells a stored symbol
 with it.  Do not rename it.
@@ -91,7 +93,7 @@ the time taken does not tell how many were right."
 ;;; Schema
 
 (graph-db:def-vertex song ()
-  ((song-id    :accessor song-id-of    :type string)
+  ((song-id    :accessor song-id-of    :type string :unique t)
    (title      :accessor title-of)
    (alt-titles :accessor alt-titles-of)
    (writers    :accessor writers-of)
@@ -110,8 +112,10 @@ the time taken does not tell how many were right."
    (note     :accessor note-of))
   :plp)
 
+(graph-db:def-unique tag (category name) :plp)
+
 (graph-db:def-vertex setlist ()
-  ((setlist-id :accessor setlist-id-of :type string)
+  ((setlist-id :accessor setlist-id-of :type string :unique t)
    (name       :accessor name-of)
    (date       :accessor date-of)
    (items      :accessor items-of))
@@ -119,32 +123,10 @@ the time taken does not tell how many were right."
 
 (graph-db:def-edge tagged () () :plp)
 
-(graph-db:def-view song-by-id :lessp (song :plp)
-  (:map
-   (lambda (v)
-     (let ((id (graph-db:node-slot-value v :song-id)))
-       (when id
-         (graph-db:yield id nil))))))
-
-(graph-db:def-view tag-by-key :lessp (tag :plp)
-  (:map
-   (lambda (v)
-     (let ((category (graph-db:node-slot-value v :category))
-           (name (graph-db:node-slot-value v :name)))
-       (when (and category name)
-         (graph-db:yield (format nil "~(~A~)=~A" category name) nil))))))
-
-(graph-db:def-view setlist-by-id :lessp (setlist :plp)
-  (:map
-   (lambda (v)
-     (let ((id (graph-db:node-slot-value v :setlist-id)))
-       (when id
-         (graph-db:yield id nil))))))
-
 ;;; Songs
 
 (defun song-vertex (id)
-  (store:find-by-view *database* 'song 'song-by-id id))
+  (graph-db:unique-lookup *database* 'song 'song-id id))
 
 (defun tag-key (tag)
   (format nil "~(~A~)=~A" (first tag) (second tag)))
@@ -245,7 +227,7 @@ SONG-NAMES), :LINE-KEYS (see SONG-LINE-KEYS), and :LINES, every line of its word
 (defun ensure-tag (tag)
   "The TAG vertex of TAG, (category name note), made when there is none."
   (destructuring-bind (category name &optional note) tag
-    (or (store:find-by-view *database* 'tag 'tag-by-key (tag-key tag))
+    (or (graph-db:unique-lookup *database* 'tag '(category name) (list category name))
         (make-tag :category category :name name :note note))))
 
 (defun unused-id (title)
@@ -371,7 +353,7 @@ left out."
 ;;; Setlists
 
 (defun setlist-vertex (id)
-  (store:find-by-view *database* 'setlist 'setlist-by-id id))
+  (graph-db:unique-lookup *database* 'setlist 'setlist-id id))
 
 (defun setlist-plist (vertex)
   "The setlist that VERTEX stores, as a plist.  The vertex has one slot for
@@ -435,6 +417,9 @@ Returns its id, the name's slug."
   "Open the store, creating it when it does not exist yet."
   (close-database)
   (setf *database* (store:open-store :plp (store-path)))
+  ;; Before 2026-11-17 views found a vertex by its key.
+  (store:delete-views *database* '((song song-by-id) (tag tag-by-key)
+                                   (setlist setlist-by-id)))
   (rebuild-catalog)
   *database*)
 

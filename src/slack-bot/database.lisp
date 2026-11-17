@@ -45,7 +45,11 @@ subscribed to reminder DMs, and which initials each Slack account goes by."))
 (defun open-database ()
   "Open the bot's store, creating it when it does not exist yet."
   (close-database)
-  (setf *database* (store:open-store :slack-bot (store-path))))
+  (setf *database* (store:open-store :slack-bot (store-path)))
+  ;; Before 2026-11-17 views found a vertex by its user id.
+  (store:delete-views *database* '((slack-subscription subscription-by-user-ci)
+                                   (slack-identity identity-by-user-ci)))
+  *database*)
 
 (defun close-database ()
   "Close the bot's store if it is open."
@@ -56,35 +60,21 @@ subscribed to reminder DMs, and which initials each Slack account goes by."))
 ;;; /unsubscribe must not cost someone their identity.
 
 (graph-db:def-vertex slack-subscription ()
-  ((user-id :accessor user-id-of :type string)
+  ((user-id :accessor user-id-of :type string :unique string-downcase)
    (initial :accessor initial-of :type string))
   :slack-bot)
 
 (graph-db:def-vertex slack-identity ()
-  ((user-id :accessor user-id-of :type string)
+  ((user-id :accessor user-id-of :type string :unique string-downcase)
    (initial :accessor initial-of :type string))
   :slack-bot)
 
-(graph-db:def-view subscription-by-user-ci :lessp (slack-subscription :slack-bot)
-  (:map
-   (lambda (s)
-     (let ((uid (graph-db:node-slot-value s :user-id)))
-       (when uid
-         (graph-db:yield (string-downcase uid) nil))))))
+;;; Both registries work alike: one vertex per Slack user, its user id
+;;; unique whatever its case.
 
-(graph-db:def-view identity-by-user-ci :lessp (slack-identity :slack-bot)
-  (:map
-   (lambda (s)
-     (let ((uid (graph-db:node-slot-value s :user-id)))
-       (when uid
-         (graph-db:yield (string-downcase uid) nil))))))
-
-;;; Both registries work alike: one vertex per Slack user, found by a
-;;; case-insensitive view on its user id.
-
-(defun find-by-user (type view user-id)
-  "The TYPE vertex for USER-ID, looked up through VIEW, or NIL."
-  (store:find-by-view *database* type view (string-downcase user-id)))
+(defun find-by-user (type user-id)
+  "The TYPE vertex for USER-ID, or NIL."
+  (graph-db:unique-lookup *database* type 'user-id user-id))
 
 (defun all-of-type (type)
   "An alist of (user-id . initial) for every TYPE vertex."
@@ -119,7 +109,7 @@ when there was one."
 
 (defun find-slack-subscription (user-id)
   "The SLACK-SUBSCRIPTION vertex for USER-ID, or NIL."
-  (find-by-user 'slack-subscription 'subscription-by-user-ci user-id))
+  (find-by-user 'slack-subscription user-id))
 
 (defun all-slack-subscriptions ()
   "An alist of (user-id . initial) for every subscription."
@@ -138,7 +128,7 @@ when there was one."
 
 (defun find-slack-identity (user-id)
   "The SLACK-IDENTITY vertex for USER-ID, or NIL."
-  (find-by-user 'slack-identity 'identity-by-user-ci user-id))
+  (find-by-user 'slack-identity user-id))
 
 (defun all-slack-identities ()
   "An alist of (user-id . initial) for every registered identity."

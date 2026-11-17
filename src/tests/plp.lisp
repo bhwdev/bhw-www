@@ -3,8 +3,9 @@
 
 (uiop:define-package #:bhw/tests/plp
   (:use #:common-lisp)
-  (:import-from #:rove #:deftest #:ok #:ng #:testing)
+  (:import-from #:rove #:deftest #:ok #:ng #:testing #:signals)
   (:import-from #:bhw/tests/test-utils #:with-temp-data-root)
+  (:import-from #:graph-db)
   (:local-nicknames (#:song #:bhw/plp/song)
                     (#:db #:bhw/plp/database)
                     (#:import #:bhw/plp/import)
@@ -439,6 +440,30 @@ CCLI Song #43192. CCLI License #0000."
         (ok (db:delete-song grace))
         (ng (db:delete-song grace))
         (ok (null (db:find-song grace)))))))
+
+(defmacro in-transaction (&body body)
+  `(let ((graph-db:*graph* db:*database*))
+     (graph-db:with-transaction () ,@body)))
+
+;; A key is held by one vertex at most: the store refuses a transaction that
+;; would make a second, and keeps the first as it was.
+(deftest keys-are-unique
+  (with-store
+    (let* ((abide (song:parse-song *abide*))
+           (id (db:save-song abide)))
+      (db:save-setlist "Friday Adoration" (list (cons id "")))
+      (ok (signals (in-transaction (db::make-song :song-id id :title "Another"))
+                   'graph-db:unique-constraint-violation))
+      (ok (signals (in-transaction (db::make-setlist :setlist-id "friday-adoration"))
+                   'graph-db:unique-constraint-violation))
+      (ok (signals (in-transaction (db::make-tag :category :liturgy :name "Christmas"))
+                   'graph-db:unique-constraint-violation))
+      (ok (in-transaction (db::make-tag :category :mass :name "Christmas"))
+          "a name is unique within its category")
+      (ok (equal (song:song-title abide) (song:song-title (db:find-song id))))
+      (ok (= 1 (length (graph-db:map-vertices #'identity db:*database*
+                                              :vertex-type 'db::song :collect-p t))))
+      (ok (= 1 (length (db:all-setlists)))))))
 
 (defparameter *chorded*
   "Title: Abide With Me

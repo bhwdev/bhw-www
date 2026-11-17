@@ -28,11 +28,11 @@
       (const #t)))
 
 (define-public sbcl-graph-db
-  (let ((commit "7bc038f589ef6512486e30e99b6c3d4581fc8419") ; v4.1.0
+  (let ((commit "bf2b972821da0ce9e0c5fe4bd4e6bb22b2b9ae39") ; v5.0.0
         (revision "0"))
     (package
       (name "sbcl-graph-db")
-      (version (git-version "4.1.0" revision commit))
+      (version (git-version "5.0.0" revision commit))
       (source
        (origin
          (method git-fetch)
@@ -41,7 +41,7 @@
                (commit commit)))
          (file-name (git-file-name "cl-graph-db" version))
          (sha256
-          (base32 "0r3325z0aw64dg4cbbxd0659k0956pyg3r3q7xaqkp5zaiihwksk"))))
+          (base32 "0kxq07714rn95x6sglva0wcb7cm8hmi6k4kdyk82zfxgw1900zhj"))))
       (build-system asdf-build-system/sbcl)
       (arguments
        ;; The engine and its replication transport only.  The full
