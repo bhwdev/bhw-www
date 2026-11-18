@@ -2174,9 +2174,11 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
          (let ((vb::*weeks* '("Feb 30-Feb 31")))
            (ok (equal '() (vb::trips-for-passenger-today "BW"))))))))
 
-  (testing "return-driver-trips-today"
-    ;; The return leg has its own driver, the first ret-passenger: DM drives
-    ;; the DGH home although BW drove it out.
+  (testing "return-passenger-trips-today"
+    ;; The return leg has its own passengers: DM drives the DGH home although
+    ;; BW drove it out, and CG only comes back.  Everyone on the return
+    ;; counts, driving or riding -- BW, riding home, was missed on 2026-11-18
+    ;; when only the return's driver was looked up.
     (let* ((day-str (bn:format-booking-day (bn:today)))
            (sheet (make-test-sheet
                    (make-block (format nil "~a           ~a" day-str day-str)
@@ -2187,12 +2189,21 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
        sheet
        (lambda ()
          (let ((vb::*weeks* '("Jan 1-Dec 31")))
-           (let ((trips (vb::trips-for-return-driver-today "dm")))
-             (ok (= 1 (length trips)))
-             (ok (string= "SHMS" (trip-destination (first trips)))))
-           (ok (equal '() (vb::trips-for-return-driver-today "BW")))
+           (dolist (initial '("dm" "BW" "CG"))
+             (let ((trips (vb::trips-for-return-passenger-today initial)))
+               (ok (= 1 (length trips)) initial)
+               (ok (string= "SHMS" (trip-destination (first trips))))))
+           (ok (equal '() (vb::trips-for-return-passenger-today "ZZ")))
            ;; CG only comes back, so has no departure to be reminded of
-           (ok (equal '() (vb::trips-for-passenger-today "CG"))))))))
+           (ok (equal '() (vb::trips-for-passenger-today "CG")))
+           ;; trips already read are filtered as they are, without a read
+           (let ((trips (vb::todays-trips)))
+             (with-mocked-functions ((vb:read-sheet
+                                      (lambda (sheet-name)
+                                        (error "read ~a again" sheet-name))))
+               (ok (= 1 (length (vb::trips-for-passenger-today "BW" trips))))
+               (ok (= 1 (length (vb::trips-for-return-passenger-today "CG" trips))))
+               (ok (equal '() (vb::trips-for-return-passenger-today "BW" '()))))))))))
 
   (testing "return-universal-time"
     (multiple-value-bind (s m h) (decode-universal-time
@@ -2200,8 +2211,29 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
       (ok (= 0 s))
       (ok (= 0 m))
       (ok (= 12 h)))
+    ;; a cell marked by hand is still read: CG drove this return on
+    ;; 2026-11-18 and was not reminded of it
+    (multiple-value-bind (s m h) (decode-universal-time
+                                  (vb::trip-return-universal-time (make-trip :return-time "*12:30 pm")))
+      (ok (= 0 s))
+      (ok (= 30 m))
+      (ok (= 12 h)))
     (ng (vb::trip-return-universal-time (make-trip :return-time "")))
     (ng (vb::trip-return-universal-time (make-trip :departure "8:35 am"))))
+
+  (testing "sheet-clock"
+    (loop for (cell minutes) in '(("8:35 am" 515) ("12 pm" 720) ("4:55" 1015)
+                                  ("*12:30 pm" 750) ("12:30 pm*" 750) ("~4:55pm" 1015)
+                                  ("**9:35 AM**" 575) ("8:35 am - 9 am" 515)
+                                  ("approx. 9am" 540) ("noon" 720))
+          do (ok (eql minutes (vb::sheet-clock cell)) cell))
+    ;; no time of day in the cell, or only a bare number
+    (dolist (cell '(nil "" "TBD" "after class" "2 cars" "*"))
+      (ng (vb::sheet-clock cell) (prin1-to-string cell)))
+    ;; a trip's window reads its marked cells too
+    (ok (equal '(515 750)
+               (multiple-value-list
+                (vb::trip-window (make-trip :departure "8:35 am" :return-time "*12:30 pm"))))))
 
   (testing "remind-departure-wording"
     (ok (string= "BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and DM, CG are passengers."
@@ -2216,21 +2248,21 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
                  (vb:remind-departure (make-trip :destination "SHMS" :departure "8:35 am"
                                                  :dep-passengers '("BW"))))))
 
-  (testing "remind-return-driver-wording"
+  (testing "remind-return-wording"
     (ok (string= "BW is the driver for the return from SHMS at 12 pm with no other passengers."
-                 (vb:remind-return-driver (make-trip :destination "SHMS" :return-time "12 pm"
-                                                     :ret-passengers '("BW")))))
+                 (vb:remind-return (make-trip :destination "SHMS" :return-time "12 pm"
+                                              :ret-passengers '("BW")))))
     (ok (string= "BW is the driver for the return from SHMS at 12 pm and DM is a passenger."
-                 (vb:remind-return-driver (make-trip :destination "SHMS" :return-time "12 pm"
-                                                     :ret-passengers '("BW" "DM")))))
+                 (vb:remind-return (make-trip :destination "SHMS" :return-time "12 pm"
+                                              :ret-passengers '("BW" "DM")))))
     (ok (string= "BW is the driver for the return from SHMS at 12 pm and DM, CG are passengers."
-                 (vb:remind-return-driver (make-trip :destination "SHMS" :return-time "12 pm"
-                                                     :ret-passengers '("BW" "DM" "CG")))))
+                 (vb:remind-return (make-trip :destination "SHMS" :return-time "12 pm"
+                                              :ret-passengers '("BW" "DM" "CG")))))
     ;; a trip that knows its vehicle names it
     (ok (string= "BW is the driver of the LGH for the return from SHMS at 12 pm and DM is a passenger."
-                 (vb:remind-return-driver (make-trip :vehicle :lgh :destination "SHMS"
-                                                     :return-time "12 pm"
-                                                     :ret-passengers '("BW" "DM"))))))
+                 (vb:remind-return (make-trip :vehicle :lgh :destination "SHMS"
+                                              :return-time "12 pm"
+                                              :ret-passengers '("BW" "DM"))))))
 
   (testing "vehicle-phrase-wording"
     (ok (string= "the DGH" (vb::vehicle-phrase :dgh)))

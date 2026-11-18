@@ -656,9 +656,8 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
       (ok (string= "D1" (car (first posted))))
       (ok (search "Subscribed" (cdr (first posted))))
       ;; ... and says how far ahead the reminders come
-      (ok (search "30 minutes before each trip BW is on"
-                  (cdr (first posted))))
-      (ok (search "before each return BW drives" (cdr (first posted)))))))
+      (ok (search "30 minutes before each departure and each return BW is on"
+                  (cdr (first posted)))))))
 
 (deftest scheduler-tick-window
   ;; A leg is due from *REMINDER-LEAD-MINUTES* plus the minute between sweeps
@@ -673,10 +672,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
          (sb::*sent-reminders-date* (sb::today-date-key)))
     (with-mocked-functions ((db:all-slack-subscriptions
                              (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-passenger-today
-                             (lambda (initial) (declare (ignore initial)) (list trip)))
-                            (vb:trips-for-return-driver-today
-                             (lambda (initial) (declare (ignore initial)) nil))
+                            (vb:todays-trips (lambda () (list trip)))
                             (vb:trip-departure-universal-time
                              (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) dep-offset)))
                             (vb:remind-departure
@@ -721,19 +717,38 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
       ;; a trip without a parseable departure is skipped
       (clrhash sb::*sent-reminders*)
       (with-mocked-functions ((vb:trip-departure-universal-time (lambda (tr) (declare (ignore tr)) nil)))
-        (sb::scheduler-tick)
+        (let ((*error-output* (make-broadcast-stream)))
+          (sb::scheduler-tick))
         (ok (= 4 (length posted)))))
-    ;; errors for one subscription are logged, not raised
+    ;; a failed read of the sheet is logged, not raised, and nobody is
+    ;; reminded until a later sweep reads it
     (with-mocked-functions ((db:all-slack-subscriptions (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-passenger-today (lambda (initial) (declare (ignore initial))
-                                                            (error "sheet unavailable"))))
+                            (vb:todays-trips (lambda () (error "sheet unavailable"))))
       (let ((*error-output* (make-string-output-stream)))
         (ok (progn (sb::scheduler-tick) t))
-        (ok (search "sheet unavailable" (get-output-stream-string *error-output*)))))))
+        (ok (search "cannot read today's trips: sheet unavailable"
+                    (get-output-stream-string *error-output*)))))
+    ;; an error for one subscription is logged, and the others are reminded
+    (let ((posted '())
+          (sb::*sent-reminders* (make-hash-table :test #'equal)))
+      (with-mocked-functions ((db:all-slack-subscriptions
+                               (lambda () '(("U1" . "BW") ("U2" . "BW"))))
+                              (vb:todays-trips (lambda () (list trip)))
+                              (vb:trip-departure-universal-time
+                               (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) 100)))
+                              (sb::post-slack-message
+                               (lambda (channel text)
+                                 (when (string= channel "U1") (error "Slack is down for U1"))
+                                 (push (cons channel text) posted))))
+        (let ((*error-output* (make-string-output-stream)))
+          (ok (progn (sb::scheduler-tick) t))
+          (ok (search "error for U1/BW: Slack is down for U1"
+                      (get-output-stream-string *error-output*)))
+          (ok (equal '("U2") (mapcar #'car posted))))))))
 
 (deftest scheduler-tick-return-leg
-  ;; The driver of the return is reminded before the return time, apart from
-  ;; the departure: the two legs of one trip are deduplicated separately.
+  ;; The return is reminded before the return time, apart from the
+  ;; departure: the two legs of one trip are deduplicated separately.
   (let* ((trip (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
                              :departure "8:35 am" :return-time "12 pm"
                              :block-start-row 138
@@ -746,10 +761,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
          (sb::*sent-reminders-date* (sb::today-date-key)))
     (with-mocked-functions ((db:all-slack-subscriptions
                              (lambda () '(("U1" . "BW"))))
-                            (vb:trips-for-passenger-today
-                             (lambda (initial) (declare (ignore initial)) (list trip)))
-                            (vb:trips-for-return-driver-today
-                             (lambda (initial) (declare (ignore initial)) (list trip)))
+                            (vb:todays-trips (lambda () (list trip)))
                             (vb:trip-departure-universal-time
                              (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) dep-offset)))
                             (vb:trip-return-universal-time
@@ -761,7 +773,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
                              (lambda (channel text) (push (cons channel text) posted))))
       (let ((*error-output* (make-broadcast-stream)))
         ;; both legs in the window -> two DMs, the return one worded by
-        ;; REMIND-RETURN-DRIVER and naming the vehicle to drive
+        ;; REMIND-RETURN and naming the vehicle to drive
         (sb::scheduler-tick)
         (ok (= 2 (length posted)))
         (ok (find "departure for BW" posted :key #'cdr :test #'string=))
@@ -778,9 +790,9 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
         (ok (string= "departure for BW" (cdr (first posted))))))))
 
 (deftest scheduler-tick-passengers
-  ;; Everyone subscribed who is on a trip's departure, driving or riding, is
-  ;; sent the same DM as its driver; the return still goes to its driver
-  ;; alone.  Only the sheet read is mocked, so the real lookups and wording run.
+  ;; Everyone subscribed who is on a leg, driving or riding, is sent the same
+  ;; DM as its driver, the departure and the return alike.  Only the sheet
+  ;; read is mocked, so the real lookups and wording run.
   (let* ((trip (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
                              :departure "8:35 am" :return-time "12 pm"
                              :block-start-row 138
@@ -810,12 +822,104 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
         ;; ... once
         (sb::scheduler-tick)
         (ok (= 2 (length posted)))
-        ;; the return is reminded to BW, who drives it back, and nobody else
+        ;; the return is reminded to BW, who drives it back, and to DM, who
+        ;; rides, with the same DM; ZZ, not on it, gets nothing
         (setf ret-offset 100)
         (sb::scheduler-tick)
-        (ok (= 3 (length posted)))
-        (ok (equal (cons "U1" "BW is the driver of the DGH for the return from SHMS at 12 pm and DM, CG are passengers.")
-                   (first posted)))))))
+        (let ((text "BW is the driver of the DGH for the return from SHMS at 12 pm and DM, CG are passengers."))
+          (ok (equal (list (cons "U1" text) (cons "U2" text))
+                     (reverse (subseq posted 0 2)))))
+        (ok (= 4 (length posted)))))))
+
+(deftest scheduler-tick-return-on-another-van
+  ;; The sheet of Wednesday 2026-11-18: BW went out at 8:35 am on CG's LGH
+  ;; trip, whose return CG drove at "*12:30 pm" without BW, and came back at
+  ;; 4:55 pm on DM's LGH trip.  BW, riding, was not reminded of the 4:55
+  ;; return (returns went to their driver alone), and CG was not reminded of
+  ;; the 12:30 one (the asterisk hid its time).  Only the sheet read and the
+  ;; clock are mocked, so the real lookups, time reading and wording run.
+  (let* ((morning (vb:make-trip :day "Wednesday November 18" :vehicle :lgh
+                                :destination "SHMS" :block-start-row 93
+                                :departure "8:35 am" :return-time "*12:30 pm"
+                                :dep-passengers '("CG" "JC" "BW")
+                                :ret-passengers '("CG" "JC")))
+         (afternoon (vb:make-trip :day "Wednesday November 18" :vehicle :lgh
+                                  :destination "SHMS" :block-start-row 108
+                                  :departure "2:35 pm" :return-time "4:55 pm"
+                                  :dep-passengers '("DM")
+                                  :ret-passengers '("DM" "BW")))
+         (clock 0)
+         (reads 0)
+         (posted '())
+         (sb::*reminder-lead-minutes* 30)
+         (sb::*sent-reminders* (make-hash-table :test #'equal))
+         (sb::*sent-reminders-date* (sb::today-date-key)))
+    (flet ((sweep-at (hour minute)
+             (setf clock (+ (* 60 hour) minute))
+             (sb::scheduler-tick))
+           (sent-since (n)
+             (reverse (subseq posted 0 (- (length posted) n)))))
+      (with-mocked-functions ((db:all-slack-subscriptions
+                               (lambda () '(("UBW" . "BW") ("UCG" . "CG") ("UDM" . "DM"))))
+                              (vb:todays-trips (lambda () (incf reads) (list morning afternoon)))
+                              ;; a cell's time, read as the sweep reads it, taken
+                              ;; as that far from now as it is from CLOCK
+                              (vb::today-universal-time
+                               (lambda (time-str)
+                                 (let ((minutes (vb::sheet-clock time-str)))
+                                   (and minutes
+                                        (+ (get-universal-time) (* 60 (- minutes clock)))))))
+                              (sb::post-slack-message
+                               (lambda (channel text) (push (cons channel text) posted))))
+        (let ((*error-output* (make-broadcast-stream)))
+          ;; 8:05: BW and CG are reminded of the morning departure, with
+          ;; one read of the sheet for the three subscribers
+          (sweep-at 8 5)
+          (ok (= 1 reads))
+          (ok (equal '("UBW" "UCG") (mapcar #'car (sent-since 0))))
+          ;; 12:00: CG, driving the marked 12:30 return, is reminded of it
+          (sweep-at 12 0)
+          (ok (equal (list (cons "UCG" "CG is the driver of the LGH for the return from SHMS at *12:30 pm and JC is a passenger."))
+                     (sent-since 2)))
+          ;; 2:05: DM's departure
+          (sweep-at 14 5)
+          (ok (equal '("UDM") (mapcar #'car (sent-since 3))))
+          ;; 4:25: the 4:55 return, to DM driving and to BW riding
+          (sweep-at 16 25)
+          (let ((text "DM is the driver of the LGH for the return from SHMS at 4:55 pm and BW is a passenger."))
+            (ok (equal (list (cons "UBW" text) (cons "UDM" text))
+                       (sent-since 4))))
+          (ok (= 6 (length posted))))))))
+
+(deftest scheduler-tick-unreadable-time
+  ;; A leg whose time cannot be read can be reminded to nobody; that is
+  ;; logged, once a day however many subscribers are on it, and the leg
+  ;; whose time can be read is still reminded.
+  (let* ((trip (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
+                             :departure "8:35 am" :return-time "after class"
+                             :block-start-row 138 :sheet-name "Nov 16-22"
+                             :dep-passengers '("BW" "DM")
+                             :ret-passengers '("BW" "DM")))
+         (posted '())
+         (sb::*sent-reminders* (make-hash-table :test #'equal))
+         (sb::*sent-reminders-date* (sb::today-date-key)))
+    (with-mocked-functions ((db:all-slack-subscriptions
+                             (lambda () '(("U1" . "BW") ("U2" . "DM"))))
+                            (vb:todays-trips (lambda () (list trip)))
+                            (vb:trip-departure-universal-time
+                             (lambda (tr) (declare (ignore tr)) (+ (get-universal-time) 100)))
+                            (sb::post-slack-message
+                             (lambda (channel text) (push (cons channel text) posted))))
+      (let ((log (make-string-output-stream)))
+        (let ((*error-output* log))
+          (sb::scheduler-tick)
+          (sb::scheduler-tick))
+        (let ((lines (remove-if-not (lambda (line) (search "cannot read" line))
+                                    (uiop:split-string (get-output-stream-string log)
+                                                       :separator '(#\Newline)))))
+          (ok (equal '("slack scheduler: cannot read the return time \"after class\" of the DGH trip at row 138 of Nov 16-22; no subscriber on it is reminded")
+                     lines))))
+      (ok (equal '("U1" "U2") (reverse (mapcar #'car posted)))))))
 
 (deftest reminder-key-shape
   (let ((a (vb:make-trip :vehicle :dgh :block-start-row 3))

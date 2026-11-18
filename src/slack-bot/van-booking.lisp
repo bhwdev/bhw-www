@@ -44,8 +44,9 @@
    #:date-range-phrase-p
    #:trips-for-passenger-today
    #:trip-departure-universal-time
-   #:remind-return-driver
-   #:trips-for-return-driver-today
+   #:remind-return
+   #:todays-trips
+   #:trips-for-return-passenger-today
    #:trip-return-universal-time)
   (:documentation
    "
@@ -307,14 +308,31 @@ Personal trip departing at \"Saturday\"."
 ;;; functions are what stops that, and what stops somebody being written onto
 ;;; two trips that run at the same time.
 
+(defparameter *clock-in-cell-regex*
+  "(?i)(?<!\\d)\\d{1,2}(?:[:.]\\d{2}(?:\\s*[ap]\\.?m\\.?)?|\\s*[ap]\\.?m\\.?)"
+  "Regex matching a time of day written inside other text: hours with minutes
+or am/pm, or both (\"12:30 pm\", \"4:55\", \"9am\").  A bare number is not
+taken for a time.")
+
+(defun sheet-clock (cell)
+  "Minutes since midnight for the time of day CELL, a time cell of the sheet,
+shows, or NIL.  People mark cells by hand (\"*12:30 pm\"), so a cell that is
+not a time as a whole (PARSE-CLOCK) is read by its first time of day
+(*CLOCK-IN-CELL-REGEX*).  A time left unread costs its leg the reminder and
+its trip the clash window."
+  (when cell
+    (or (parse-clock cell)
+        (let ((span (cl-ppcre:scan-to-strings *clock-in-cell-regex* cell)))
+          (and span (parse-clock span))))))
+
 (defun request-window (dep-time ret-time)
   "Return (values START END), minutes since midnight, for a trip leaving at
 DEP-TIME and back at RET-TIME, or NIL when either is blank, unreadable, or
 the two do not run forwards -- a return before its departure cannot be read
 as a window, and a trip carrying on past midnight is one such pair.  An
 unreadable time must not be taken for midnight, as DEPARTURE-MINUTES takes it."
-  (let ((start (parse-clock dep-time))
-        (end (parse-clock ret-time)))
+  (let ((start (sheet-clock dep-time))
+        (end (sheet-clock ret-time)))
     (when (and start end (< start end))
       (values start end))))
 
@@ -974,9 +992,10 @@ separated by spaces."
               (t
                (format nil "~{~a~^ ~}" (mapcar #'remind-departure driver-trips))))))))
 
-(defun remind-return-driver (trip)
-  "Return the reminder for the driver of TRIP's return leg, the first of its
-ret-passengers, worded like REMIND-DEPARTURE's and naming the vehicle likewise."
+(defun remind-return (trip)
+  "Return the reminder for TRIP's return leg, the same for everyone on it,
+worded like REMIND-DEPARTURE's: the driver (the first of its ret-passengers),
+the vehicle, where it comes back from, the time, and the other passengers."
   (destructuring-bind (&optional driver &rest others) (trip-ret-passengers trip)
     (name-other-passengers
      (format nil "~a is the driver~@[ of ~a~] for the return from ~a at ~a"
@@ -989,28 +1008,33 @@ ret-passengers, worded like REMIND-DEPARTURE's and naming the vehicle likewise."
 when no sheet covers today.  Reads the sheet afresh on every call."
   (values (day-trips (today))))
 
-(defun trips-for-passenger-today (initial)
-  "Return the trips departing today with INITIAL among the dep-passengers,
-driving (the first of them) or riding.  Used by the slack-bot reminder
-scheduler. Returns NIL when no sheet covers today or no matching trips exist."
+(defun trips-for-passenger-today (initial &optional (trips (todays-trips)))
+  "Return the trips of TRIPS, today's by default, with INITIAL among the
+dep-passengers, driving (the first of them) or riding.  Used by the slack-bot
+reminder scheduler, which reads today's trips once for every subscriber.  NIL
+when no sheet covers today or no matching trips exist."
   (remove-if-not
    (lambda (tr)
      (member initial (trip-dep-passengers tr) :test #'string-equal))
-   (todays-trips)))
+   trips))
 
-(defun trips-for-return-driver-today (initial)
-  "Return today's trips whose return leg INITIAL drives: INITIAL is the first
-ret-passenger.  The return can have a different driver from the departure,
-so it is looked up on its own.  Used by the slack-bot reminder scheduler;
-NIL when no sheet covers today or no matching trips exist."
-  (remove-if-not (lambda (tr) (drives-p initial (trip-ret-passengers tr)))
-                 (todays-trips)))
+(defun trips-for-return-passenger-today (initial &optional (trips (todays-trips)))
+  "Return the trips of TRIPS, today's by default, with INITIAL among the
+ret-passengers, driving the return (the first of them) or riding.  The return
+can carry other people than the departure -- someone can go out on one van
+and come back on another -- so it is looked up on its own.  Used by the
+slack-bot reminder scheduler; NIL when no sheet covers today or no matching
+trips exist."
+  (remove-if-not
+   (lambda (tr)
+     (member initial (trip-ret-passengers tr) :test #'string-equal))
+   trips))
 
 (defun today-universal-time (time-str)
   "Return the CL universal-time at which the 12h TIME-STR (\"8:35 am\") falls
-today, or NIL when TIME-STR cannot be read."
-  (let ((mins (departure-minutes time-str)))
-    (when (and mins (plusp mins))
+today, or NIL when TIME-STR cannot be read (SHEET-CLOCK)."
+  (let ((mins (sheet-clock time-str)))
+    (when mins
       (multiple-value-bind (s m h day month year)
           (decode-universal-time (get-universal-time))
         (declare (ignore s m h))
@@ -1212,9 +1236,9 @@ year like the ranges in *WEEKS*, or NIL when it does not read as a day."
 
 (defun departure-minutes (time-str)
   "Convert a 12h TIME-STR like \"8:35 am\" to minutes-since-midnight. 0 on failure.
-   Sorting a day's rows wants a number for every row; PARSE-CLOCK is the one
+   Sorting a day's rows wants a number for every row; SHEET-CLOCK is the one
    to use where an unreadable time must not pass for midnight."
-  (or (parse-clock time-str) 0))
+  (or (sheet-clock time-str) 0))
 
 (defun booked-trip-p (trip)
   "Return T if TRIP has any booking data (destination or departure time)."
