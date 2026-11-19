@@ -127,17 +127,45 @@ converted with format to a string first."
 ;; js-to-float ;;
 ;;;;;;;;;;;;;;;;;
 
+(defun parse-double (string)
+  "The number written at the start of STRING, after any whitespace, as a
+double-float (what follows it is ignored), or NIL when there is none or it is
+out of range."
+  (let ((number (ppcre:scan-to-strings
+                 "^\\s*[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?" string)))
+    (and number
+         (ignore-errors
+          (with-standard-io-syntax
+            ;; with a d exponent the reader makes it a double-float, -0 too
+            (read-from-string
+             (if (find #\e number :test #'char-equal)
+                 (substitute-if #\d (lambda (c) (char-equal c #\e)) number)
+                 (concatenate 'string number "d0"))))))))
+
 (defun js-to-float (value &key (default 0.0d0))
   "Returns two values first as a float and second the original value"
   (cond ((typep value 'float)
 	 (values value value))
 	((typep value 'string)
-	 (let ((r (parse-float value :type 'double-float :junk-allowed t)))
+	 (let ((r (parse-double value)))
 	   (if r
 	       (values r value)
 	       (values default value))))
 	(t
 	 (values default value))))
+
+;;;;;;;;;;;;;;;;;;;;;;;
+;; url-decode-params ;;
+;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun url-decode-params (string)
+  "The fields of STRING, a URL-encoded query string or form data, decoded as
+UTF-8: an a-list of names and values, NIL the value of a field without =."
+  (loop for field in (ppcre:split "&" string)
+        for equals = (position #\= field)
+        collect (cons (hunchentoot:url-decode (subseq field 0 equals) :utf-8)
+                      (and equals
+                           (hunchentoot:url-decode (subseq field (1+ equals)) :utf-8)))))
 
 ;;;;;;;;;;;;;;
 ;; lf-to-br ;;

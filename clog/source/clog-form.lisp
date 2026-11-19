@@ -15,13 +15,15 @@
   (:documentation "Get the form data as an a-list sent by the get method"))
 
 (defmethod form-get-data ((obj clog-obj))
-  (quri:uri-query-params (quri:uri (js-query obj "location.href"))))
+  (let ((query (nth-value 1 (ppcre:scan-to-strings "\\?([^#]*)"
+                                                   (js-query obj "location.href")))))
+    (and query (url-decode-params (aref query 0)))))
 
 (defgeneric form-post-data (clog-obj)
   (:documentation "Get the form data as an a-list sent by post method"))
 
 (defmethod form-post-data ((obj clog-obj))
-  (quri:url-decode-params (js-query obj "clog['post-data']")))
+  (url-decode-params (js-query obj "clog['post-data']")))
 
 (defgeneric form-multipart-data (clog-obj)
   (:documentation "Get the form data as an a-list sent with the multipart

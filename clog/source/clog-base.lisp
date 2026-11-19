@@ -359,7 +359,7 @@ result or if time out DEFAULT-ANSWER. (Internal)"))
       :ctrl-key     (js-true-p (nth 4 f))
       :shift-key    (js-true-p (nth 5 f))
       :meta-key     (js-true-p (nth 6 f))
-      :drag-data    (quri:url-decode (or (nth 7 f) "")))))
+      :drag-data    (hunchentoot:url-decode (or (nth 7 f) "") :utf-8))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; parse-wheel-event ;;

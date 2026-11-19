@@ -9,10 +9,10 @@
   (:import-from #:bordeaux-threads)
   (:import-from #:cl-ppcre)
   (:import-from #:com.inuoe.jzon)
-  (:import-from #:dexador)
   (:import-from #:flexi-streams)
+  (:import-from #:hunchentoot #:url-decode)
   (:import-from #:ironclad)
-  (:import-from #:quri)
+  (:import-from #:bhw/http #:http-request)
   (:import-from #:bhw/slack-bot/booking-nlp
                 #:booking-incomplete
                 #:booking-incomplete-missing
@@ -282,14 +282,16 @@ not_authed, channel_not_found) — the real status is in the JSON body's
 \"ok\" field. Log rejections to *error-output* so bad credentials don't
 fail silently."
   (handler-case
-      (let ((resp (dex:post "https://slack.com/api/chat.postMessage"
-                            :content (com.inuoe.jzon:stringify
-                                      (plist-hash-table
-                                       (list "channel" channel
-                                             "text" (escape-control-sequences text))
-                                       :test #'equal))
-                            :headers `(("Content-Type" . "application/json; charset=utf-8")
-                                       ("Authorization" . ,(format nil "Bearer ~A" *slack-bot-token*))))))
+      (let ((resp (http-request "https://slack.com/api/chat.postMessage"
+                                :method :post
+                                :content (com.inuoe.jzon:stringify
+                                          (plist-hash-table
+                                           (list "channel" channel
+                                                 "text" (escape-control-sequences text))
+                                           :test #'equal))
+                                :content-type "application/json; charset=utf-8"
+                                :headers `(("Authorization"
+                                            . ,(format nil "Bearer ~A" *slack-bot-token*))))))
         (handler-case
             (let* ((parsed (com.inuoe.jzon:parse resp))
                    (ok (gethash "ok" parsed)))
@@ -444,10 +446,10 @@ other failure -- the caller falls back to asking for `/iam`.  Every failure
 is logged and swallowed, because not knowing a name must never take the bot
 down mid-booking."
   (handler-case
-      (let* ((resp (dex:get (format nil "https://slack.com/api/users.info?user=~A"
-                                    (quri:url-encode user-id))
-                            :headers `(("Authorization"
-                                        . ,(format nil "Bearer ~A" *slack-bot-token*)))))
+      (let* ((resp (http-request "https://slack.com/api/users.info"
+                                 :parameters `(("user" . ,user-id))
+                                 :headers `(("Authorization"
+                                             . ,(format nil "Bearer ~A" *slack-bot-token*)))))
              (parsed (com.inuoe.jzon:parse resp)))
         (if (eq (gethash "ok" parsed) t)
             (let* ((user (gethash "user" parsed))
@@ -839,8 +841,10 @@ Verifies the signature, dispatches on event type, returns an appropriate respons
 (defun decode-form-body (body-string)
   "Decode an application/x-www-form-urlencoded BODY-STRING into a hash-table."
   (let ((ht (make-hash-table :test #'equal)))
-    (dolist (pair (quri:url-decode-params body-string))
-      (setf (gethash (car pair) ht) (cdr pair)))
+    (dolist (field (cl-ppcre:split "&" body-string))
+      (let ((equals (position #\= field)))
+        (setf (gethash (url-decode (subseq field 0 equals) :utf-8) ht)
+              (and equals (url-decode (subseq field (1+ equals)) :utf-8)))))
     ht))
 
 (defun parse-initial (text)

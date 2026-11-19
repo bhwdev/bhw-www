@@ -23,7 +23,7 @@ stores a process opens; graph-db keeps exactly one per image.
 
 A vertex is found by its key through a unique constraint: a :UNIQUE slot,
 or GRAPH-DB:DEF-UNIQUE for a key of several slots, read with
-GRAPH-DB:UNIQUE-LOOKUP.  (graph-db 5.0.0 cannot read a DEF-UNIQUE of one
+GRAPH-DB:UNIQUE-LOOKUP.  (graph-db 5.1.0 cannot read a DEF-UNIQUE of one
 slot.)  OPEN-STORE rebuilds the constraints' indexes; see there why."))
 
 (in-package #:bhw/store)

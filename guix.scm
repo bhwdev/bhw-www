@@ -28,51 +28,47 @@
       (const #t)))
 
 (define-public sbcl-graph-db
-  ;; v5.0.0 with #492 and #493 (on the experiment branch): the core no
-  ;; longer depends on cl-fad or cl-json.
-  (let ((commit "f91bf1b3c109fb551f76e74535cbc2c9f35be559")
-        (revision "1"))
-    (package
-      (name "sbcl-graph-db")
-      (version (git-version "5.0.0" revision commit))
-      (source
-       (origin
-         (method git-fetch)
-         (uri (git-reference
-               (url "https://github.com/kraison/vivace-graph")
-               (commit commit)))
-         (file-name (git-file-name "cl-graph-db" version))
-         (sha256
-          (base32 "0mnpzxrq0h9zmpb9q1rkjqpida0isw9ldpdfr3x2cgsybc5h41js"))))
-      (build-system asdf-build-system/sbcl)
-      (arguments
-       ;; The engine and its replication transport only.  The full
-       ;; "graph-db" system adds the HTTP API (rest.lisp: ningle on a
-       ;; Clack server of its own), which bhw-www does not serve.
-       (list #:asd-systems ''("graph-db/core" "graph-db/replication")
-             ;; The test systems need FiveAM, Drakma and the full system.
-             #:tests? #f))
-      (inputs
-       (list sbcl-alexandria
-             sbcl-bordeaux-threads
-             sbcl-cffi
-             sbcl-cl-ppcre
-             sbcl-cl-store
-             sbcl-ieee-floats
-             sbcl-iterate
-             sbcl-local-time
-             sbcl-log4cl
-             sbcl-md5
-             sbcl-split-sequence
-             sbcl-usocket
-             sbcl-uuid))
-      (home-page "https://github.com/kraison/vivace-graph")
-      (synopsis "Graph database in Common Lisp (VivaceGraph)")
-      (description
-       "VivaceGraph is an ACID-compliant object graph database written in
+  (package
+    (name "sbcl-graph-db")
+    (version "5.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/kraison/vivace-graph")
+             (commit (string-append "v" version))))
+       (file-name (git-file-name "cl-graph-db" version))
+       (sha256
+        (base32 "0dhdnjl1ksdhn097kimp8jjhxhnglqrvr2yggm22hiys2n3ckmgi"))))
+    (build-system asdf-build-system/sbcl)
+    (arguments
+     ;; The engine and its replication transport only.  The full
+     ;; "graph-db" system adds the HTTP API (rest.lisp: ningle on a
+     ;; Clack server of its own), which bhw-www does not serve.
+     (list #:asd-systems ''("graph-db/core" "graph-db/replication")
+           ;; The test systems need FiveAM, Drakma and the full system.
+           #:tests? #f))
+    (inputs
+     (list sbcl-alexandria
+           sbcl-bordeaux-threads
+           sbcl-cffi
+           sbcl-cl-ppcre
+           sbcl-cl-store
+           sbcl-ieee-floats
+           sbcl-iterate
+           sbcl-local-time
+           sbcl-log4cl
+           sbcl-md5
+           sbcl-split-sequence
+           sbcl-usocket
+           sbcl-uuid))
+    (home-page "https://github.com/kraison/vivace-graph")
+    (synopsis "Graph database in Common Lisp (VivaceGraph)")
+    (description
+     "VivaceGraph is an ACID-compliant object graph database written in
 Common Lisp, with user-defined indexes, map-reduce views, replication and a
 Prolog-like query language.")
-      (license license:expat))))
+    (license license:expat)))
 
 ;; Guix's CFFI writes the build's GCC into toolchain/c-toolchain.lisp, for
 ;; groveling, which keeps all of GCC (about 260 MiB) in the closure of any
@@ -143,7 +139,8 @@ Prolog-like query language.")
       (list sbcl-rove))
      (inputs
       ;; With those of the fork of CLOG in clog/ (clog.asd): cl-base64,
-      ;; closer-mop, hunchentoot, parse-float, trivial-gray-streams.
+      ;; closer-mop, hunchentoot, trivial-gray-streams.  Drakma costs
+      ;; nothing: Hunchentoot's tests need it, so its output refers to it.
       (list sbcl-alexandria
             sbcl-bordeaux-threads
             sbcl-cffi
@@ -151,7 +148,7 @@ Prolog-like query language.")
             sbcl-cl-base64
             sbcl-cl-ppcre
             sbcl-closer-mop
-            sbcl-dexador
+            sbcl-drakma
             sbcl-flexi-streams
             sbcl-graph-db
             sbcl-hunchentoot
@@ -159,8 +156,6 @@ Prolog-like query language.")
             sbcl-jzon
             sbcl-local-time
             sbcl-montezuma
-            sbcl-parse-float
-            sbcl-quri
             sbcl-slynk
             sbcl-trivial-gray-streams
             sbcl-usocket))

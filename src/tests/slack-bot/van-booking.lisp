@@ -16,8 +16,7 @@
   (:import-from #:bhw/tests/test-utils #:with-mocked-functions)
   (:import-from #:local-time)
   (:import-from #:com.inuoe.jzon)
-  (:import-from #:dexador)
-  (:import-from #:quri)
+  (:import-from #:bhw/http #:http-request)
   (:documentation
    "Tests for bhw/slack-bot/van-booking: sheet parsing, trip
 lookup, booking writes (with the Google Sheets calls mocked), the
@@ -1921,19 +1920,26 @@ BOOKING-INCOMPLETE signalled, if any."
          :sheet sheet)
         (ok (equal '(nil nil) result))))))
 
-(defvar *urls* '()
-  "The URLs the REPLY mock was asked for, most recent first.")
+(defvar *gets* '()
+  "The GETs the REPLY mock answered, most recent first: each its URL and
+keyword arguments.")
 
 (defun reply (json)
-  "A mock for DEXADOR:GET that answers JSON, a Lisp value, as the web app
-would, and records the URL it was asked for in *URLS*."
-  (lambda (uri &rest args)
-    (declare (ignore args))
-    (push uri *urls*)
+  "A mock for HTTP-REQUEST's GETs that answers JSON, a Lisp value, as the web
+app would, and records the request in *GETS*."
+  (lambda (url &rest args)
+    (push (cons url args) *gets*)
     (com.inuoe.jzon:stringify json)))
 
-(defun query-parameter (url name)
-  (cdr (assoc name (quri:uri-query-params (quri:uri url)) :test #'string=)))
+(defun web-app (post &optional (get (reply (make-hash-table))))
+  "A mock for HTTP-REQUEST that answers a POST with POST and any other
+request with GET, both functions of the URL and the keyword arguments."
+  (lambda (url &rest args &key method &allow-other-keys)
+    (apply (if (eq method :post) post get) url args)))
+
+(defun query-parameter (request name)
+  "The parameter NAME of REQUEST, as *GETS* holds it."
+  (cdr (assoc name (getf (rest request) :parameters) :test #'string=)))
 
 (defun call-with-schedule-secret (secret thunk)
   "Call THUNK with the environment variable VAN_SCHEDULE_SECRET set to SECRET,
@@ -1947,26 +1953,25 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
 
 (deftest sheet-io-tests
   (testing "write-range-payload"
-    (let ((requests '()) (*urls* '()))
+    (let ((requests '()) (*gets* '()))
       (with-mocked-functions ((vb::apps-script-secret (constantly "test-secret"))
-                              (dexador:request
-                               (lambda (uri &rest args)
-                                 (push (list* uri args) requests)
-                                 (let ((headers (make-hash-table :test #'equal)))
-                                   (setf (gethash "location" headers) "https://example.invalid/result")
-                                   (values "" 302 headers))))
-                              (dexador:get (reply (alexandria:plist-hash-table
-                                                   '("updatedCells" 1) :test #'equal))))
+                              (http-request
+                               (web-app
+                                (lambda (uri &rest args)
+                                  (push (list* uri args) requests)
+                                  (values "" 302 '((:location . "https://example.invalid/result"))))
+                                (reply (alexandria:plist-hash-table
+                                        '("updatedCells" 1) :test #'equal)))))
         (ok (eql 1 (gethash "updatedCells"
                             (vb:write-range "F4" '(("SHMS")) :sheet-name "Apr 20-26"))))
         (ok (= 1 (length requests)))
-        (ok (equal '("https://example.invalid/result") *urls*))
-        (destructuring-bind (uri &key method content headers max-redirects) (first requests)
+        (ok (equal '("https://example.invalid/result") (mapcar #'first *gets*)))
+        (destructuring-bind (uri &key method content content-type (redirect t)) (first requests)
           (ok (search "script.google.com" uri))
           (ok (search (format nil "spreadsheetId=~a" vb::*spreadsheet-id*) uri))
           (ok (eq :post method))
-          (ok (= 0 max-redirects))
-          (ok (string= "application/json" (cdr (assoc "Content-Type" headers :test #'string=))))
+          (ng redirect)
+          (ok (string= "application/json" content-type))
           (let* ((payload (com.inuoe.jzon:parse content))
                  (arguments (gethash "arguments" payload))
                  (body (gethash "body" payload)))
@@ -1976,14 +1981,12 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
             (ok (equalp #(#("SHMS")) (gethash "values" body))))))
       ;; without a sheet name the range is unqualified
       (with-mocked-functions ((vb::apps-script-secret (constantly "test-secret"))
-                              (dexador:request
-                               (lambda (uri &rest args)
-                                 (declare (ignore uri))
-                                 (push args requests)
-                                 (let ((headers (make-hash-table :test #'equal)))
-                                   (setf (gethash "location" headers) "https://example.invalid/r")
-                                   (values "" 302 headers))))
-                              (dexador:get (reply (make-hash-table))))
+                              (http-request
+                               (web-app
+                                (lambda (uri &rest args)
+                                  (declare (ignore uri))
+                                  (push args requests)
+                                  (values "" 302 '((:location . "https://example.invalid/r")))))))
         (vb:write-range "F7:F8" '(("BW") ("CG")))
         (let ((payload (com.inuoe.jzon:parse (getf (first requests) :content))))
           (ok (string= "F7:F8" (gethash "range" (gethash "arguments" payload))))
@@ -1991,19 +1994,20 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
 
   (testing "write-range-without-redirect-errors"
     (with-mocked-functions ((vb::apps-script-secret (constantly "test-secret"))
-                            (dexador:request
-                             (lambda (uri &rest args)
-                               (declare (ignore uri args))
-                               (values "" 200 (make-hash-table :test #'equal)))))
+                            (http-request
+                             (web-app
+                              (lambda (uri &rest args)
+                                (declare (ignore uri args))
+                                (values "" 200 '())))))
       (ok (signals (vb:write-range "F4" '(("SHMS")) :sheet-name "Apr 20-26") 'error))))
 
   (testing "write-range-needs-the-secret"
     ;; The web app refuses a write without it, so none is sent.
     (let ((requests '()))
-      (with-mocked-functions ((dexador:request
+      (with-mocked-functions ((http-request
                                (lambda (uri &rest args)
                                  (push (list* uri args) requests)
-                                 (values "" 200 (make-hash-table :test #'equal)))))
+                                 (values "" 200 '()))))
         (call-with-schedule-secret
          nil
          (lambda ()
@@ -2018,37 +2022,36 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
   (testing "write-range-error-reply-errors"
     ;; A write the script could not make, e.g. to a protected range, is an
     ;; error rather than a booking that silently did not happen.
-    (let ((*urls* '()))
+    (let ((*gets* '()))
       (with-mocked-functions ((vb::apps-script-secret (constantly "test-secret"))
-                              (dexador:request
-                               (lambda (uri &rest args)
-                                 (declare (ignore uri args))
-                                 (let ((headers (make-hash-table :test #'equal)))
-                                   (setf (gethash "location" headers) "https://example.invalid/r")
-                                   (values "" 302 headers))))
-                              (dexador:get (reply (alexandria:plist-hash-table
-                                                   '("error" "Exception: protected") :test #'equal))))
+                              (http-request
+                               (web-app
+                                (lambda (uri &rest args)
+                                  (declare (ignore uri args))
+                                  (values "" 302 '((:location . "https://example.invalid/r"))))
+                                (reply (alexandria:plist-hash-table
+                                        '("error" "Exception: protected") :test #'equal)))))
         (ok (signals (vb:write-range "F4" '(("SHMS")) :sheet-name "Apr 20-26") 'error)))))
 
   (testing "read-sheet-asks-the-web-app"
-    (let ((*urls* '()))
-      (with-mocked-functions ((dexador:get (reply #(#("a" "b") #("c" "d")))))
+    (let ((*gets* '()))
+      (with-mocked-functions ((http-request (reply #(#("a" "b") #("c" "d")))))
         (ok (equal '(("a" "b") ("c" "d")) (vb:read-sheet "Apr 20-26")))
-        (ok (= 1 (length *urls*)))
-        (ok (search vb::*apps-script-url* (first *urls*)))
-        (ok (string= "values" (query-parameter (first *urls*) "action")))
-        (ok (string= "Apr 20-26" (query-parameter (first *urls*) "sheet")))
-        (ok (string= vb::*spreadsheet-id* (query-parameter (first *urls*) "spreadsheetId"))))))
+        (ok (= 1 (length *gets*)))
+        (ok (string= vb::*apps-script-url* (first (first *gets*))))
+        (ok (string= "values" (query-parameter (first *gets*) "action")))
+        (ok (string= "Apr 20-26" (query-parameter (first *gets*) "sheet")))
+        (ok (string= vb::*spreadsheet-id* (query-parameter (first *gets*) "spreadsheetId"))))))
 
   (testing "read-sheet-keeps-sheet-rows"
     ;; Row N of what READ-SHEET returns must be row N of the sheet, because
     ;; that is how PARSE-SCHEDULE knows where a block is.
-    (let ((*urls* '())
+    (let ((*gets* '())
           (rows #(#("title" "" "") #("" "" "")
                   #("Monday April 20" "" "Chevy") #("" "two lines" "") #("" "" "Dep.")
                   #("" "" "") #("" "" "") #("" "" "") #("" "" "")
                   #("" "" "Chevy") #("" "" "") #("" "" "Dep.") #("" "" "") #("" "" ""))))
-      (with-mocked-functions ((dexador:get (reply rows)))
+      (with-mocked-functions ((http-request (reply rows)))
         (let ((rows (vb:read-sheet "Apr 20-26")))
           (ok (= 14 (length rows)))
           (ok (equal '("Monday April 20" "" "Chevy") (third rows)))
@@ -2058,24 +2061,24 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
                       (mapcar #'trip-block-start-row (vb::parse-schedule rows)))))))))
 
   (testing "read-sheet-error-reply-errors"
-    (let ((*urls* '()))
-      (with-mocked-functions ((dexador:get (reply (alexandria:plist-hash-table
-                                                   '("error" "Error: The spreadsheet has no tab named Nov 2-8")
-                                                   :test #'equal))))
+    (let ((*gets* '()))
+      (with-mocked-functions ((http-request (reply (alexandria:plist-hash-table
+                                                    '("error" "Error: The spreadsheet has no tab named Nov 2-8")
+                                                    :test #'equal))))
         (ok (signals (vb:read-sheet "Nov 2-8") 'error))))))
 
 (deftest sheet-discovery-tests
   ;; The week tabs are discovered from the spreadsheet rather than
   ;; hardcoded, so /view keeps working as weeks are added.
   (testing "sheet-tabs-asks-the-web-app"
-    (let ((*urls* '()))
-      (with-mocked-functions ((dexador:get (reply #("Aug 31-Sep 6" "Sep 7-13" "St's / Dates" "Apr 13-19 "))))
+    (let ((*gets* '()))
+      (with-mocked-functions ((http-request (reply #("Aug 31-Sep 6" "Sep 7-13" "St's / Dates" "Apr 13-19 "))))
         ;; every tab, in tab order, trailing space kept
         (ok (equal '("Aug 31-Sep 6" "Sep 7-13" "St's / Dates" "Apr 13-19 ")
                    (vb:sheet-tabs)))
-        (ok (= 1 (length *urls*)))
-        (ok (string= "tabs" (query-parameter (first *urls*) "action")))
-        (ok (string= vb::*spreadsheet-id* (query-parameter (first *urls*) "spreadsheetId"))))))
+        (ok (= 1 (length *gets*)))
+        (ok (string= "tabs" (query-parameter (first *gets*) "action")))
+        (ok (string= vb::*spreadsheet-id* (query-parameter (first *gets*) "spreadsheetId"))))))
 
   (testing "week-sheets-filters-caches-and-refreshes"
     (let ((fetches 0)

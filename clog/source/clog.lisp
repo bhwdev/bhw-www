@@ -27,7 +27,7 @@
                 #:escape-string
                 #:generate-id
                 #:random-hex-string)
-  (:use #:cl #:parse-float)
+  (:use #:cl)
   (:export
    ;;; CLOG System
    ;; CLOG Startup and Shutdown

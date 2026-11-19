@@ -9,7 +9,6 @@
   (:import-from #:cl+ssl)
   (:import-from #:cl-ppcre)
   (:import-from #:clog #:initialize #:is-running-p #:shutdown)
-  (:import-from #:dexador)
   (:import-from #:flexi-streams)
   (:import-from #:hunchentoot)
   (:import-from #:ironclad)
@@ -327,21 +326,16 @@ Idempotent."
 (defun reset-network-state ()
   "Drop the foreign state a saved image inherits from the process that built
 it: cl+ssl's foreign pointers (its Lisp BIO method, the SSL_CTX, the C string
-it hands to OpenSSL's error queue, which it allocates when it loads) and
-dexador's pool of keep-alive connections.  In the restarted image those
-addresses and sockets belong to nobody: OpenSSL faults on them (\"CORRUPTION
-WARNING ... Memory fault\" with the PC in libcrypto's BIO_new_ex) and a
-request to a pooled host fails.  Registered below as a UIOP image-restore
-hook, which runs when the saved image starts."
+it hands to OpenSSL's error queue, which it allocates when it loads).  In the
+restarted image those addresses belong to nobody: OpenSSL faults on them
+(\"CORRUPTION WARNING ... Memory fault\" with the PC in libcrypto's
+BIO_new_ex).  Registered below as a UIOP image-restore hook, which runs when
+the saved image starts."
   ;; forget the SSL_CTX and method so the first TLS use re-initialises cl+ssl,
   ;; which also makes a fresh Lisp BIO method
   (cl+ssl:reload)
   (when (boundp 'cl+ssl::*file-name*)
-    (setf cl+ssl::*file-name* (cffi:foreign-string-alloc "cl+ssl/src/bio.lisp")))
-  ;; a new, empty pool: closing the inherited connections would call OpenSSL
-  ;; on the same stale pointers
-  (setf dexador.connection-cache:*connection-pool*
-        (dexador.connection-cache:make-connection-pool)))
+    (setf cl+ssl::*file-name* (cffi:foreign-string-alloc "cl+ssl/src/bio.lisp"))))
 
 (uiop:register-image-restore-hook 'reset-network-state nil)
 

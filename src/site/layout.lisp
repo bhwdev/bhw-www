@@ -7,7 +7,6 @@
   (:import-from #:clog
                 #:attribute #:create-child #:create-div #:document-element
                 #:head-element #:html-document #:property)
-  (:import-from #:quri)
   (:export #:with-page-chrome
            #:link-global-stylesheet
            #:escape-html
@@ -89,15 +88,18 @@ document.cookie, names, or the default."
 (defun local-target (referer)
   "The path and query of the URL REFERER when it has a path on this site,
 else \"/\": where /theme sends the reader back to."
-  (or (ignore-errors
-       (let* ((uri (quri:uri referer))
-              (path (quri:uri-path uri)))
-         (when (and path
-                    (cl-ppcre:scan "^/(?!/)" path)
+  (let ((parts (and (stringp referer)
+                    ;; RFC 3986's appendix B: scheme, authority, path, query
+                    (nth-value 1 (cl-ppcre:scan-to-strings
+                                  "^(?:[^:/?#]+:)?(?://[^/?#]*)?([^?#]*)(?:\\?([^#]*))?"
+                                  referer)))))
+    (or (and parts
+             (let ((target (format nil "~A~@[?~A~]" (aref parts 0) (aref parts 1))))
+               (and (cl-ppcre:scan "^/(?!/)" target)
                     (not (find-if (lambda (ch) (or (char< ch #\!) (char= ch #\Rubout)))
-                                  path)))
-           (format nil "~A~@[?~A~]" path (quri:uri-query uri)))))
-      "/"))
+                                  target))
+                    target)))
+        "/")))
 
 (defun theme-toggle-response (env)
   "The response to the toggle's POST /theme: set the theme after the one the

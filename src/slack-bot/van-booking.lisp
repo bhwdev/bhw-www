@@ -6,9 +6,8 @@
   (:import-from #:alexandria)
   (:import-from #:cl-ppcre)
   (:import-from #:com.inuoe.jzon)
-  (:import-from #:dexador)
-  (:import-from #:quri)
   (:import-from #:local-time)
+  (:import-from #:bhw/http #:http-request)
   (:import-from #:bhw/slack-bot/booking-nlp
                 #:parse-booking #:revise-booking #:possible-initials
                 #:booking-request-destination #:booking-request-day
@@ -1393,8 +1392,7 @@ and values."
                       (loop for (name value) on parameters by #'cddr
                             collect (cons name value)))))
     (apps-script-reply
-     (com.inuoe.jzon:parse
-      (dex:get (format nil "~a?~a" *apps-script-url* (quri:url-encode-params query))))
+     (com.inuoe.jzon:parse (http-request *apps-script-url* :parameters query))
      what)))
 
 (defun sheet-tabs ()
@@ -1435,14 +1433,14 @@ through the web app's doPost."
          (url (format nil "~a?spreadsheetId=~a" *apps-script-url* *spreadsheet-id*)))
     ;; A web app answers a POST with a redirect to its reply.
     (multiple-value-bind (body status headers)
-        (dex:request url
-                     :method :post
-                     :content payload
-                     :headers '(("Content-Type" . "application/json"))
-                     :max-redirects 0)
+        (http-request url
+                      :method :post
+                      :content payload
+                      :content-type "application/json"
+                      :redirect nil)
       (declare (ignore body))
-      (let ((location (gethash "location" headers)))
+      (let ((location (cdr (assoc :location headers))))
         (unless location
           (error "Expected redirect from Apps Script, got status ~a" status))
-        (apps-script-reply (com.inuoe.jzon:parse (dex:get location))
+        (apps-script-reply (com.inuoe.jzon:parse (http-request location))
                            (format nil "write ~a" qualified-range))))))

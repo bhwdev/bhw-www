@@ -12,7 +12,7 @@
                 #:create-table-row #:cursor #:inner-html #:location #:path-name
                 #:requiredp #:set-on-change #:set-on-click #:set-on-new-window
                 #:set-on-submit #:style #:url #:url-rewrite #:value #:window)
-  (:import-from #:quri)
+  (:import-from #:hunchentoot #:url-decode #:url-encode)
   (:import-from #:bhw/bible/database #:+bible-book-url-alist+)
   (:import-from #:bhw/site/layout #:escape-html #:with-page-chrome)
   (:local-nicknames (#:bible #:bhw/bible/text))
@@ -193,7 +193,7 @@ it is submitted.  Returns the query's input element."
 
 (defun search-url (query)
   "The URL of the search page showing the results of QUERY."
-  (format nil "/bible-search?query=~A" (quri:url-encode query)))
+  (format nil "/bible-search?query=~A" (url-encode query :utf-8)))
 
 (defun create-verse-row (table bible-uid &key score (footnotes-width "55%"))
   "Add to TABLE the row of the verse BIBLE-UID: its heading, its text with
@@ -266,7 +266,7 @@ font selector, and verse table via CLOG."
   (let ((query-start (position #\? url)))
     (when query-start
       (let* ((query-string (subseq url (1+ query-start)))
-             (decoded (quri:url-decode query-string))
+             (decoded (url-decode query-string :utf-8))
              (parts (cl-ppcre:split (format nil "~A=" param) decoded :limit 2)))
         (when (= 2 (length parts))
           ;; Strip any trailing &param=value pairs

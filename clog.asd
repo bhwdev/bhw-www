@@ -19,8 +19,8 @@ its core and CLOG-GUI on Hunchentoot"
   :pathname "clog/"
   :serial t
   :depends-on (#:alexandria #:bordeaux-threads #:cl-base64 #:cl-ppcre #:closer-mop
-               #:flexi-streams #:hunchentoot #:ironclad #:parse-float #:quri
-               #:trivial-gray-streams #:usocket)
+               #:flexi-streams #:hunchentoot #:ironclad #:trivial-gray-streams
+               #:usocket)
   :components ((:module "static-files"
                 :components ((:static-file "js/boot.js")))
                (:module "source"

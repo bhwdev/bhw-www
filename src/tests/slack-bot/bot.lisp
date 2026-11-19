@@ -13,7 +13,7 @@
   (:import-from #:alexandria #:plist-hash-table)
   (:import-from #:bordeaux-threads)
   (:import-from #:com.inuoe.jzon)
-  (:import-from #:dexador)
+  (:import-from #:bhw/http #:http-request)
   (:import-from #:flexi-streams)
   (:import-from #:graph-db)
   (:import-from #:ironclad)
@@ -42,6 +42,10 @@ WITH-MOCKED-FUNCTIONS."))
   ;; URL-encoded spaces and plus signs
   (let ((ht (sb::decode-form-body "text=book+a+van+for+swim")))
     (ok (string= "book a van for swim" (gethash "text" ht))))
+  ;; UTF-8, an encoded plus sign, a field without =
+  (let ((ht (sb::decode-form-body "text=Mar%C3%ADn+1%2B1&flag")))
+    (ok (string= "Marín 1+1" (gethash "text" ht)))
+    (ok (equal '(nil t) (multiple-value-list (gethash "flag" ht)))))
   ;; Empty body yields empty table
   (ok (= 0 (hash-table-count (sb::decode-form-body "")))))
 
@@ -300,7 +304,7 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
   (ok (string= "plain *bold* `code`" (sb::escape-control-sequences "plain *bold* `code`")))
   ;; and POST-SLACK-MESSAGE sends the escaped text
   (let ((sent nil))
-    (with-mocked-functions ((dexador:post (lambda (url &key content &allow-other-keys)
+    (with-mocked-functions ((http-request (lambda (url &key content &allow-other-keys)
                                             (declare (ignore url))
                                             (setf sent (com.inuoe.jzon:parse content))
                                             "{\"ok\":true}")))
