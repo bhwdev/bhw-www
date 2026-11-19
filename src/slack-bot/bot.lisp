@@ -34,6 +34,7 @@
                 #:date-range-phrase-p
                 #:remind-departure
                 #:remind-return
+                #:remind-change
                 #:todays-trips
                 #:trips-for-passenger-today
                 #:trips-for-return-passenger-today
@@ -88,7 +89,9 @@ of days.
 A persistent /subscribe registry (graph-db-backed via
 bhw/slack-bot/database)
 plus an in-process scheduler thread DMs subscribers *REMINDER-LEAD-MINUTES*
-before each departure and each return they are on, driving or riding.
+before each departure and each return they are on, driving or riding, and
+again *CHANGE-ALERT-LEAD-MINUTES* before it when its passengers have changed
+since that reminder.
 
 A second registry records which initials each Slack account goes by, so a
 message can say \"me\", \"my\" or \"I\" instead of spelling them out: /iam sets
@@ -221,7 +224,7 @@ If something is missing, I reply with what I understood and ask you to re-send t
 
 *Who you are*: type `/iam` and your initials, e.g. `/iam DMM`, and I'll read `me`, `my` and `I` as you from then on — `/book me a van to the dentist tomorrow 9 to 11`, `/book can I get a van for the pool Saturday 8-10`, `/book me and CG to swimming Tuesday 7-9pm`. Type `/iam` on its own to see who I have you down as. I remember it across restarts and through `/unsubscribe`.
 
-*Reminders*: type `/subscribe` and your initials, e.g. `/subscribe BW`, and I'll message you 30 minutes before each departure and each return you are on, with the vehicle, the driver (the first name listed) and who else is going. `/unsubscribe` turns them off.
+*Reminders*: type `/subscribe` and your initials, e.g. `/subscribe BW`, and I'll message you 30 minutes before each departure and each return you are on, with the vehicle, the driver (the first name listed) and who else is going. If the passengers change after that, I message you again 5 minutes before it leaves, saying who was added or removed. `/unsubscribe` turns them off.
 
 *This message*: `/help`."
   "The help page: what the bot is and how to use every command, for people
@@ -990,11 +993,19 @@ currently registered, so it doubles as `/whoami`."
 reminder DM (SCHEDULER-TICK).  /subscribe's reply quotes it; +HELP-TEXT+
 states it in words and has to be changed by hand.")
 
+(defparameter *change-alert-lead-minutes* 5
+  "How many minutes before a trip leg leaves a subscriber who was reminded of
+it is sent a second DM, when the leg's passengers have changed since the
+reminder (ALERT-PASSENGER-CHANGE); with no change there is none.
+/subscribe's reply quotes it; +HELP-TEXT+ states it in words and has to be
+changed by hand.")
+
 (defslash-command "/subscribe" (params)
   "/subscribe <INITIAL> — receive a direct message *REMINDER-LEAD-MINUTES*
 before each departure and each return today you are on, driving or riding,
 naming the vehicle, the driver (the first passenger listed for that leg) and
-the other passengers.
+the other passengers, and a second one *CHANGE-ALERT-LEAD-MINUTES* before it
+when its passengers have changed since the first.
 Example:
   /subscribe BW
 Persists across restarts. Use /unsubscribe to stop."
@@ -1010,8 +1021,8 @@ Persists across restarts. Use /unsubscribe to stop."
        ;; to get both reminders and "book me a van".  /unsubscribe drops only
        ;; the subscription; the identity outlives it.
        (add-slack-identity user-id initial)
-       (format nil "Subscribed. You will be DM'd ~D minutes before each departure and each return ~A is on, with the vehicle, driver and passengers. I'll also read \"me\" as ~:*~A in your messages."
-               *reminder-lead-minutes* initial)))))
+       (format nil "Subscribed. You will be DM'd ~D minutes before each departure and each return ~A is on, with the vehicle, driver and passengers, and again ~D minutes before it if the passengers have changed since. I'll also read \"me\" as ~2:*~A in your messages."
+               *reminder-lead-minutes* initial *change-alert-lead-minutes*)))))
 
 (defslash-command "/unsubscribe" (params)
   "/unsubscribe — stop receiving trip reminder DMs."
@@ -1069,8 +1080,16 @@ posted back asynchronously via chat.postMessage."
 (defvar *sent-reminders* (make-hash-table :test #'equal)
   "What today's sweeps have done, cleared when the day changes.  Key: (list
 user-id sheet-row vehicle date-key leg), LEG being :DEPARTURE or :RETURN, for
-a reminder sent; (list :unreadable sheet-row vehicle date-key leg) for a leg
-logged by LOG-UNREADABLE-TIME.  Value: T.")
+a reminder sent, whose value is its SENT-REMINDER; (list :unreadable
+sheet-row vehicle date-key leg) for a leg logged by LOG-UNREADABLE-TIME,
+whose value is T.")
+
+(defstruct sent-reminder
+  "A reminder DM sent today: the TRIP as it read when it was sent, the
+baseline ALERT-PASSENGER-CHANGE compares the leg's passengers with, and
+whether that comparison has been made (CHECKED), which it is once."
+  trip
+  checked)
 
 (defvar *sent-reminders-date* nil
   "YYYYMMDD of the day *sent-reminders* was last reset.")
@@ -1108,16 +1127,74 @@ it, and without this line it would pass unseen."
               leg (if (eq leg :departure) (trip-departure trip) (trip-return-time trip))
               (trip-vehicle trip) (trip-block-start-row trip) (trip-sheet-name trip)))))
 
+(defun leg-leaves (trip leg)
+  "The universal time today at which TRIP's LEG, :DEPARTURE or :RETURN,
+leaves, or NIL when its time cannot be read."
+  (if (eq leg :departure)
+      (trip-departure-universal-time trip)
+      (trip-return-universal-time trip)))
+
+(defun due-p (leaves now lead-minutes)
+  "True when a leg leaving at LEAVES is due, at NOW, for a DM LEAD-MINUTES
+ahead of it: from the lead time plus the 60s between sweeps until it leaves,
+so the DM goes out between the lead time and a minute more ahead of it, and a
+leg booked or a sweep run later than that still sends it, late."
+  (and leaves (<= 0 (- leaves now) (* 60 (1+ lead-minutes)))))
+
+(defun remind-leg (user-id initial trip leg now)
+  "DM USER-ID, subscribed as INITIAL and on TRIP's LEG, the leg's reminder
+(REMIND-DEPARTURE or REMIND-RETURN) once it is due (*REMINDER-LEAD-MINUTES*),
+unless they have had it today, and keep the trip as it was reminded for
+ALERT-PASSENGER-CHANGE.  A leg whose time cannot be read is logged instead."
+  (let ((key (reminder-key user-id trip leg))
+        (leaves (leg-leaves trip leg)))
+    (cond ((null leaves)
+           (log-unreadable-time trip leg))
+          ((and (due-p leaves now *reminder-lead-minutes*)
+                (not (gethash key *sent-reminders*)))
+           (post-slack-message user-id (if (eq leg :departure)
+                                           (remind-departure trip)
+                                           (remind-return trip)))
+           (setf (gethash key *sent-reminders*) (make-sent-reminder :trip trip))
+           (format *error-output* "slack scheduler: reminded ~A/~A of the ~(~A~) at ~A~%"
+                   user-id initial leg (trip-vehicle trip))))))
+
+(defun alert-passenger-change (user-id initial trip leg now)
+  "DM USER-ID, subscribed as INITIAL, the alert (REMIND-CHANGE) that the
+passengers of TRIP's LEG have changed since the reminder they were sent of
+it, once it is due (*CHANGE-ALERT-LEAD-MINUTES*).  The comparison is made
+once, on the first sweep it is due: no change, no DM, and a change after that
+sweep is not alerted.  It is made for everyone who had the reminder, so
+someone taken off the leg is told, and someone put on it after the reminder
+went out was reminded on a later sweep and is compared with that.  The leg
+leaves at the time it reads now, or, when that can no longer be read, at the
+one it was reminded for.  A trip is the same trip at the same sheet row and
+vehicle (REMINDER-KEY); a leg whose trip has moved to other rows is not
+compared."
+  (let ((sent (gethash (reminder-key user-id trip leg) *sent-reminders*)))
+    (when (and (sent-reminder-p sent)
+               (not (sent-reminder-checked sent))
+               (due-p (or (leg-leaves trip leg)
+                          (leg-leaves (sent-reminder-trip sent) leg))
+                      now *change-alert-lead-minutes*))
+      (let ((text (remind-change (sent-reminder-trip sent) trip leg)))
+        (when text
+          (post-slack-message user-id text)
+          (format *error-output* "slack scheduler: alerted ~A/~A to a passenger change on the ~(~A~) at ~A~%"
+                  user-id initial leg (trip-vehicle trip)))
+        ;; After the post, so that a failed one is tried again next sweep.
+        (setf (sent-reminder-checked sent) t)))))
+
 (defun scheduler-tick ()
   "Single sweep: DM each subscriber a reminder *REMINDER-LEAD-MINUTES* before
 each leg of today's trips they are on, driving or riding: the departure
 (REMIND-DEPARTURE) and the return (REMIND-RETURN), each the same DM for
-everyone on that leg.  A leg is due from the lead time plus the 60s between
-sweeps until it leaves, so the DM goes out between the lead time and a minute
-more ahead of it, and a leg booked later than that is still reminded, on the
-next sweep.  Today's trips are read once a sweep, for every subscriber; a
-failed read is logged and tried again on the next sweep, and a leg whose time
-cannot be read is logged once a day (LOG-UNREADABLE-TIME)."
+everyone on that leg (REMIND-LEG).  Then, *CHANGE-ALERT-LEAD-MINUTES* before
+each leg a subscriber was reminded of, DM them again if its passengers have
+changed since (ALERT-PASSENGER-CHANGE).  Today's trips are read once a sweep,
+for every subscriber; a failed read is logged and tried again on the next
+sweep, and a leg whose time cannot be read is logged once a day
+(LOG-UNREADABLE-TIME)."
   (maybe-reset-sent-reminders)
   (let ((subscriptions (all-slack-subscriptions)))
     (when subscriptions
@@ -1126,31 +1203,23 @@ cannot be read is logged once a day (LOG-UNREADABLE-TIME)."
                        (format *error-output*
                                "slack scheduler: cannot read today's trips: ~A~%" c)
                        (return-from scheduler-tick nil))))
-            (now (get-universal-time))
-            (window (* 60 (1+ *reminder-lead-minutes*))))
+            (now (get-universal-time)))
         (loop for (user-id . initial) in subscriptions
-              do (flet ((remind (trip leg leaves text-fn)
-                          (let ((key (reminder-key user-id trip leg)))
-                            (cond ((null leaves)
-                                   (log-unreadable-time trip leg))
-                                  ((and (<= 0 (- leaves now) window)
-                                        (not (gethash key *sent-reminders*)))
-                                   (post-slack-message user-id (funcall text-fn))
-                                   (setf (gethash key *sent-reminders*) t)
-                                   (format *error-output* "slack scheduler: reminded ~A/~A of the ~(~A~) at ~A~%"
-                                           user-id initial leg (trip-vehicle trip)))))))
-                   (handler-case
-                       (progn
-                         (dolist (trip (trips-for-passenger-today initial trips))
-                           (remind trip :departure (trip-departure-universal-time trip)
-                                   (lambda () (remind-departure trip))))
-                         (dolist (trip (trips-for-return-passenger-today initial trips))
-                           (remind trip :return (trip-return-universal-time trip)
-                                   (lambda () (remind-return trip)))))
-                     (error (c)
-                       (format *error-output*
-                               "slack scheduler: error for ~A/~A: ~A~%"
-                               user-id initial c)))))))))
+              do (handler-case
+                     (progn
+                       (dolist (trip (trips-for-passenger-today initial trips))
+                         (remind-leg user-id initial trip :departure now))
+                       (dolist (trip (trips-for-return-passenger-today initial trips))
+                         (remind-leg user-id initial trip :return now))
+                       ;; Every trip, not only those they are on now: being
+                       ;; taken off a leg is a change too.
+                       (dolist (trip trips)
+                         (alert-passenger-change user-id initial trip :departure now)
+                         (alert-passenger-change user-id initial trip :return now)))
+                   (error (c)
+                     (format *error-output*
+                             "slack scheduler: error for ~A/~A: ~A~%"
+                             user-id initial c))))))))
 
 (defun reminder-scheduler-loop ()
   (loop

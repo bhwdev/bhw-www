@@ -661,6 +661,9 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
       (ok (search "Subscribed" (cdr (first posted))))
       ;; ... and says how far ahead the reminders come
       (ok (search "30 minutes before each departure and each return BW is on"
+                  (cdr (first posted))))
+      ;; ... and when the second, on a change of passengers, comes
+      (ok (search "again 5 minutes before it if the passengers have changed since. I'll also read \"me\" as BW"
                   (cdr (first posted)))))))
 
 (deftest scheduler-tick-window
@@ -894,6 +897,83 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
             (ok (equal (list (cons "UBW" text) (cons "UDM" text))
                        (sent-since 4))))
           (ok (= 6 (length posted))))))))
+
+(deftest scheduler-tick-passenger-change
+  ;; Five minutes before a leg leaves, everyone who was reminded of it is
+  ;; alerted if its passengers have changed since, and nobody otherwise.
+  ;; Only the sheet read, the clock and Slack are mocked.
+  (let* ((dgh (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
+                            :block-start-row 138
+                            :departure "8:35 am" :return-time "12 pm"
+                            :dep-passengers '("BW" "DM" "CG")
+                            :ret-passengers '("BW" "DM" "CG")))
+         (chevy (vb:make-trip :day "Thursday" :vehicle :chevy :destination "SHMS"
+                              :block-start-row 138 :departure "10 am"
+                              :dep-passengers '("JC")))
+         (clock 0)
+         (failing nil)
+         (posted '())
+         (sb::*reminder-lead-minutes* 30)
+         (sb::*change-alert-lead-minutes* 5)
+         (sb::*sent-reminders* (make-hash-table :test #'equal))
+         (sb::*sent-reminders-date* (sb::today-date-key)))
+    (flet ((sweep-at (hour minute)
+             (setf clock (+ (* 60 hour) minute))
+             (let ((before (length posted)))
+               (sb::scheduler-tick)
+               (reverse (subseq posted 0 (- (length posted) before))))))
+      (with-mocked-functions ((db:all-slack-subscriptions
+                               (lambda () '(("UBW" . "BW") ("UDM" . "DM") ("UCG" . "CG")
+                                            ("UGG" . "GG") ("UJC" . "JC"))))
+                              (vb:todays-trips (lambda () (list dgh chevy)))
+                              (vb::today-universal-time
+                               (lambda (time-str)
+                                 (let ((minutes (vb::sheet-clock time-str)))
+                                   (and minutes
+                                        (+ (get-universal-time) (* 60 (- minutes clock)))))))
+                              (sb::post-slack-message
+                               (lambda (channel text)
+                                 (when (equal channel failing)
+                                   (setf failing nil)
+                                   (error "Slack is down for ~A" channel))
+                                 (push (cons channel text) posted))))
+        (let ((*error-output* (make-broadcast-stream)))
+          ;; 8:05: the departure's reminder to the three on it
+          (ok (equal '("UBW" "UDM" "UCG") (mapcar #'car (sweep-at 8 5))))
+          ;; DM is taken off and GG put on; GG, on it now, is reminded
+          (setf dgh (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
+                                  :block-start-row 138
+                                  :departure "8:35 am" :return-time "12 pm"
+                                  :dep-passengers '("BW" "CG" "GG")
+                                  :ret-passengers '("BW" "DM" "CG")))
+          (ok (equal '("UGG") (mapcar #'car (sweep-at 8 20))))
+          ;; seven minutes ahead is not yet the alert's time
+          (ok (null (sweep-at 8 28)))
+          ;; five minutes ahead: the three reminded with DM on it are alerted,
+          ;; DM too; GG, whose reminder already had them as they are, is not.
+          ;; A post that fails is tried again on the next sweep.
+          (setf failing "UBW")
+          (let ((text "Passengers changed since your reminder: GG added; DM removed. BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and CG, GG are passengers."))
+            (ok (equal (list (cons "UDM" text) (cons "UCG" text)) (sweep-at 8 30)))
+            (ok (equal (list (cons "UBW" text)) (sweep-at 8 31))))
+          (ok (null (sweep-at 8 32)))
+          ;; 9:30: JC's departure; then the whole trip is cleared from the
+          ;; sheet, and JC is told at its old time that nobody is on it
+          (ok (equal '("UJC") (mapcar #'car (sweep-at 9 30))))
+          (setf chevy (vb:make-trip :day "Thursday" :vehicle :chevy :block-start-row 138))
+          (ok (null (sweep-at 9 50)))
+          (ok (equal (list (cons "UJC" "Passengers changed since your reminder: JC removed. Nobody is on the trip in the Chevy to SHMS departing at 10 am now."))
+                     (sweep-at 9 55)))
+          ;; 11:30: the return's reminder; unchanged at 11:55, so no alert,
+          ;; and a change after that sweep is not alerted either
+          (ok (equal '("UBW" "UDM" "UCG") (mapcar #'car (sweep-at 11 30))))
+          (ok (null (sweep-at 11 55)))
+          (setf dgh (vb:make-trip :day "Thursday" :vehicle :dgh :destination "SHMS"
+                                  :block-start-row 138
+                                  :departure "8:35 am" :return-time "12 pm"
+                                  :dep-passengers '("BW" "CG" "GG")
+                                  :ret-passengers '("DM" "BW" "CG")))
+          (ok (null (sweep-at 11 57))))))))
 
 (deftest scheduler-tick-unreadable-time
   ;; A leg whose time cannot be read can be reminded to nobody; that is

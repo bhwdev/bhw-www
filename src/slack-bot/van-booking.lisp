@@ -44,6 +44,7 @@
    #:trips-for-passenger-today
    #:trip-departure-universal-time
    #:remind-return
+   #:remind-change
    #:todays-trips
    #:trips-for-return-passenger-today
    #:trip-return-universal-time)
@@ -1001,6 +1002,47 @@ the vehicle, where it comes back from, the time, and the other passengers."
              driver (vehicle-phrase (trip-vehicle trip))
              (trip-destination trip) (trip-return-time trip))
      others)))
+
+(defun leg-passengers (trip leg)
+  "The passengers of TRIP's LEG, :DEPARTURE or :RETURN, its driver first."
+  (ecase leg
+    (:departure (trip-dep-passengers trip))
+    (:return (trip-ret-passengers trip))))
+
+(defun remind-change (reminded trip leg)
+  "Return the alert that the passengers of a trip's LEG, :DEPARTURE or
+:RETURN, have changed since its reminder, the same for everyone who had the
+reminder: REMINDED is the trip as it read when the reminder was sent, TRIP
+the trip as it reads now.  It says who was added, who removed and who drives
+instead, then the leg as it reads now in the words of REMIND-DEPARTURE or
+REMIND-RETURN, or, when nobody is left on it, the leg as it was reminded.
+NIL when nothing changed: the same driver (the first) and the same people,
+whatever the order of those after the driver and the case of the initials."
+  (let* ((before (leg-passengers reminded leg))
+         (after (leg-passengers trip leg))
+         (added (filter-new-passengers after before))
+         (removed (filter-new-passengers before after))
+         (driver (and before after
+                      (string-not-equal (first before) (first after))
+                      (first after)))
+         (changes (remove nil (list (and added (format nil "~{~a~^, ~} added" added))
+                                    (and removed (format nil "~{~a~^, ~} removed" removed))
+                                    (and driver (format nil "~a drives instead of ~a"
+                                                        driver (first before)))))))
+    (when changes
+      (format nil "Passengers changed since your reminder: ~{~a~^; ~}. ~a"
+              changes
+              (cond ((null after)
+                     (format nil (if (eq leg :departure)
+                                     "Nobody is on the trip~@[ in ~a~] to ~a departing at ~a now."
+                                     "Nobody is on the return~@[ in ~a~] from ~a at ~a now.")
+                             (vehicle-phrase (trip-vehicle reminded))
+                             (trip-destination reminded)
+                             (if (eq leg :departure)
+                                 (trip-departure reminded)
+                                 (trip-return-time reminded))))
+                    ((eq leg :departure) (remind-departure trip))
+                    (t (remind-return trip)))))))
 
 (defun todays-trips ()
   "The trips in today's block of the week sheet that covers today, or NIL

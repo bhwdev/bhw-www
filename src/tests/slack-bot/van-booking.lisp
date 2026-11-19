@@ -2267,6 +2267,39 @@ or, when SECRET is NIL, empty, which APPS-SCRIPT-SECRET takes as unset."
                                               :return-time "12 pm"
                                               :ret-passengers '("BW" "DM"))))))
 
+  (testing "remind-change-wording"
+    (flet ((departure (&rest passengers)
+             (make-trip :vehicle :dgh :destination "SHMS" :departure "8:35 am"
+                        :dep-passengers passengers))
+           (return-leg (&rest passengers)
+             (make-trip :vehicle :lgh :destination "SHMS" :return-time "12 pm"
+                        :ret-passengers passengers)))
+      ;; the same people with the same driver: no alert, whatever the order
+      ;; after the driver or the case of the initials
+      (ng (vb:remind-change (departure "BW" "DM" "CG") (departure "BW" "DM" "CG") :departure))
+      (ng (vb:remind-change (departure "BW" "DM" "CG") (departure "bw" "CG" "dm") :departure))
+      ;; the departure's passengers are compared, not the return's
+      (ng (vb:remind-change (departure "BW") (make-trip :dep-passengers '("BW")
+                                                       :ret-passengers '("DM"))
+                            :departure))
+      ;; added and removed, then the leg as it reads now
+      (ok (string= "Passengers changed since your reminder: GG added; DM removed. BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and CG, GG are passengers."
+                   (vb:remind-change (departure "BW" "DM" "CG") (departure "BW" "CG" "GG")
+                                     :departure)))
+      (ok (string= "Passengers changed since your reminder: GG, JC added. BW is the driver of the DGH for a trip to SHMS departing at 8:35 am and GG, JC are passengers."
+                   (vb:remind-change (departure "BW") (departure "BW" "GG" "JC") :departure)))
+      ;; the same people with another driver
+      (ok (string= "Passengers changed since your reminder: DM drives instead of BW. DM is the driver of the LGH for the return from SHMS at 12 pm and BW is a passenger."
+                   (vb:remind-change (return-leg "BW" "DM") (return-leg "DM" "BW") :return)))
+      ;; the driver taken off
+      (ok (string= "Passengers changed since your reminder: BW removed; DM drives instead of BW. DM is the driver of the LGH for the return from SHMS at 12 pm with no other passengers."
+                   (vb:remind-change (return-leg "BW" "DM") (return-leg "DM") :return)))
+      ;; nobody left: the leg as it was reminded, whatever is left of its cells
+      (ok (string= "Passengers changed since your reminder: BW, DM removed. Nobody is on the trip in the DGH to SHMS departing at 8:35 am now."
+                   (vb:remind-change (departure "BW" "DM") (make-trip :vehicle :dgh) :departure)))
+      (ok (string= "Passengers changed since your reminder: BW removed. Nobody is on the return in the LGH from SHMS at 12 pm now."
+                   (vb:remind-change (return-leg "BW") (make-trip :vehicle :lgh) :return)))))
+
   (testing "vehicle-phrase-wording"
     (ok (string= "the DGH" (vb::vehicle-phrase :dgh)))
     (ok (string= "the LGH" (vb::vehicle-phrase :lgh)))
