@@ -3,16 +3,15 @@
 
 (uiop:define-package #:bhw/plp/console
   (:use #:common-lisp)
-  (:import-from #:bordeaux-threads)
   (:import-from #:clog
-                #:add-class #:attribute #:create-a #:create-button
+                #:add-class #:add-close-hook #:attribute #:create-a #:create-button
                 #:create-data-list #:create-div #:create-form-element
                 #:create-option #:create-section #:create-select #:create-span
                 #:create-text-area #:css-class-name #:focus #:html-id
-                #:inner-html #:location #:path-name #:place-holder
-                #:remove-class #:scroll-into-view #:set-on-change #:set-on-click
-                #:set-on-input #:set-on-key-down #:set-on-new-window #:style
-                #:tab-index #:text-value #:url #:validp #:value)
+                #:inner-html #:location #:mirror #:place-holder #:post
+                #:remove-class #:request-path #:scroll-into-view #:set-on-change
+                #:set-on-click #:set-on-input #:set-on-key-down #:set-on-new-window
+                #:style #:tab-index #:text-value #:url #:value)
   (:import-from #:bhw/site/layout #:escape-html)
   (:import-from #:bhw/plp/screen
                 #:handle-key #:on-screen #:path-code #:setup-page #:slide-html
@@ -34,7 +33,7 @@
    "The operator's pages.
 
 /plp states the terms the lyrics are shown under and, on agreement, opens a
-console on a new room.  /plp-console/CODE is the console of the room CODE:
+console on a new room.  /plp/console/CODE is the console of the room CODE:
 on the left the setlist and the search, in the middle every slide of the
 song as a card in the order it is sung, on the right what the screen shows
 and what comes next, and the text of a song to add or correct.
@@ -126,7 +125,7 @@ row is left, the last card; INDEX itself where there is no row to go to."
                   (lambda (object)
                     (declare (ignore object))
                     (setf (url (location body))
-                          (format nil "/plp-console/~A" (live:new-code)))))))
+                          (format nil "/plp/console/~A" (live:new-code)))))))
 
 (defun card-html (slide)
   "The inside of the card of SLIDE: its key and name, and its lines."
@@ -260,7 +259,7 @@ cannot tell which is meant."
          (screen-link (progn
                         (create-span bar :content "Praise lyrics")
                         (create-span bar :class "plp-code" :content (live:room-code room))
-                        (create-a bar :link (format nil "/plp-screen/~A" (live:room-code room))
+                        (create-a bar :link (format nil "/plp/screen/~A" (live:room-code room))
                                       :content "Open the screen" :target "_blank")))
          (black (create-button bar :content "Black" :class "plp-keep"))
          (waiting (create-button bar :content "Waiting"))
@@ -367,11 +366,15 @@ cannot tell which is meant."
          (results '()) (result-rows '()) (selected 0)
          ;; The song text that Save last held back as likely in the store
          ;; already: Save on the same text again stores it.
-         (doubted nil)
-         ;; Events come each in its own thread: one draws a list at a time.
-         (lock (bordeaux-threads:make-recursive-lock "plp-console")))
+         (doubted nil))
     (declare (ignore screen-link))
     (create-div root :class "plp-keys" :content *key-help*)
+    ;; The fields' values are kept here as they change in the browser, so that
+    ;; reading one asks it nothing.
+    (dolist (field (list passphrase end-input waiting-input saved name-input search
+                         tag-select editor new-title new-writers new-copyright new-order
+                         tag-input new-words))
+      (mirror field))
     (setf (tab-index pane) 0
           (place-holder end-input) "20:00"
           (place-holder waiting-input) "Line on the waiting slide"
@@ -429,90 +432,88 @@ cannot tell which is meant."
                                       (funcall function)
                                       (refocus))))
              (draw-cards ()
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (let* ((state (live:snapshot room))
-                        (song (getf state :song))
-                        (deck (getf state :deck))
-                        (semitones (getf state :transposition))
-                        (key (and song (song:song-key song)))
-                        (flats (and key (song:flat-key-p (song:transpose-chord key semitones)))))
-                   (setf (inner-html title)
-                         (escape-html (if song (song:song-title song) "No song yet"))
-                         (inner-html writers)
-                         (escape-html (or (and song (song:song-writers song))
-                                          (if song "" "Search for one on the left.")))
-                         (inner-html key-button)
-                         (escape-html
-                          (format nil "~:[Key~;~:*~A~]~[~:;~:* ~@D~]"
-                                  (and key (song:transpose-chord key semitones :flats flats))
-                                  (if (> semitones 6) (- semitones 12) semitones)))
-                         (inner-html cards-area) ""
-                         live-card nil
-                         next-card nil)
-                   (cond
-                     (musician
-                      ;; Each slide once: a tap shows it where it next comes.
-                      (let ((made (loop for slide in (song:deck-chart deck)
-                                        collect (let ((slide slide)
-                                                      (card (create-div
-                                                             cards-area :class "plp-card"
-                                                             :content (chart-card-html
-                                                                       slide :semitones semitones
-                                                                             :flats flats))))
-                                                  (click card
-                                                         (lambda ()
-                                                           (let ((state (live:snapshot room)))
-                                                             (live:go-to
-                                                              room
-                                                              (song:deck-next (getf state :deck)
-                                                                              (getf state :index)
-                                                                              slide)))))
-                                                  (cons slide card)))))
-                        (multiple-value-bind (size width)
-                            (chart-font-size (mapcar #'car made))
-                          (setf (style cards-area "font-size") size
-                                (style cards-area "column-width") (format nil "~,2Fem" width)))
-                        (setf cards (loop for slide in deck
-                                          collect (cdr (assoc slide made
-                                                              :test #'song:same-slide-p))))))
-                     (t
-                      (setf (style cards-area "font-size") ""
-                            (style cards-area "column-width") ""
-                            cards (loop for slide in deck
-                                        for index from 0
-                                        collect (let ((card (create-div cards-area
-                                                                        :class "plp-card"
-                                                                        :content (card-html slide)))
-                                                      (index index))
-                                                  (click card (lambda () (live:go-to room index)))
-                                                  card))))))))
+               (let* ((state (live:snapshot room))
+                      (song (getf state :song))
+                      (deck (getf state :deck))
+                      (semitones (getf state :transposition))
+                      (key (and song (song:song-key song)))
+                      (flats (and key (song:flat-key-p (song:transpose-chord key semitones)))))
+                 (setf (inner-html title)
+                       (escape-html (if song (song:song-title song) "No song yet"))
+                       (inner-html writers)
+                       (escape-html (or (and song (song:song-writers song))
+                                        (if song "" "Search for one on the left.")))
+                       (inner-html key-button)
+                       (escape-html
+                        (format nil "~:[Key~;~:*~A~]~[~:;~:* ~@D~]"
+                                (and key (song:transpose-chord key semitones :flats flats))
+                                (if (> semitones 6) (- semitones 12) semitones)))
+                       (inner-html cards-area) ""
+                       live-card nil
+                       next-card nil)
+                 (cond
+                   (musician
+                    ;; Each slide once: a tap shows it where it next comes.
+                    (let ((made (loop for slide in (song:deck-chart deck)
+                                      collect (let ((slide slide)
+                                                    (card (create-div
+                                                           cards-area :class "plp-card"
+                                                           :content (chart-card-html
+                                                                     slide :semitones semitones
+                                                                           :flats flats))))
+                                                (click card
+                                                       (lambda ()
+                                                         (let ((state (live:snapshot room)))
+                                                           (live:go-to
+                                                            room
+                                                            (song:deck-next (getf state :deck)
+                                                                            (getf state :index)
+                                                                            slide)))))
+                                                (cons slide card)))))
+                      (multiple-value-bind (size width)
+                          (chart-font-size (mapcar #'car made))
+                        (setf (style cards-area "font-size") size
+                              (style cards-area "column-width") (format nil "~,2Fem" width)))
+                      (setf cards (loop for slide in deck
+                                        collect (cdr (assoc slide made
+                                                            :test #'song:same-slide-p))))))
+                   (t
+                    (setf (style cards-area "font-size") ""
+                          (style cards-area "column-width") ""
+                          cards (loop for slide in deck
+                                      for index from 0
+                                      collect (let ((card (create-div cards-area
+                                                                      :class "plp-card"
+                                                                      :content (card-html slide)))
+                                                    (index index))
+                                                (click card (lambda () (live:go-to room index)))
+                                                card)))))))
              (draw-live ()
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (let* ((state (live:snapshot room))
-                        (mode (getf state :mode))
-                        (card (nth (getf state :index) cards))
-                        ;; A musician sees where the next slide is.
-                        (after (and musician (nth (1+ (getf state :index)) cards)))
-                        (after (and (not (eq after card)) after)))
-                   (unless (eq after next-card)
-                     (when next-card (remove-class next-card "plp-next-up"))
-                     (when after (add-class after "plp-next-up"))
-                     (setf next-card after))
-                   (unless (eq card live-card)
-                     (when live-card (remove-class live-card "plp-live"))
-                     (when card
-                       (add-class card "plp-live")
-                       (scroll-into-view card))
-                     (setf live-card card))
-                   (on black (eq mode :black))
-                   (on waiting (eq mode :waiting))
-                   (setf (inner-html now)
-                         (cond ((eq mode :black) "(black)")
-                               ((eq mode :waiting) "(the waiting slide)")
-                               ((getf state :slide) (slide-html (getf state :slide)))
-                               (t ""))
-                         (inner-html next)
-                         (if (getf state :next) (slide-html (getf state :next)) "")))))
+               (let* ((state (live:snapshot room))
+                      (mode (getf state :mode))
+                      (card (nth (getf state :index) cards))
+                      ;; A musician sees where the next slide is.
+                      (after (and musician (nth (1+ (getf state :index)) cards)))
+                      (after (and (not (eq after card)) after)))
+                 (unless (eq after next-card)
+                   (when next-card (remove-class next-card "plp-next-up"))
+                   (when after (add-class after "plp-next-up"))
+                   (setf next-card after))
+                 (unless (eq card live-card)
+                   (when live-card (remove-class live-card "plp-live"))
+                   (when card
+                     (add-class card "plp-live")
+                     (scroll-into-view card))
+                   (setf live-card card))
+                 (on black (eq mode :black))
+                 (on waiting (eq mode :waiting))
+                 (setf (inner-html now)
+                       (cond ((eq mode :black) "(black)")
+                             ((eq mode :waiting) "(the waiting slide)")
+                             ((getf state :slide) (slide-html (getf state :slide)))
+                             (t ""))
+                       (inner-html next)
+                       (if (getf state :next) (slide-html (getf state :next)) ""))))
              (draw-list ()
                (let ((state (live:snapshot room)))
                  (setf (inner-html list-area) "")
@@ -556,42 +557,40 @@ cannot tell which is meant."
                (live:show-item room (live:add-item room id :after-current t)))
              (select-result (index)
                ;; Mark the INDEXth song found, or the nearest there is.
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (when result-rows
-                   (let ((old (nth selected result-rows))
-                         (index (max 0 (min index (1- (length result-rows))))))
-                     (when old (remove-class old "plp-current"))
-                     (setf selected index)
-                     (add-class (nth index result-rows) "plp-current")
-                     (scroll-into-view (nth index result-rows))))))
+               (when result-rows
+                 (let ((old (nth selected result-rows))
+                       (index (max 0 (min index (1- (length result-rows))))))
+                   (when old (remove-class old "plp-current"))
+                   (setf selected index)
+                   (add-class (nth index result-rows) "plp-current")
+                   (scroll-into-view (nth index result-rows)))))
              (draw-results ()
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (setf results (if (and (string= (string-trim " " (value search)) "")
-                                        (string= (value tag-select) ""))
-                                   '()
-                                   (db:search-songs (value search)
-                                                    :tag (and (string/= (value tag-select) "")
-                                                              (value tag-select))))
-                       (inner-html results-area) ""
-                       selected 0
-                       result-rows
-                       (loop for entry in results
-                             collect (let* ((id (getf entry :id))
-                                            (row (create-div results-area :class "plp-row"))
-                                            (name (create-span
-                                                   row :class "plp-name"
-                                                   :content (format nil "~@[~D. ~]~A~@[ <small>~A</small>~]"
-                                                                    (getf entry :number)
-                                                                    (escape-html (getf entry :title))
-                                                                    (and (getf entry :line)
-                                                                         (escape-html (getf entry :line)))))))
-                                       (click name (lambda () (show id)))
-                                       (click (create-button row :content "Show")
-                                              (lambda () (show id)))
-                                       (click (create-button row :content "+")
-                                              (lambda () (live:add-item room id)))
-                                       row)))
-                 (select-result 0)))
+               (setf results (if (and (string= (string-trim " " (value search)) "")
+                                      (string= (value tag-select) ""))
+                                 '()
+                                 (db:search-songs (value search)
+                                                  :tag (and (string/= (value tag-select) "")
+                                                            (value tag-select))))
+                     (inner-html results-area) ""
+                     selected 0
+                     result-rows
+                     (loop for entry in results
+                           collect (let* ((id (getf entry :id))
+                                          (row (create-div results-area :class "plp-row"))
+                                          (name (create-span
+                                                 row :class "plp-name"
+                                                 :content (format nil "~@[~D. ~]~A~@[ <small>~A</small>~]"
+                                                                  (getf entry :number)
+                                                                  (escape-html (getf entry :title))
+                                                                  (and (getf entry :line)
+                                                                       (escape-html (getf entry :line)))))))
+                                     (click name (lambda () (show id)))
+                                     (click (create-button row :content "Show")
+                                            (lambda () (show id)))
+                                     (click (create-button row :content "+")
+                                            (lambda () (live:add-item room id)))
+                                     row)))
+               (select-result 0))
              (draw-tag-options ()
                ;; The tags there are: to search by, and to give a song.
                (let ((known (db:all-tags))
@@ -610,34 +609,31 @@ cannot tell which is meant."
                                (mapcar (lambda (tag) (escape-html (tag-text tag))) known)))))
              (draw-tags ()
                ;; The song's tags, each a button that takes it off.
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (setf (inner-html tags-area) "")
-                 (if (null tags)
-                     (create-span tags-area :content "None yet.")
-                     (dolist (tag tags)
-                       (let ((tag tag))
-                         (set-on-click
-                          (create-button tags-area
-                                         :class "plp-tag"
-                                         :content (format nil "~A~@[ (~A)~] ✕"
-                                                          (escape-html (tag-text tag))
-                                                          (and (third tag)
-                                                               (escape-html (third tag)))))
-                          (lambda (object)
-                            (declare (ignore object))
-                            (bordeaux-threads:with-recursive-lock-held (lock)
-                              (setf tags (remove tag tags :test #'equal))
-                              (draw-tags))
-                            (focus tag-input))))))))
+               (setf (inner-html tags-area) "")
+               (if (null tags)
+                   (create-span tags-area :content "None yet.")
+                   (dolist (tag tags)
+                     (let ((tag tag))
+                       (set-on-click
+                        (create-button tags-area
+                                       :class "plp-tag"
+                                       :content (format nil "~A~@[ (~A)~] ✕"
+                                                        (escape-html (tag-text tag))
+                                                        (and (third tag)
+                                                             (escape-html (third tag)))))
+                        (lambda (object)
+                          (declare (ignore object))
+                          (setf tags (remove tag tags :test #'equal))
+                          (draw-tags)
+                          (focus tag-input)))))))
              (add-tag ()
                ;; Give the song the tag the field names.
                (multiple-value-bind (tag several) (read-tag (value tag-input) (db:all-tags))
                  (cond (tag
-                        (bordeaux-threads:with-recursive-lock-held (lock)
-                          (unless (member (tag-text tag) tags :key #'tag-text :test #'string=)
-                            (setf tags (append tags (list tag))))
-                          (setf (value tag-input) "")
-                          (draw-tags)))
+                        (unless (member (tag-text tag) tags :key #'tag-text :test #'string=)
+                          (setf tags (append tags (list tag))))
+                        (setf (value tag-input) "")
+                        (draw-tags))
                        (several
                         (say "Several tags have that name: write ~{~A~^ or ~}."
                              (mapcar #'tag-text several))))))
@@ -659,92 +655,89 @@ cannot tell which is meant."
                                  times)))
              (draw-outline ()
                ;; What the form's words are taken for, part by part.
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (setf (inner-html outline-area) "")
-                 (cond
-                   (editing
-                    (let* ((sections (words-sections))
-                           (keys (mapcar #'song:section-key sections)))
-                      (dolist (section sections)
-                        (outline-row (song:section-key section) (song:section-name section)
-                                     (first (first (song:section-slides section)))))
-                      (create-div outline-area
-                                  :class "plp-order"
-                                  :content (format nil "Sung: ~{~A~^ ~}"
-                                                   (mapcar #'escape-html
-                                                           (or (order-keys) keys))))))
-                   ((null parts)
+               (setf (inner-html outline-area) "")
+               (cond
+                 (editing
+                  (let* ((sections (words-sections))
+                         (keys (mapcar #'song:section-key sections)))
+                    (dolist (section sections)
+                      (outline-row (song:section-key section) (song:section-name section)
+                                   (first (first (song:section-slides section)))))
                     (create-div outline-area
-                                :content "The parts of the song will be listed here."))
-                   (t
-                    (let* ((song (song:outline-song parts places))
-                           (sections (song:song-sections song))
-                           (keys (mapcar #'song:section-key sections)))
-                      (loop for section in sections
-                            for index from 0
-                            do (let* ((index index)
-                                      (kind (song:section-kind section))
-                                      (row (create-div outline-area :class "plp-row"))
-                                      (select (create-select row)))
-                                 (dolist (option (if (member kind song:*outline-kinds*)
-                                                     song:*outline-kinds*
-                                                     (cons kind song:*outline-kinds*)))
-                                   (create-option select
-                                                  :value (string-downcase option)
-                                                  :selected (eq option kind)
-                                                  :content (escape-html
-                                                            (or (song:kind-label option)
-                                                                (song:section-label section)))))
-                                 (create-span
-                                  row :class "plp-name"
-                                  :content (format nil "<kbd>~A</kbd> ~A~@[ <small>×~D</small>~]"
-                                                   (escape-html (nth index keys))
-                                                   (escape-html
-                                                    (first (first (song:section-slides section))))
-                                                   (let ((times (count index places)))
-                                                     (and (> times 1) times))))
-                                 (set-on-change
-                                  select
-                                  (lambda (object)
-                                    (declare (ignore object))
-                                    (let ((kind (find (value select) song:*outline-kinds*
-                                                      :test #'string-equal)))
-                                      (when kind
-                                        (bordeaux-threads:with-recursive-lock-held (lock)
-                                          (when (< index (length parts))
-                                            (setf (nth index parts)
-                                                  (song:relabel (nth index parts) kind)))
-                                          (draw-outline))))))))
-                      (create-div outline-area
-                                  :class "plp-order"
-                                  :content (format nil "Sung: ~{~A~^ ~}"
-                                                   (mapcar #'escape-html
-                                                           (or (song:song-order song) keys)))))))))
+                                :class "plp-order"
+                                :content (format nil "Sung: ~{~A~^ ~}"
+                                                 (mapcar #'escape-html
+                                                         (or (order-keys) keys))))))
+                 ((null parts)
+                  (create-div outline-area
+                              :content "The parts of the song will be listed here."))
+                 (t
+                  (let* ((song (song:outline-song parts places))
+                         (sections (song:song-sections song))
+                         (keys (mapcar #'song:section-key sections)))
+                    (loop for section in sections
+                          for index from 0
+                          do (let* ((index index)
+                                    (kind (song:section-kind section))
+                                    (row (create-div outline-area :class "plp-row"))
+                                    (select (create-select row)))
+                               (dolist (option (if (member kind song:*outline-kinds*)
+                                                   song:*outline-kinds*
+                                                   (cons kind song:*outline-kinds*)))
+                                 (create-option select
+                                                :value (string-downcase option)
+                                                :selected (eq option kind)
+                                                :content (escape-html
+                                                          (or (song:kind-label option)
+                                                              (song:section-label section)))))
+                               (create-span
+                                row :class "plp-name"
+                                :content (format nil "<kbd>~A</kbd> ~A~@[ <small>×~D</small>~]"
+                                                 (escape-html (nth index keys))
+                                                 (escape-html
+                                                  (first (first (song:section-slides section))))
+                                                 (let ((times (count index places)))
+                                                   (and (> times 1) times))))
+                               (set-on-change
+                                select
+                                (lambda (object)
+                                  (declare (ignore object))
+                                  (let ((kind (find (value select) song:*outline-kinds*
+                                                    :test #'string-equal)))
+                                    (when kind
+                                      (when (< index (length parts))
+                                        (setf (nth index parts)
+                                              (song:relabel (nth index parts) kind)))
+                                      (draw-outline)))))))
+                    (create-div outline-area
+                                :class "plp-order"
+                                :content (format nil "Sung: ~{~A~^ ~}"
+                                                 (mapcar #'escape-html
+                                                         (or (song:song-order song) keys))))))))
              (open-popup (song)
                ;; The form on SONG, or with NIL on a new song.
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (setf editing song
-                       tags (and song (copy-list (song:song-tags song)))
-                       parts '()
-                       places '()
-                       (inner-html popup-heading) (if song "Edit song" "New song")
-                       (value new-title) (or (and song (song:song-title song)) "")
-                       (value new-writers) (or (and song (song:song-writers song)) "")
-                       (value new-copyright) (or (and song (song:song-copyright song)) "")
-                       (value new-order) (format nil "~{~A~^ ~}" (and song (song:song-order song)))
-                       (value tag-input) ""
-                       (text-value new-words)
-                       (if song (song:print-sections (song:song-sections song)) "")
-                       (place-holder new-words)
-                       (if song
-                           "The words, each part under its label: 1. or Refrain:"
-                           "Paste the words here, a blank line between the verses; chords may stand over them"))
-                 (if song
-                     (add-class dialog "plp-editing")
-                     (remove-class dialog "plp-editing"))
-                 (draw-tags)
-                 (draw-outline)
-                 (setf popup-open t))
+               (setf editing song
+                     tags (and song (copy-list (song:song-tags song)))
+                     parts '()
+                     places '()
+                     (inner-html popup-heading) (if song "Edit song" "New song")
+                     (value new-title) (or (and song (song:song-title song)) "")
+                     (value new-writers) (or (and song (song:song-writers song)) "")
+                     (value new-copyright) (or (and song (song:song-copyright song)) "")
+                     (value new-order) (format nil "~{~A~^ ~}" (and song (song:song-order song)))
+                     (value tag-input) ""
+                     (text-value new-words)
+                     (if song (song:print-sections (song:song-sections song)) "")
+                     (place-holder new-words)
+                     (if song
+                         "The words, each part under its label: 1. or Refrain:"
+                         "Paste the words here, a blank line between the verses; chords may stand over them"))
+               (if song
+                   (add-class dialog "plp-editing")
+                   (remove-class dialog "plp-editing"))
+               (draw-tags)
+               (draw-outline)
+               (setf popup-open t)
                (add-class popup "plp-open")
                (focus new-title))
              (close-popup ()
@@ -752,34 +745,33 @@ cannot tell which is meant."
                (setf popup-open nil))
              (popup-text ()
                ;; The song the form holds, in the text format.
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (flet ((filled (field)
-                          (let ((text (string-trim " " (value field))))
-                            (and (string/= text "") text))))
-                   (cond (editing
-                          (let ((song (song:copy-song editing)))
-                            (setf (song:song-title song) (filled new-title)
-                                  (song:song-writers song) (filled new-writers)
-                                  (song:song-copyright song) (filled new-copyright)
-                                  (song:song-order song) (order-keys)
-                                  (song:song-tags song) tags
-                                  (song:song-sections song) (words-sections))
-                            (song:print-song song)))
-                         (parts
-                          (song:print-song
-                           (song:outline-song parts places
-                                              :title (value new-title)
-                                              :writers (value new-writers)
-                                              :copyright (value new-copyright)
-                                              :tags tags)))
-                         (t
-                          (format nil "~A~A"
-                                  (song:print-song
-                                   (song:make-song :title (filled new-title)
-                                                   :writers (filled new-writers)
-                                                   :copyright (filled new-copyright)
-                                                   :tags tags))
-                                  *new-song-text*))))))
+               (flet ((filled (field)
+                        (let ((text (string-trim " " (value field))))
+                          (and (string/= text "") text))))
+                 (cond (editing
+                        (let ((song (song:copy-song editing)))
+                          (setf (song:song-title song) (filled new-title)
+                                (song:song-writers song) (filled new-writers)
+                                (song:song-copyright song) (filled new-copyright)
+                                (song:song-order song) (order-keys)
+                                (song:song-tags song) tags
+                                (song:song-sections song) (words-sections))
+                          (song:print-song song)))
+                       (parts
+                        (song:print-song
+                         (song:outline-song parts places
+                                            :title (value new-title)
+                                            :writers (value new-writers)
+                                            :copyright (value new-copyright)
+                                            :tags tags)))
+                       (t
+                        (format nil "~A~A"
+                                (song:print-song
+                                 (song:make-song :title (filled new-title)
+                                                 :writers (filled new-writers)
+                                                 :copyright (filled new-copyright)
+                                                 :tags tags))
+                                *new-song-text*)))))
              (save-text (text)
                ;; Store the song TEXT writes.  Its id when it was stored.
                (when (authorized)
@@ -858,14 +850,13 @@ cannot tell which is meant."
       ;; The musician's page.
       (click musician-button
              (lambda ()
-               (bordeaux-threads:with-recursive-lock-held (lock)
-                 (setf musician (not musician))
-                 (on musician-button musician)
-                 (if musician
-                     (add-class root "plp-musician")
-                     (remove-class root "plp-musician"))
-                 (draw-cards)
-                 (draw-live))))
+               (setf musician (not musician))
+               (on musician-button musician)
+               (if musician
+                   (add-class root "plp-musician")
+                   (remove-class root "plp-musician"))
+               (draw-cards)
+               (draw-live)))
       (click lower (lambda () (live:transpose room -1)))
       (click higher (lambda () (live:transpose room 1)))
       (click key-button (lambda () (live:transpose room nil)))
@@ -964,11 +955,10 @@ cannot tell which is meant."
       (set-on-input new-words
                     (lambda (object)
                       (declare (ignore object))
-                      (bordeaux-threads:with-recursive-lock-held (lock)
-                        (unless editing
-                          (multiple-value-setq (parts places)
-                            (song:outline (text-value new-words))))
-                        (draw-outline))))
+                      (unless editing
+                        (multiple-value-setq (parts places)
+                          (song:outline (text-value new-words))))
+                      (draw-outline)))
       (set-on-change new-order (lambda (object) (declare (ignore object)) (draw-outline)))
       ;; A tag of those offered is taken as soon as the field holds it.
       (set-on-input tag-input
@@ -1042,14 +1032,15 @@ cannot tell which is meant."
       (draw :song)
       (draw :session)
       (focus pane)
-      (let ((subscription (live:subscribe room #'draw)))
-        (unwind-protect
-             (loop while (validp body) do (sleep 5))
-          (live:unsubscribe room subscription))))))
+      ;; A change to the room is drawn in this page's thread, as its events
+      ;; are, whichever thread made it: they never draw at the same time.
+      (let ((subscription (live:subscribe room (lambda (what)
+                                                 (post body (lambda () (draw what)))))))
+        (add-close-hook body (lambda () (live:unsubscribe room subscription)))))))
 
 (defun on-console (body)
-  "/plp-console/CODE: the console of the room in the address."
-  (let ((room (live:ensure-room (path-code (path-name (location body)) "/plp-console/"))))
+  "/plp/console/CODE: the console of the room in the address."
+  (let ((room (live:ensure-room (path-code (request-path body) "/plp/console/"))))
     (setup-page body "Lyrics console")
     (if room
         (build-console body room)
@@ -1058,8 +1049,9 @@ cannot tell which is meant."
 
 (defun register-routes ()
   "Serve the presenter's pages.  The console and the screen take the room's
-code as the rest of the path, which needs CLOG's :EXTENDED-ROUTING; neither
-is under /plp/, whose routes that would shadow."
+code as the rest of the path, which needs CLOG's :EXTENDED-ROUTING; the
+longest route a path is under serves it, so /plp/console/CODE is the
+console's, not /plp's."
   (set-on-new-window 'on-front :path "/plp")
-  (set-on-new-window 'on-console :path "/plp-console")
-  (set-on-new-window 'on-screen :path "/plp-screen"))
+  (set-on-new-window 'on-console :path "/plp/console")
+  (set-on-new-window 'on-screen :path "/plp/screen"))

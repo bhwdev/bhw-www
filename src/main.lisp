@@ -342,13 +342,9 @@ the saved image starts."
 (defun application-toplevel ()
   "The executable's entry point: serve on $PORT (default 8080) until SIGINT.
 On the default port a Slynk server on localhost:4005 allows a remote REPL."
-  ;; CLOG runs each page's handler, and each event's, in a thread of its own,
-  ;; and with *BREAK-ON-ERROR* (its default) lets an error there reach the
-  ;; debugger, which the executable has disabled: SBCL then exits, and one
-  ;; failing page takes the whole server down.  Off, CLOG catches the error
-  ;; and prints it.  A REPL that calls INITIALIZE-APPLICATION keeps the
-  ;; debugger.
-  (setf conn:*break-on-error* nil)
+  ;; CLOG logs an error in a page's handler, with its backtrace, unless
+  ;; CLOG-CONNECTION:*BREAK-ON-ERROR*, which is for a REPL: here, where the
+  ;; debugger is disabled, an error reaching it would end the process.
   (let ((port (let ((env (uiop:getenvp "PORT")))
                 (if env (parse-integer env) 8080))))
     (when (= 8080 port)

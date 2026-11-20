@@ -9,8 +9,8 @@
                 #:create-a #:create-br #:create-button #:create-div #:create-form
                 #:create-form-element #:create-label #:create-option #:create-p
                 #:create-section #:create-select #:create-table #:create-table-column
-                #:create-table-row #:cursor #:inner-html #:location #:path-name
-                #:requiredp #:set-on-change #:set-on-click #:set-on-new-window
+                #:create-table-row #:cursor #:inner-html #:location #:request-path
+                #:request-query-string #:requiredp #:set-on-change #:set-on-click #:set-on-new-window
                 #:set-on-submit #:style #:url #:url-rewrite #:value #:window)
   (:import-from #:hunchentoot #:url-decode #:url-encode)
   (:import-from #:bhw/bible/database #:+bible-book-url-alist+)
@@ -229,7 +229,7 @@ a cell for SCORE, a search result's relevance, when it is given."
 (defun on-bible-handler (body)
   "Bible page handler. Parses path, builds book/chapter toggles, search form,
 font selector, and verse table via CLOG."
-  (let ((path (path-name (location body))))
+  (let ((path (request-path body)))
     (with-page-chrome body
       (lambda (main)
         (let ((result (if (string= path "/bible")
@@ -288,7 +288,7 @@ font selector, and verse table via CLOG."
 (defun on-bible-search-handler (body)
   "Bible search page handler. Builds syntax help, search form with CLOG-native
 submission and url-rewrite for shareable URLs."
-  (let ((url (url (location body))))
+  (let ((url (format nil "~A?~A" (request-path body) (request-query-string body))))
     (with-page-chrome body
       (lambda (main)
         (create-section main :h1 :content *title*)

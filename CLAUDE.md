@@ -17,9 +17,9 @@ systems under `src/`:
   (chords written in the words as `[G]`), its slides and the transposing of
   its chords (`song`), its graph-db store of songs, tags and setlists
   (`database`), the chord book's import (`import`), the rooms that tie a
-  console to its screens (`live`), and the pages `/plp`, `/plp-console/CODE`
+  console to its screens (`live`), and the pages `/plp`, `/plp/console/CODE`
   (`console`, which is also the musician's page: each slide once, chords
-  over the words, sized by the server) and `/plp-screen/CODE` (`screen`). Its pages are public; saving
+  over the words, sized by the server) and `/plp/screen/CODE` (`screen`). Its pages are public; saving
   a song or a setlist needs `$BHW_PLP_PASSPHRASE`. The lyrics are not in the
   repository: store, staging files and waiting images are under
   `<data root>/plp/`, and the tests use a public-domain hymn. `import` runs
@@ -29,15 +29,17 @@ systems under `src/`:
   Chords are placed by the PDF's word coordinates (`pdftotext -tsv`);
   `add-chords-to-staging` and `add-chords-to-store` give them to songs staged
   and stored without, leaving their corrections.
-  The one script of the site's own is the expression that asks a browser its
-  clock's offset from UTC (`screen:timezone-offset`).
+  The console and the screen draw a change to their room in their own page's
+  thread (`clog:post` from `live`'s subscriber), and unsubscribe in a close
+  hook; the screen's clock is a `clog:schedule` timer.
 
 `main.lisp` is the composition root: `initialize-application` opens the
 stores, starts the scheduler and CLOG, and has each part register its routes.
-Loading the system opens and starts nothing. The executable turns off
-CLOG's `*break-on-error*`, as an error in a page's thread would otherwise
-exit the process; there is no static root, so only `assets/` (and the
-favicon) of the checkout is served. The web server is `site-acceptor`
+Loading the system opens and starts nothing. An error in a page's handler
+is logged with its backtrace (`clog-connection:*break-on-error*`, off by
+default, is for a REPL: in the executable it would exit the process); there
+is no static root, so only `assets/` (and the favicon) of the checkout is
+served. The web server is `site-acceptor`
 there, a Hunchentoot acceptor subclassing the CLOG fork's `clog-acceptor`: it
 answers the request guard, the Slack endpoints, POST /theme and the
 presenter's `/plp-images/` before CLOG,
@@ -59,13 +61,21 @@ run no script of the site's own (CLOG's own runtime aside): the colour theme
 is a cookie set by POST /theme (`site/layout`), and the index's slideshow and
 greeting are CSS.
 
-`clog/` is a fork of CLOG (system `clog`, `clog.asd` at the root beside
-`bhw.asd`): its core and CLOG-GUI, without MGL-PAX, CL-DBI,
+`clog/` is a fork of CLOG (`clog.asd` at the root beside `bhw.asd`: system
+`clog`, its core, which the application loads; `clog/gui`, `clog/media` and
+`clog/extensions`, which only the tests load), without MGL-PAX, CL-DBI,
 Clack, Lack, websocket-driver or jQuery, on Hunchentoot with its own RFC 6455
 websockets (`clog-websocket.lisp`); the scripts it sends the browser are plain
-DOM calls and the helpers in `clog/static-files/js/boot.js`.
-`clog/README.org` lists what was cut and changed from upstream's commit; its
-tests are `src/tests/clog.lisp`.
+DOM calls and the helpers in `clog/static-files/js/boot.js`. Each page's
+handlers, events, posted functions and timers run one at a time in the page's
+own thread, batched into one message each; a page outlives a dropped
+websocket (it reconnects and is sent what it missed) and reloads when the
+server no longer knows it; it is told its path, cookies, headers and the
+browser's time zone on connecting (`clog:request-path`, `request-cookie`,
+`client-timezone-offset`), and form fields can be mirrored on the server
+(`clog:mirror`). Websockets are out of Hunchentoot's thread count, with
+limits of their own. `clog/README.org` lists what was cut and changed from
+upstream's commit; its tests are `src/tests/clog.lisp`.
 
 Packages `:use` only `common-lisp`; everything else comes in through
 `:import-from` or `:local-nicknames`. Tests are Rove, under `src/tests/`

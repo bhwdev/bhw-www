@@ -29,13 +29,14 @@ slide showing, the mode (:LYRICS, :BLACK or :WAITING), the working setlist,
 the session's end time, and how far from its written key each song is played
 for the musicians' pages.  Its code is in the address of its console and
 of its screens, which is all that ties them together: whoever opens
-/plp-screen/CODE sees what /plp-console/CODE drives.  Rooms live in memory
+/plp/screen/CODE sees what /plp/console/CODE drives.  Rooms live in memory
 only; one nobody has touched for a day is dropped.
 
 A page subscribes a function to its room and is called, with what changed
 (:SLIDE, :SONG, :LIST or :SESSION), after every change, in the thread that
-made it; a subscriber that signals an error is dropped, its connection being
-gone.
+made it, which is often another page's: the console and the screen have it
+post the drawing to their own page's thread (CLOG:POST), and unsubscribe when
+their page closes.  A subscriber that signals an error is dropped.
 
 PRESS-KEY is the key map, the same for the console and for a screen that is
 driven directly."))

@@ -10,9 +10,12 @@
 ;;; file is here, beside bhw.asd, so that ASDF finds it wherever
 ;;; it is told to look for that one.
 
+;;; The core is the system CLOG; the rest of upstream's parts this fork keeps
+;;; are systems of their own, loaded by those who use them.
+
 (asdf:defsystem #:clog
   :description "CLOG - The Common Lisp Omnificent GUI: bhw-www's fork,
-its core and CLOG-GUI on Hunchentoot"
+its core on Hunchentoot"
   :author "David Botton <david@botton.com>"
   :license  "BSD"
   :version "2.4"
@@ -44,13 +47,32 @@ its core and CLOG-GUI on Hunchentoot"
                              (:file "clog-style")
                              ;; HTML Elements
                              (:file "clog-element-common")
-                             (:file "clog-form")
-                             (:file "clog-multimedia")
-                             (:file "clog-canvas")
-                             ;; CLOG Extensions
-                             (:file "clog-panel")
-                             (:file "clog-tree")
-                             (:file "clog-presentations")
-                             (:file "clog-data")
-                             ;; Desktop Environment
-                             (:file "clog-gui")))))
+                             (:file "clog-form")))))
+
+(asdf:defsystem #:clog/media
+  :description "CLOG's multimedia elements and canvas"
+  :license "BSD"
+  :pathname "clog/source/"
+  :serial t
+  :depends-on (#:clog)
+  :components ((:file "clog-multimedia")
+               (:file "clog-canvas")))
+
+(asdf:defsystem #:clog/extensions
+  :description "CLOG's panels, trees, presentations and data binding"
+  :license "BSD"
+  :pathname "clog/source/"
+  :serial t
+  :depends-on (#:clog)
+  :components ((:file "clog-panel")
+               (:file "clog-tree")
+               (:file "clog-presentations")
+               (:file "clog-data")))
+
+(asdf:defsystem #:clog/gui
+  :description "CLOG-GUI, the desktop GUI abstraction (windows, menus,
+dialogs), with w3.css from CLOG's static files"
+  :license "BSD"
+  :pathname "clog/source/"
+  :depends-on (#:clog)
+  :components ((:file "clog-gui")))

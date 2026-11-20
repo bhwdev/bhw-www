@@ -604,9 +604,9 @@ them.")
 ;; enable-clog-popup ;;
 ;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enable-clog-popup (&key (path *clog-popup-path*) (boot-file "/boot.html"))
+(defun enable-clog-popup (&key (path *clog-popup-path*))
   "Enable handling of clog enabled popups"
-  (set-on-new-window 'clog-popup-handler :path path :boot-file boot-file))
+  (set-on-new-window 'clog-popup-handler :path path))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; open-clog-popup ;;

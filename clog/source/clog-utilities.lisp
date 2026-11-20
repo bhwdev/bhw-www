@@ -71,6 +71,23 @@ converted with format to a string first."
   (setf value (ppcre:regex-replace-all ">" value "&gt;"))
   value)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; escape-html-attribute ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun escape-html-attribute (string)
+  "STRING with & < > \" ' as character references: for an attribute value,
+quoted either way, or text."
+  (with-output-to-string (out)
+    (loop for char across string
+          do (case char
+               (#\& (write-string "&amp;" out))
+               (#\< (write-string "&lt;" out))
+               (#\> (write-string "&gt;" out))
+               (#\" (write-string "&quot;" out))
+               (#\' (write-string "&#39;" out))
+               (t (write-char char out))))))
+
 ;;;;;;;;;;;;;;;
 ;; js-true-p ;;
 ;;;;;;;;;;;;;;;

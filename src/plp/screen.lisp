@@ -5,9 +5,10 @@
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
   (:import-from #:clog
-                #:create-child #:create-div #:css-class-name #:head-element
-                #:html-document #:inner-html #:js-query #:location #:path-name
-                #:set-on-click #:set-on-key-down #:style #:title #:validp)
+                #:add-close-hook #:client-timezone-offset #:create-child #:create-div
+                #:css-class-name #:head-element #:html-document #:inner-html #:post
+                #:request-path #:schedule #:set-on-click #:set-on-key-down #:style
+                #:title)
   (:import-from #:bhw/site/layout #:escape-html)
   (:local-nicknames (#:song #:bhw/plp/song)
                     (#:live #:bhw/plp/live))
@@ -22,7 +23,7 @@
            #:handle-key
            #:on-screen)
   (:documentation
-   "The projector's page, /plp-screen/CODE: the slide of the room CODE and
+   "The projector's page, /plp/screen/CODE: the slide of the room CODE and
 nothing else, white on black, to be put full screen (F11) on the display the
 congregation sees.  Lower left the time and what is left of the session,
 lower right the song and its writers; the copyright line under a song's
@@ -59,11 +60,8 @@ search engines from indexing it."
 
 (defun timezone-offset (body)
   "How many minutes the clock of BODY's browser is behind UTC; 0 when it
-does not say."
-  (or (ignore-errors
-       (parse-integer (js-query body "new Date().getTimezoneOffset()")
-                      :junk-allowed t))
-      0))
+did not say.  The browser tells it when the page connects."
+  (client-timezone-offset body))
 
 (defun font-size (lines)
   "The CSS font-size at which LINES fill the screen: the smaller of what
@@ -106,7 +104,7 @@ Meta is the browser's.  Returns true when the key was one of the map's."
 
 (defun on-screen (body)
   "The projector's page of the room in the address."
-  (let ((room (live:ensure-room (path-code (path-name (location body)) "/plp-screen/"))))
+  (let ((room (live:ensure-room (path-code (request-path body) "/plp/screen/"))))
     (setup-page body "Lyrics")
     (if (null room)
         (create-div body :class "plp-notice"
@@ -159,19 +157,18 @@ Meta is the browser's.  Returns true when the key was one of the map's."
                                     ""))))
                        (draw-clock))))
             (draw :song)
-            (let ((subscription (live:subscribe room #'draw)))
-              (set-on-key-down body (lambda (object event)
-                                      (declare (ignore object))
-                                      (handle-key room event)))
-              (set-on-click back (lambda (object)
-                                   (declare (ignore object))
-                                   (live:step-slide room -1)))
-              (set-on-click forward (lambda (object)
-                                      (declare (ignore object))
-                                      (live:step-slide room 1)))
-              ;; The clock: this thread is the page's own, and ends with it.
-              (unwind-protect
-                   (loop while (validp body)
-                         do (draw-clock)
-                            (sleep 5))
-                (live:unsubscribe room subscription))))))))
+            (set-on-key-down body (lambda (object event)
+                                    (declare (ignore object))
+                                    (handle-key room event)))
+            (set-on-click back (lambda (object)
+                                 (declare (ignore object))
+                                 (live:step-slide room -1)))
+            (set-on-click forward (lambda (object)
+                                    (declare (ignore object))
+                                    (live:step-slide room 1)))
+            ;; A change to the room is drawn in this page's thread, as its
+            ;; events are, whichever thread made it.
+            (let ((subscription (live:subscribe room (lambda (what)
+                                                       (post body (lambda () (draw what)))))))
+              (add-close-hook body (lambda () (live:unsubscribe room subscription))))
+            (schedule body 5 #'draw-clock :repeat t))))))

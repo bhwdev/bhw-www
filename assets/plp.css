@@ -1,8 +1,8 @@
 /* SPDX-FileCopyrightText: 2026  Ben H. W.<foss@bhw.name>
    SPDX-License-Identifier: AGPL-3.0-or-later
 
-   The praise lyrics presenter: its screen (/plp-screen), its console
-   (/plp-console) and its front page (/plp).  Always dark: the site's colour
+   The praise lyrics presenter: its screen (/plp/screen), its console
+   (/plp/console) and its front page (/plp).  Always dark: the site's colour
    theme does not apply to a projector. */
 
 html { color-scheme: dark; }

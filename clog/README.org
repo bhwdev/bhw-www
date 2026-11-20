@@ -10,17 +10,20 @@ system and its packages keep upstream's names.
 
 * What is kept
 
-- =clog-connection=: the connection to the browser, with a new server layer
-  (below).
-- =clog=: the DOM and event API -- objects, elements, forms, window,
-  document, location, navigator, styles, canvas, multimedia, panels, trees,
-  presentations, data binding.
-- =clog-gui=: the desktop GUI abstraction (windows, menus, dialogs).
+- System =clog=, what the application loads:
+  - =clog-connection=: the connection to the browser, rewritten (below).
+  - =clog=: the DOM and event API -- objects, elements, forms, window,
+    document, location, navigator, styles.
+- Systems the application does not load, which the tests load so that the
+  build compiles them: =clog/media= (multimedia, canvas), =clog/extensions=
+  (panels, trees, presentations, data binding) and =clog/gui= (CLOG-GUI, the
+  desktop GUI abstraction: windows, menus, dialogs).
 - =static-files/=: =boot.js= and =w3.css=: what the boot page and CLOG-GUI
   load.
 
-Upstream's source files are unchanged except where noted below, so a later
-upstream commit can be compared file by file.
+The connection layer and =boot.js= are this fork's own now, and the files
+the changes below name are changed with them: a later upstream commit cannot
+be compared file by file there.
 
 * What is left out
 
@@ -35,13 +38,80 @@ upstream commit can be compared file by file.
 | Clack server, Lack application, static files | clack, lack, websocket-driver   |
 | Connection IDs from cl-isaac, script IDs     | cl-isaac, atomics               |
 | =clog-jquery.lisp= (=clog-jquery=, =jquery-*=) | jQuery, jQuery UI (static files) |
+| Long polling (=:long-poll-first=), boot files and =:boot-function=, =:static-boot-html=, =:static-boot-js= | -- |
+| =put=, =put-line=, =new-line= (=document.write=), =set-html-on-close=, =run=, =connection-sync=, =*browser-gc-on-ping*= | -- |
+| =open-browser=, =open-file-with-os=, =*static-root*=, =*clog-port*=, =*clog-running*=, =set-clog-path=, =set-on-connect= | -- |
 
 The packages export what upstream's do, minus the names of the parts left
-out and of MGL-PAX's sections. The exports are plain =defpackage= lists in
+out and of MGL-PAX's sections, plus this fork's own (below). The exports are plain =defpackage= lists in
 =source/clog.lisp=, =source/clog-connection.lisp= and =source/clog-gui.lisp=,
 grouped as upstream's sections were; CLOG's manual is upstream's.
 
 * What is changed
+
+- *A page and its thread*: a connection is an object (upstream: three global
+  tables keyed by ID), and everything Lisp does for its page -- the
+  ON-NEW-WINDOW handler, event handlers, functions other threads =post=,
+  =schedule='d timers, close hooks -- runs one at a time, in order, in a
+  thread of the connection's own, started when there is something to run.
+  Upstream runs each event in a new thread, so a page's handlers run
+  concurrently and out of order, and its applications lock (=with-sync-event=
+  is a no-op here). ON-NEW-WINDOW should return once the page is built: the
+  page's later work is its events, =schedule= and =add-close-hook=, not a loop
+  that polls =validp=. Events waiting are limited (=*mailbox-limit*=).
+- *Batching*: what a handler sends the browser goes as one message when it
+  returns, or before it queries; each message is a JSON array of scripts,
+  each run on its own in =boot.js=. (=with-connection-cache= only flushes.)
+- *Reconnection*: a page whose websocket drops reconnects (backing off, from
+  a quarter of a second to ten) with its ID and the number of messages it
+  has run; the server, which keeps a dropped connection =*reconnect-delay*=
+  seconds and what the page has not acknowledged (=*replay-size*=), sends
+  what it missed. A page the server does not know -- after a restart, or a
+  longer absence -- is told to reload (close code 4000); upstream closes it
+  with 1000, and its =boot.js= then shows =html_on_close=, never set: the word
+  "undefined". (A page left open across the upgrade to this protocol, whose
+  =boot.js= sends no =p= or =s=, is sent =location.reload()= as a script.) A
+  page that leaves (close 1000 or 1001) is closed at once. The
+  page pings every ten seconds and the server answers; a ping unanswered for
+  twenty seconds means a dead connection, and the page reconnects. What the
+  page sends while disconnected waits for the socket.
+- *Queries*: each connection has its own; the browser's answer to another
+  page's query, or to none, is ignored (upstream keeps answers in one global
+  table by a global counter, so any client could answer another's query, and
+  every answer it sent was kept for good). A script that fails in the browser
+  answers at once, and the query returns its default.
+- *What the page tells on connecting*: its path and query, the cookies,
+  headers and address of its websocket's request, and the browser's time zone
+  offset, window size, pixel ratio and language: =request-path=,
+  =request-query-string=, =request-parameter=, =request-header=,
+  =request-cookie= (HttpOnly too), =remote-address=, =client-timezone-offset=,
+  =client-language=, =client-viewport=, none of which asks the browser.
+  Upstream asks it for the path. What a form posted to a boot page comes
+  from the boot request, by a token in the page's =<meta name=clog-boot>=:
+  the page has no inline script.
+- *Mirrored fields*: =(mirror form-element)= has the browser send the
+  element's value as it changes, so that =value= and =text-value= read it
+  without asking.
+- *The server and its websockets*: =clog-acceptor= holds the routes, the
+  static root and the plugin paths (upstream: global variables), so an image
+  may run more than one; =*server*= is the one started last. A path's route
+  is its own, else with extended routing the longest route it is under (=/a/b=
+  before =/a=); upstream takes whichever its hash table yields first. A
+  page's websocket is out of Hunchentoot's count of threads, which is for
+  HTTP requests (raised to 200, and 250 accepted), and has limits of its
+  own, =*max-websockets*= (by default the process's limit on open files less
+  512, at most 4096) and =*max-websockets-per-address*= (the address
+  behind a reverse proxy on this host is the last of X-Forwarded-For). A
+  websocket opened by a page of another origin is refused. A path that only
+  the =:default= route serves is a 404. =boot.js= is served at a path named
+  by its contents, to be kept for good; the boot page is =no-store=.
+- *Errors and logging*: =*break-on-error*= is NIL by default: an error in a
+  handler is logged with its backtrace (upstream prints the condition, and by
+  default enters the debugger, which in an executable ends the process).
+  The log goes through =log-message= (=*log-level*=, =*log-function*=), and
+  names connections by serial number: their IDs let a page take them over.
+- *Browser GC*: the ID a =gc= event sends is compared, not made into a
+  regex (upstream: any client could hand =cl-ppcre= a pattern).
 
 - *No jQuery*: the scripts CLOG sends the browser call the DOM directly, and
   =boot.js= has the few helpers that need more than a call (=clog_on=,
@@ -61,10 +131,9 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
   calls a jQuery method that does not exist).
 - *Server*: =clog-connection-websockets.lisp= has =clog-acceptor=, a
   Hunchentoot acceptor, in place of upstream's Lack application under Clack.
-  It serves what upstream's does, in the same order: boot pages, the compiled
-  =boot.js=, the websocket at =/clog=, plugin paths, the static root, then
-  CLOG's own =static-files/=, which upstream serves only as the default static
-  root. =initialize= takes =:acceptor-class= (a subclass of =clog-acceptor=)
+  It serves the websocket at =/clog=, =boot.js=, boot pages, plugin paths, the
+  static root, then CLOG's own =static-files/=, which upstream serves only as
+  the default static root. =initialize= takes =:acceptor-class= (a subclass of =clog-acceptor=)
   and =:acceptor-initargs= in place of =:server=, =:lack-middleware-list= and
   the SSL keys: an application extends the server with methods on its
   subclass (=hunchentoot:acceptor-dispatch-request=, =serve-static-file=), and
@@ -74,12 +143,10 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
 - *Static files*: a path names a file only if each segment is letters,
   digits and =-_.~=, not starting with a dot or tilde; Lack's file server let
   an absolute path, =~= or a logical host escape the root.
-- *Boot page*: the compiled one loads =boot.js= alone (upstream's also loads
-  jQuery from the jQuery CDN), and drops the template slots upstream leaves in
-  its =<noscript>= for a boot function to fill. Form data posted to a boot
-  page is escaped for the script it is written into (upstream writes it raw);
-  uploaded files are kept in memory, as Hunchentoot deletes its temporary
-  files when the request ends.
+- *Boot page*: there is one, compiled: it loads =boot.js= alone (upstream's
+  also loads jQuery from the jQuery CDN). Uploaded files posted to it are
+  kept in memory, as Hunchentoot deletes its temporary files when the
+  request ends.
 - *IDs*: connection IDs come from Ironclad's PRNG (upstream uses a shared,
   unlocked cl-isaac context, which a saved image restores, and whose 1.0.8
   =rand-bits-64= wedges); script IDs from a counter under a lock.
@@ -91,4 +158,6 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
   values, and then cancels only those keys (pressed without Ctrl, Alt or
   Meta), so that a pane can take the arrows and the space bar and leave the
   browser its shortcuts; =scroll-into-view= (the DOM's =scrollIntoView=,
-  to the nearest edge).
+  to the nearest edge); =escape-html-attribute=, which =create-element= now
+  writes its attributes with (upstream writes them with =~S=, Lisp's
+  escapes).

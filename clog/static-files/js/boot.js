@@ -1,19 +1,24 @@
-var ws=null;
-var adr; var adrc;
-var clog={};
-var pingerid;
-var retryid;
-var s = document.location.search;
-var tokens;
-var r = /[?&]?([^=]+)=([^&]*)/g;
+// boot.js: the browser's end of a CLOG page, in bhw-www's fork of CLOG.
+//
+// The server draws the page, and handles its events, over a websocket: it
+// sends scripts, each message a JSON array of them, which run in order, and
+// the page sends back its events ("E:"), the values of mirrored form
+// elements ("M:"), pings saying how many messages it has run ("P:"), and the
+// answers to the server's queries.  When the socket drops, the page keeps
+// what it has to send, reconnects with its connection's ID and the number of
+// messages it has run, and the server sends what it missed; a page the
+// server no longer knows is reloaded.
 
-clog['body']=document.body;
-clog['head']=document.head;
-clog['documentElement']=document.documentElement;
-clog['window']=window;
-clog['navigator']=navigator;
-clog['document']=window.document;
-clog['location']=window.location;
+var ws = null;
+var clog = {};
+
+clog['body'] = document.body;
+clog['head'] = document.head;
+clog['documentElement'] = document.documentElement;
+clog['window'] = window;
+clog['navigator'] = navigator;
+clog['document'] = window.document;
+clog['location'] = window.location;
 
 if (typeof clog_debug == 'undefined') {
     clog_debug = false;
@@ -222,109 +227,192 @@ function clog_resizable(el) {
     });
 }
 
-function Ping_ws() {
-    if (ws.readyState == 1) {
-        ws.send ('0');
-    }
+// Mirrored form elements: the server keeps their values, which the page
+// sends whenever they change, and at once.  A select's value changes with
+// its options too.
+function clog_mirror_send(el, id) {
+    clog_send('M:' + id + ' ' + el.value);
 }
 
-function Shutdown_ws(event) {
-    if (ws != null) {
-	ws.onerror = null;
-	ws.onclose = null;
-	ws.close ();
-	ws = null;
+// Its listeners capture, so that they come before the element's handlers:
+// the server has the new value when it handles the event.
+function clog_mirror(el, id) {
+    var send = function () { clog_mirror_send(el, id); };
+    el.addEventListener('input', send, true);
+    el.addEventListener('change', send, true);
+    if (el.tagName == 'SELECT') {
+        new MutationObserver(send).observe(el, {childList: true, subtree: true});
     }
-    clearInterval (pingerid);
-    if (clog['html_on_close'] != '') {
-        document.body.innerHTML = clog['html_on_close'];
-    }
+    send();
 }
 
-function Setup_ws() {
-    ws.onmessage = function (event) {
-        try {
-            if (clog_debug == true) {
-		console.log ('eval data = ' + event.data);
-            }
-            eval (event.data);
-        } catch (e) {
-            console.error (e.message);
-        }
-    }
+// The connection.
 
-    var rc = function (event) {
-	console.log (event);
-	clearInterval (retryid);
-	ws = null;
-	ws = new WebSocket (adr  + '?r=' + clog['connection_id']);
-        ws.onopen = function (event) {
-            console.log ('reconnect successful');
-            Setup_ws();
-        }
-        ws.onclose = function (event) {
-            console.log ('reconnect failure');
-	    console.log (Date.now());
-	    retryid = setInterval(function () {rc("Failed reconnect - trying again")}, 500);
-        }
-    }
+var clog_seq = 0;        // the messages from the server run
+var clog_outbox = [];    // what to send once the socket is open
+var clog_retries = 0;    // attempts to reconnect since the socket was open
+var clog_retry = null;   // the next attempt
+var clog_pinged = 0;     // when the last ping went
+var clog_heard = 0;      // when the server last sent anything
+var clog_ended = false;  // the server ended the page: no reconnecting
 
-    ws.onerror = function (event) {
-        console.log ('onerror: reconnect');
-	rc("onerror - trying reconnect")
-    }
-
-    ws.onclose = function (event) {
-        if (event.code && event.code === 1000) {
-            console.log("WebSocket connection got normal close from server. Don't reconnect.");
-            Shutdown_ws(event);
-        } else {
-	    rc("onclose - trying reconnnect");
-        }
-    }
-}
-
-function Open_ws() {
-    if (location.protocol == 'https:') {
-	adr = 'wss://' + location.hostname;
+function clog_send(m) {
+    if (ws && ws.readyState == 1) {
+        ws.send(m);
     } else {
-	adr = 'ws://' + location.hostname;
+        clog_outbox.push(m);
     }
+}
 
-    if (location.port != '') { adr = adr + ':' + location.port; }
-    adr = adr + '/clog';
-
-    if (clog['connection_id']) {
-      adrc = adr  + '?r=' + clog['connection_id'];
-    } else { adrc = adr }
-
+function clog_run(script) {
+    if (clog_debug) {
+        console.log('eval data = ' + script);
+    }
     try {
-	console.log ('connecting to ' + adrc);
-	ws = new WebSocket (adrc);
+        eval(script);
     } catch (e) {
-	console.log ('trying again, connecting to ' + adrc);
-	ws = new WebSocket (adrc);
-    }
-
-    if (ws != null) {
-	ws.onopen = function (event) {
-            console.log ('connection successful');
-            Setup_ws();
-	}
-	pingerid = setInterval (function () {Ping_ws ();}, 10000);
-    } else {
-	document.writeln ('If you are seeing this your browser or your connection to the internet is blocking websockets.');
+        console.error(e);
     }
 }
+
+// Run SCRIPT, an expression, for the server's query ID.
+function clog_answer(id, script) {
+    var answer;
+    try {
+        answer = id + ':' + eval(script);
+    } catch (e) {
+        answer = id + '!' + e;
+    }
+    clog_send(answer);
+}
+
+function clog_receive(data) {
+    clog_heard = Date.now();
+    if (data === '') {          // a ping's answer
+        return;
+    }
+    clog_seq++;
+    var scripts;
+    try {
+        scripts = JSON.parse(data);
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+    scripts.forEach(clog_run);
+}
+
+function clog_address() {
+    var params;
+    if (clog['connection_id']) {
+        params = {r: clog['connection_id'], s: clog_seq};
+    } else {
+        params = {p: location.pathname, q: location.search.replace(/^\?/, ''),
+                  tz: new Date().getTimezoneOffset(),
+                  vw: window.innerWidth, vh: window.innerHeight,
+                  dpr: window.devicePixelRatio || 1,
+                  lang: navigator.language || ''};
+        var boot = document.querySelector('meta[name="clog-boot"]');
+        if (boot) {
+            params.b = boot.content;
+        }
+    }
+    return (location.protocol == 'https:' ? 'wss://' : 'ws://') + location.host + '/clog?'
+        + Object.keys(params).map(function (k) {
+            return k + '=' + encodeURIComponent(params[k]);
+        }).join('&');
+}
+
+function clog_open() {
+    var sock;
+    try {
+        sock = new WebSocket(clog_address());
+    } catch (e) {
+        console.error(e);
+        clog_reconnect();
+        return;
+    }
+    ws = sock;
+    sock.onopen = function () {
+        if (sock !== ws) { return; }
+        clog_retries = 0;
+        clog_heard = Date.now();
+        clog_pinged = 0;
+        var out = clog_outbox;
+        clog_outbox = [];
+        out.forEach(function (m) { sock.send(m); });
+    };
+    sock.onmessage = function (event) {
+        if (sock === ws) { clog_receive(event.data); }
+    };
+    // An error is always followed by a close, which acts.
+    sock.onclose = function (event) {
+        if (sock !== ws) { return; }
+        ws = null;
+        if (event.code == 4000) {         // the server no longer knows this page
+            location.reload();
+        } else if (event.code == 1000) {  // the server ended it
+            clog_ended = true;
+        } else {
+            clog_reconnect();
+        }
+    };
+}
+
+// Reconnect after a while: a quarter of a second, doubling up to ten,
+// each a random half to whole of that.
+function clog_reconnect() {
+    if (clog_retry || clog_ended) { return; }
+    var delay = Math.min(10000, 250 * Math.pow(2, clog_retries)) * (0.5 + Math.random() / 2);
+    clog_retries++;
+    clog_retry = setTimeout(function () {
+        clog_retry = null;
+        clog_open();
+    }, delay);
+}
+
+// Give up on a socket the server has stopped answering, and reconnect.
+function clog_abandon() {
+    var sock = ws;
+    ws = null;
+    if (sock) {
+        sock.onclose = null;
+        try { sock.close(4001); } catch (e) {}
+    }
+    clog_reconnect();
+}
+
+// Every ten seconds (once a minute in a hidden tab, as browsers slow its
+// timers), a ping, which the server answers; one unanswered for 20 seconds
+// means the connection is dead though the socket does not know it.
+setInterval(function () {
+    if (!ws || ws.readyState != 1) { return; }
+    var now = Date.now();
+    if (clog_pinged > clog_heard) {
+        if (now - clog_pinged > 20000) { clog_abandon(); }
+    } else {
+        clog_pinged = now;
+        ws.send('P:' + clog_seq);
+    }
+}, 10000);
+
+// Back online: reconnect now rather than at the next attempt.
+window.addEventListener('online', function () {
+    if (!ws && !clog_ended) {
+        clearTimeout(clog_retry);
+        clog_retry = null;
+        clog_open();
+    }
+});
 
 // boot.js runs in the head, before there is a body.
-function Ready_ws() {
+function clog_ready() {
     clog['body'] = document.body;
-    if (ws == null) { Open_ws(); }
+    if (ws == null) { clog_open(); }
 }
 
 if (document.readyState == 'loading') {
-    document.addEventListener('DOMContentLoaded', Ready_ws);
+    document.addEventListener('DOMContentLoaded', clog_ready);
 } else {
-    Ready_ws();
+    clog_ready();
 }

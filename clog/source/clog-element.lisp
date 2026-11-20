@@ -92,8 +92,11 @@ possible tag and keywords."))
            (html (with-output-to-string (*standard-output*)
                    (format t "<~(~a~) " html-tag)
                    (loop for (key value) on extra-args by #'cddr
-                         do (format t "~(~a~)=~s" key value))
-                   (format t " id=~s>~A</~(~a~)>" html-id content html-tag)))
+                         do (format t "~(~a~)=\"~A\" " key
+                                    (escape-html-attribute (princ-to-string value))))
+                   (format t "~@[id=\"~A\"~]>~A</~(~a~)>"
+                           (and html-id (escape-html-attribute (princ-to-string html-id)))
+                           content html-tag)))
            (clog-type (or clog-type
                           (let* ((class-name (intern (string-upcase
 						      (format nil "CLOG-~a"
@@ -2374,13 +2377,18 @@ is not stored in connection-data will become subject to browser-gc requests."))
 (defgeneric remove-from-clog (clog-element)
   (:documentation "Remove CLOG-Element from the clog cache on browser."))
 
+(defun remove-event-handlers (obj html-id)
+  "Forget the event handlers of the element HTML-ID of OBJ's page: the
+connection data items \"HTML-ID:EVENT\".  (Private)"
+  (let ((prefix (format nil "~A:" html-id))
+        (data (connection-data obj)))
+    (when data
+      (dolist (key (alexandria:hash-table-keys data))
+        (when (and (stringp key) (alexandria:starts-with-subseq prefix key))
+          (remhash key data))))))
+
 (defmethod remove-from-clog ((obj clog-element))
-  (let ((s (format nil "^~A\\:" (html-id obj))))
-    (maphash (lambda (k v)
-               (declare (ignore v))
-               (when (ppcre:scan s (format nil "~A" k))
-                 (remove-connection-data-item obj k)))
-             (connection-data obj)))
+  (remove-event-handlers obj (html-id obj))
   (remove-connection-data-item obj (html-id obj))
   (js-execute obj (format nil "~A=null;" (script-id obj))))
 
@@ -2401,14 +2409,13 @@ on browser."))
 ;;;;;;;;;;;;;;;;
 
 (defmethod perform-gc (obj id)
-  "Called by gc events from browser (internal)"
-  (unless (connection-data-item obj id)
-    (let ((s (format nil "^~A\\:" id)))
-      (maphash (lambda (k v)
-                 (declare (ignore v))
-                 (when (ppcre:scan s (format nil "~A" k))
-                   (remove-connection-data-item obj k)))
-               (connection-data obj)))
+  "Called by gc events from browser (internal).  ID comes from the browser:
+it is compared, not made a regex, and only an ID CLOG could have made is
+acted on."
+  (when (and (stringp id)
+             (ppcre:scan "^[A-Za-z0-9_-]{1,64}$" id)
+             (not (connection-data-item obj id)))
+    (remove-event-handlers obj id)
     (js-execute obj (format nil "clog['~A']=null;" id))))
 
 (defgeneric browser-gc (clog-element)

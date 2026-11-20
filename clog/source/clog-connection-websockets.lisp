@@ -5,32 +5,56 @@
 ;;;; clog-connection-websockets.lisp                                       ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Specific implementation using websockets and long polling, served by
-;;; Hunchentoot.  Upstream builds a Lack application, which Clack runs on
-;;; Hunchentoot (or another server), with websocket-driver for the
-;;; websockets; this fork has CLOG-ACCEPTOR, a Hunchentoot acceptor, and
-;;; clog-websocket.lisp.  An application extends the server the way
-;;; Hunchentoot is extended: with a subclass of CLOG-ACCEPTOR, passed to
-;;; INITIALIZE as :ACCEPTOR-CLASS, and methods on it -- on
+;;; The web server: CLOG-ACCEPTOR, a Hunchentoot acceptor, in place of
+;;; upstream's Lack application under Clack.  It holds what upstream keeps in
+;;; global variables -- the routes, the static root, the plugin paths -- so
+;;; that an image may run more than one.  An application extends it the way
+;;; Hunchentoot is extended: with a subclass, passed to INITIALIZE as
+;;; :ACCEPTOR-CLASS, and methods on it -- on
 ;;; HUNCHENTOOT:ACCEPTOR-DISPATCH-REQUEST to answer requests before CLOG
 ;;; does, on SERVE-STATIC-FILE to send files differently.
+;;;
+;;; A page's websocket lives in the Hunchentoot thread of the request that
+;;; opened it, but out of the taskmaster's count of threads, which is for
+;;; HTTP requests: pages left open would otherwise take every thread, and the
+;;; server would answer nothing else.  The websockets have limits of their
+;;; own, *MAX-WEBSOCKETS* (by default from the process's limit on open
+;;; files) and *MAX-WEBSOCKETS-PER-ADDRESS*.
 
 (in-package :clog-connection)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Implemetation - clog-connection-websockets
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defvar *server* nil
+  "The CLOG-ACCEPTOR INITIALIZE started last: the server of the functions
+that take one, by default.")
 
-(defvar *acceptor* nil "The running CLOG-ACCEPTOR")
+(defvar *max-websockets* nil
+  "The most websockets a server keeps open, one for each page open in a
+browser; NIL (the default) for what the process's limit on open files
+allows when the server starts: that limit less 512 (for the HTTP requests,
+250 at most with CLOG-ACCEPTOR's taskmaster, and the application's own
+files), at most 4096.  Each websocket is a file descriptor and a thread, and
+a thread costs about six memory mappings (Linux allows 65530 by default) and
+0.1 MB.  With the usual limit of 1024 files, 512.")
 
-(defvar *long-poll-first* nil
-                          "Dynamic variable indicating to use html output instead of
-   websocket for output at start if connection.")
-(defvar *extended-long-poll* nil
-                             "Dynamic variable indicating to extend long polling beyond
-   extablishing websocket for output.")
-(defvar *long-poll-url* nil
-                        "Dynamic variable indicating the url path used.")
+(defun open-files-limit ()
+  "How many files this process may have open (its soft RLIMIT_NOFILE), from
+/proc/self/limits; 1024, the usual default, where that cannot be read."
+  (or (ignore-errors
+       (with-open-file (in "/proc/self/limits")
+         (loop for line = (read-line in nil)
+               while line
+               when (uiop:string-prefix-p "Max open files" line)
+                 return (or (parse-integer line :start 14 :junk-allowed t)
+                            most-positive-fixnum))))
+      1024))
+
+(defun websocket-limit ()
+  "*MAX-WEBSOCKETS*, or what NIL there stands for."
+  (or *max-websockets*
+      (min 4096 (max 64 (- (open-files-limit) 512)))))
+
+(defvar *max-websockets-per-address* 64
+  "The most websockets a server keeps open for one client address.")
 
 (defun static-files-directory ()
   "The directory of CLOG's own static files: boot.js and w3.css.  The server
@@ -40,196 +64,64 @@ sends a file from it when nothing else claims the path."
 (defparameter *compiled-boot-js*
   (uiop:read-file-string (merge-pathnames "js/boot.js" (static-files-directory))
                          :external-format :utf-8)
-  "A compiled version of current version of boot.js (private)")
+  "boot.js, as it was when CLOG was loaded.")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; handle-new-connection ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defparameter *boot-script-path*
+  (format nil "/js/boot.~A.js"
+          (subseq (ironclad:byte-array-to-hex-string
+                   (ironclad:digest-sequence
+                    :sha256 (flex:string-to-octets *compiled-boot-js* :external-format :utf-8)))
+                  0 16))
+  "The path of boot.js, named by its contents, so that a browser may keep it
+for good.")
 
-(defun handle-new-connection (connection id)
-  "Handle new incoming websocket CONNECTIONS with ID from boot page. (Private)"
-  (handler-case
-      (cond ((and id (gethash id *connection-data*))
-              (unless *hide-connection-output*
-                (format t "Reconnection id - ~A to ~A~%" id connection))
-              (let ((old (gethash id *connection-ids*)))
-                (when *verbose-output*
-                  (format t "Transfer id - ~A => ~A" old connection))
-                (setf (gethash old *connections*) nil)
-                (setf (gethash connection *connections*) id)
-                (setf (gethash id *connection-ids*) connection)
-                (handler-case
-                    (websocket-close old 1000
-                                     "Aborting this old connection since receiving a reconnection request.")
-                  (t (c)
-                    (when *verbose-output*
-                      (format t "Failed to close the old connection when establishing reconnection. ~
-                                  This can be normal: The old connection could not work for the client, ~
-                                so the client is requesting to reconnect.~%Condition - ~A.~&"
-                              c))))))
-            (id
-              (unless *hide-connection-output*
-                (format t "Reconnection id ~A not found. Closing the connection.~%" id))
-              (websocket-close connection)) ; Don't send the reason for better security.
-            (t
-              (setf id (random-hex-string))
-              (setf (gethash connection *connections*) id)
-              (setf (gethash id *connection-ids*) connection)
-              (setf (gethash id *connection-data*)
-                    (make-hash-table* :test #'equal))
-              (setf (gethash "connection-id" (get-connection-data id)) id)
-              (unless *hide-connection-output*
-                (format t "New connection id - ~A - ~A~%" id connection))
-              (websocket-send connection
-                              (format nil "clog['connection_id']='~A'" id))
-              (bordeaux-threads:make-thread
-                (lambda ()
-                  (if *break-on-error*
-                      (funcall *on-connect-handler* id)
-                      (handler-case
-                          (funcall *on-connect-handler* id)
-                        (t (c)
-                          (if *hide-connection-output*
-                              (format t "Condition caught in connection handler - ~A.~&" c)
-                              (format t "Condition caught connection ~A - ~A.~&" id c))
-                          (values 0 c)))))
-                :name (format nil "CLOG connection ~A"
-                              id))))
-    (t (c)
-      (format t "Condition caught in handle-new-connection - ~A.~&" c)
-      (values 0 c))))
-
-;;;;;;;;;;;;;;;;;;;;
-;; handle-message ;;
-;;;;;;;;;;;;;;;;;;;;
-
-(defvar *message-handlers* '()
-  "List of message handling functions.
-Each entry in the list should be a FUNCTION-DESIGNATOR that will receive
-a splitted message and a connection id and should return something
-other than NIL iff it handled the message.")
-
-(defun handle-message (connection message)
-  "Handle incoming websocket MESSAGE on CONNECTION. (Private)"
-  (handler-case
-      (let ((connection-id (gethash connection *connections*))
-            (ml (ppcre:split ":" message :limit 2)))
-        (dolist (message-handler *message-handlers*)
-          (when (funcall message-handler ml connection-id)
-            (return-from handle-message)))
-        (cond ((null connection-id)
-                ;; a zombie connection
-                (when *verbose-output*
-                  (format t "A zombie connection ~A. CLOG doesn't remember its connection-id. Closing it.~%"
-                          connection))
-                (websocket-close connection)) ; don't send the reason for better security
-              ((equal (first ml) "0")
-                ;; a ping
-                (when *browser-gc-on-ping*
-                  ;; run browser gc
-                  (execute connection-id
-                           "Object.entries(clog).forEach(function(c,i,a)
-                             {if ((c[1] !== null) && (typeof c[1] === 'object') && (c[1].nodeType===1))
-                             {if (c[1].isConnected===false) {clog_trigger(clog['body'],'gc',c[0])}}})"))
-                (when *verbose-output*
-                  (format t "Connection ~A    Ping~%" connection-id)
-                  (execute connection-id "null")))
-              ((equal (first ml) "E")
-                ;; an event
-                (let* ((em (ppcre:split " " (second ml) :limit 2))
-                       (event-id (first em))
-                       (data (second em)))
-                  (when *verbose-output*
-                    (format t "Connection ~A    Hook = ~A    Data = ~A~%"
-                            connection-id event-id data))
-                  (bordeaux-threads:make-thread
-                    (lambda ()
-                      (if *break-on-error*
-                          (let* ((event-hash (get-connection-data connection-id))
-                                 (event      (when event-hash
-                                               (gethash event-id event-hash))))
-                            (when event
-                              (let* ((debug-hook (gethash "clog-debug" event-hash)))
-                                (if (and debug-hook (not *disable-clog-debugging*))
-                                    (funcall debug-hook event data)
-                                    (funcall event data)))))
-                          (handler-case
-                              (let* ((event-hash (get-connection-data connection-id))
-                                     (event      (when event-hash
-                                                   (gethash event-id
-                                                            event-hash))))
-                                (when event
-                                  (funcall event data)))
-                            (t (c)
-                              (format t "Condition caught in handle-message for event - ~A.~&" c)
-                              (values 0 c)))))
-                    :name (format nil "CLOG event handler ~A"
-                                  event-id))))
-              (t
-                ;; a JavaScript execution result
-                (let ((server-query-id (first ml))
-                      (browser-returned-answer (second ml)))
-                  (when *verbose-output*
-                    (format t "Connection ~A    ~A = ~A    ~A = ~A~%"
-                            connection-id
-                            'server-query-id
-                            server-query-id
-                            'browser-returned-answer
-                            browser-returned-answer))
-                  (setf (gethash (parse-integer server-query-id) *queries*) browser-returned-answer)
-                  (bordeaux-threads:signal-semaphore
-                    (gethash (parse-integer server-query-id) *queries-sems*))))))
-    (t (c)
-      (format t "Condition caught in handle-message - ~A.~&" c)
-      (values 0 c))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; handle-close-connection ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun handle-close-connection (connection)
-  "Close websocket CONNECTION. (Private)"
-  (when *verbose-output*
-    (format t "Connection close request ~A.~%"
-            connection))
-  (when (and *clog-running* *reconnect-delay*)
-    (when *verbose-output*
-      (format t "Connection close request ~A delayed ~A for reconnects.~%"
-              connection *reconnect-delay*))
-    (sleep *reconnect-delay*))
-  (handler-case
-      (let ((id (gethash connection *connections*)))
-        (when id
-          (when *verbose-output*
-            (format t "Connection id ~A has closed. ~A~%" id connection))
-          (remhash id *connection-data*)
-          (remhash id *connection-ids*)
-          (remhash connection *connections*)))
-    (t (c)
-      (format t "Condition caught in handle-close-connection - ~A.~&" c)
-      (values 0 c))))
+(defun boot-script-path ()
+  "The path the boot page loads boot.js from."
+  *boot-script-path*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; The web server      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass clog-acceptor (hunchentoot:acceptor)
-  ((extended-routing :initarg :extended-routing :initform nil
-                     :reader acceptor-extended-routing)
-   (long-poll-first :initarg :long-poll-first :initform nil
-                    :reader acceptor-long-poll-first)
-   (boot-function :initarg :boot-function :initform nil
-                  :reader acceptor-boot-function)
-   (static-boot-html :initarg :static-boot-html :initform nil
-                     :reader acceptor-static-boot-html)
-   (static-boot-js :initarg :static-boot-js :initform nil
-                   :reader acceptor-static-boot-js))
+  ((routes :initform (make-hash-table* :test #'equal) :reader acceptor-routes
+           :documentation "What a page's connection starts with, by its path:
+an ON-NEW-WINDOW handler, for CLOG.  The path :DEFAULT is any other path no
+file answers.")
+   (extended-routing :initarg :extended-routing :initform nil
+                     :accessor acceptor-extended-routing
+                     :documentation "When true a route also serves the paths
+under it: /a serves /a/b, unless /a/b has a route.")
+   (static-root :initarg :static-root :initform nil :accessor acceptor-static-root
+                :documentation "The directory of the files the server sends,
+or NIL.")
+   (plugin-paths :initform '() :accessor acceptor-plugin-paths
+                 :documentation "(REGEX . DIRECTORY) of each plugin path, in
+the order added.")
+   (on-connect :initarg :on-connect :initform nil :accessor acceptor-on-connect
+               :documentation "Called in a new connection's thread with its ID
+and its route's value.")
+   (websocket-lock :initform (bordeaux-threads:make-lock "clog-websockets")
+                   :reader acceptor-websocket-lock)
+   (websocket-limit :initarg :websocket-limit :initform (websocket-limit)
+                    :reader acceptor-websocket-limit
+                    :documentation "The most websockets it keeps open: see
+*MAX-WEBSOCKETS*.")
+   (websocket-count :initform 0 :accessor acceptor-websocket-count)
+   (websocket-addresses :initform (make-hash-table :test #'equal)
+                        :reader acceptor-websocket-addresses))
   (:default-initargs
    :access-log-destination nil
-   :error-template-directory nil)
-  (:documentation "The Hunchentoot acceptor CLOG serves on: its boot pages,
-the websocket at /clog, boot.js, and static files (see INITIALIZE for the
-options in its slots).  Subclass it to serve more."))
+   :error-template-directory nil
+   ;; Twice Hunchentoot's default (100 threads, and 20 more requests
+   ;; waiting): the threads are for HTTP requests, which a browser's
+   ;; keep-alive connection holds between them for up to the read timeout.
+   :taskmaster (make-instance 'hunchentoot:one-thread-per-connection-taskmaster
+                              :max-thread-count 200
+                              :max-accept-count 250))
+  (:documentation "The Hunchentoot acceptor CLOG serves on: the boot pages of
+its routes, the websocket at /clog, boot.js, and static files (see
+INITIALIZE for its options).  Subclass it to serve more."))
 
 (defmethod hunchentoot:process-connection :around ((acceptor clog-acceptor) socket)
   (declare (ignore socket))
@@ -251,6 +143,56 @@ options in its slots).  Subclass it to serve more."))
   ;; Hunchentoot's page would name its version and the Lisp's.
   (when (>= http-status-code 400)
     (hunchentoot:reason-phrase http-status-code)))
+
+(defun the-server (server)
+  (or server (error "CLOG is not running: call INITIALIZE first.")))
+
+;;;;;;;;;;;;
+;; Routes ;;
+;;;;;;;;;;;;
+
+(defun add-route (path handler &key (server *server*))
+  "Serve the boot page at PATH, a string starting with /, or :DEFAULT for any
+path that has no route and names no file, and start each connection of its
+pages with HANDLER (given to the server's ON-CONNECT).  A NIL HANDLER removes
+the route."
+  (let ((routes (acceptor-routes (the-server server))))
+    (if handler
+        (setf (gethash path routes) handler)
+        (remhash path routes))
+    handler))
+
+(defun find-route (path &key (server *server*) default)
+  "The handler of PATH: its own route's, else with extended routing that of
+the longest route PATH is under, else with DEFAULT the :DEFAULT route's.  /
+is no other path's route."
+  (let* ((server (the-server server))
+         (routes (acceptor-routes server)))
+    (or (gethash path routes)
+        (and (acceptor-extended-routing server)
+             (loop for end = (position #\/ path :from-end t)
+                     then (position #\/ path :end end :from-end t)
+                   while (and end (plusp end))
+                   thereis (gethash (subseq path 0 end) routes)))
+        (and default (gethash :default routes)))))
+
+(defun add-plugin-path (regex static-path &key (server *server*))
+  "Send a path that matches REGEX from the directory STATIC-PATH, rather than
+the static root.  The plugin paths are tried in the order they were added."
+  (let ((server (the-server server)))
+    (setf (acceptor-plugin-paths server)
+          (append (remove regex (acceptor-plugin-paths server) :key #'car :test #'equal)
+                  (list (cons regex static-path))))
+    static-path))
+
+(defun plugin-path (acceptor path)
+  "The directory of the first plugin path that PATH matches, or NIL."
+  (cdr (find-if (lambda (plugin) (ppcre:scan (car plugin) path))
+                (acceptor-plugin-paths acceptor))))
+
+;;;;;;;;;;;;;;;;;;
+;; Static files ;;
+;;;;;;;;;;;;;;;;;;
 
 (defparameter *extra-content-types*
   '(("js" . "text/javascript") ("mjs" . "text/javascript")
@@ -290,346 +232,314 @@ ROOT as a namestring, which an absolute path, ~ or a host prefix escapes.)"
       ;; PROBE-FILE gives a directory as a directory pathname, without a name.
       (and truename (pathname-name truename) truename))))
 
-(defun clog-path-boot-file (path extended-routing)
-  "The boot file of the CLOG path PATH, or with EXTENDED-ROUTING of the CLOG
-path PATH extends, other than /; NIL when PATH is not a CLOG path."
-  (or (gethash path *url-to-boot-file*)
-      (and extended-routing
-           (block found
-             (maphash (lambda (clog-path boot-file)
-                        (when (and (stringp clog-path)
-                                   (string/= clog-path "/")
-                                   (eql 0 (search (concatenate 'string clog-path "/") path)))
-                          (return-from found boot-file)))
-                      *url-to-boot-file*)
-             nil))))
+;;;;;;;;;;;;;;;;;;;;
+;; The boot page  ;;
+;;;;;;;;;;;;;;;;;;;;
 
-(defun script-string (string)
-  "STRING escaped for a single-quoted JavaScript string in an HTML <script>
-element: ESCAPE-STRING's escapes, and < as \\x3C, so that it cannot close
-the element."
-  (ppcre:regex-replace-all "<" (escape-string string :no-nil t) "\\x3C"))
+(defun compiled-boot-html (&optional token)
+  "The boot page: boot.js and nothing else, which connects and is sent the
+page.  TOKEN, if given, names what a form posted to it."
+  (format nil "<!doctype html>
+<html>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>~@[
+<meta name='clog-boot' content='~A'>~]
+<script src='~A'></script>
+</head>
+<body>
+<noscript>This page needs JavaScript: it is drawn, and kept up to date, by the server over a websocket.</noscript>
+</body>
+</html>
+" token *boot-script-path*))
+
+(defvar *boot-data* (make-hash-table* :test #'equal)
+  "What forms posted to boot pages, until their pages connect: (TIME . PLIST)
+by token.")
+
+(defparameter +boot-data-seconds+ 60
+  "How long what a form posted to a boot page is kept for its page.")
+
+(defun keep-boot-data (plist)
+  "Keep PLIST for the page about to be sent; its token, or NIL if too many are
+kept already."
+  (let ((now (get-universal-time)))
+    (when (> (hash-table-count *boot-data*) 100)
+      (loop for (token . entry) in (alexandria:hash-table-alist *boot-data*)
+            when (> (- now (car entry)) +boot-data-seconds+)
+              do (remhash token *boot-data*)))
+    (when (< (hash-table-count *boot-data*) 10000)
+      (let ((token (random-hex-string)))
+        (setf (gethash token *boot-data*) (cons now plist))
+        token))))
+
+(defun take-boot-data (token)
+  "The plist kept for TOKEN, forgotten, if it is recent."
+  (let ((entry (gethash token *boot-data*)))
+    (when entry
+      (remhash token *boot-data*)
+      (and (<= (- (get-universal-time) (car entry)) +boot-data-seconds+)
+           (cdr entry)))))
 
 (defun boot-post-data (request)
-  "What a form posted to the boot page in REQUEST, for the page's script, or
-NIL: the raw body of an application/x-www-form-urlencoded form, which
-FORM-POST-DATA decodes, or the ID of a multipart/form-data form's fields,
-kept as connection data until DELETE-MULTIPART-DATA, which
-FORM-MULTIPART-DATA reads: (name . value), and for an uploaded file
-\(name stream file-name content-type), its contents in a stream in memory,
-as Hunchentoot deletes the file when the request ends."
+  "What a form posted to the boot page in REQUEST, as a plist, or NIL:
+:POST-DATA, the raw body of an application/x-www-form-urlencoded form, or
+:MULTIPART-DATA, a multipart/form-data form's fields: (name . value), and for
+an uploaded file (name stream file-name content-type), its contents in a
+stream in memory, as Hunchentoot deletes the file when the request ends."
   (let ((content-type (or (hunchentoot:header-in :content-type request) "")))
     (cond ((search "multipart/form-data;" content-type)
-           (let ((id (random-hex-string)))
-             (setf (gethash id *connection-data*)
-                   (mapcar (lambda (parameter)
-                             (destructuring-bind (name . value) parameter
-                               (if (consp value)
-                                   (destructuring-bind (file file-name type) value
-                                     (list name
-                                           (flex:make-in-memory-input-stream
-                                            (alexandria:read-file-into-byte-vector file))
-                                           file-name type))
-                                   (cons name value))))
-                           (hunchentoot:post-parameters request)))
-             id))
+           (list :multipart-data
+                 (mapcar (lambda (parameter)
+                           (destructuring-bind (name . value) parameter
+                             (if (consp value)
+                                 (destructuring-bind (file file-name type) value
+                                   (list name
+                                         (flex:make-in-memory-input-stream
+                                          (alexandria:read-file-into-byte-vector file))
+                                         file-name type))
+                                 (cons name value))))
+                         (hunchentoot:post-parameters request))))
           ((ppcre:scan "^application/x-www-form-urlencoded\\s*(?:;|$)" content-type)
-           (hunchentoot:raw-post-data :request request :force-text t)))))
+           (list :post-data (hunchentoot:raw-post-data :request request :force-text t))))))
 
-(defun boot-page (acceptor path boot-file)
-  "The HTML of the boot page for PATH: BOOT-FILE, a path in the static root,
-if it is there, else what STATIC-BOOT-HTML says, through the BOOT-FUNCTION."
-  (let* ((file (and *static-root* (probe-file (uiop:subpathname *static-root* boot-file))))
-         (static-boot-html (acceptor-static-boot-html acceptor))
-         (page (cond (file
-                      (uiop:read-file-string file :external-format :utf-8))
-                     ((eq static-boot-html t) "")
-                     ((eq static-boot-html :error)
-                      (error "Can not open boot file - ~A" boot-file))
-                     (static-boot-html)
-                     (t (compiled-boot-html nil nil)))))
-    (if (acceptor-boot-function acceptor)
-        (funcall (acceptor-boot-function acceptor) path page)
-        page)))
-
-(defun serve-boot-page (acceptor request path boot-file)
-  "Answer REQUEST, for the CLOG path PATH, with its boot page."
-  (let ((page (boot-page acceptor path boot-file))
-        (post-data (boot-post-data request))
-        (long-poll-first (acceptor-long-poll-first acceptor)))
-    (setf (hunchentoot:content-type*) "text/html; charset=utf-8")
-    (flet ((write-post-data (stream)
-             (when post-data
-               (format stream "<script>clog['post-data']='~A'</script>"
-                       (script-string post-data)))))
-      (cond
-        (long-poll-first
-         (let ((id (random-hex-string)))
-           (setf (gethash id *connection-data*) (make-hash-table* :test #'equal))
-           (setf (gethash "connection-id" (get-connection-data id)) id)
-           (unless *hide-connection-output*
-             (format t "New html connection id - ~A~%" id))
-           (let* ((stream               (flex:make-flexi-stream (hunchentoot:send-headers)
-                                                                :external-format :utf-8))
-                  (*long-poll-url*      path)
-                  (*long-poll-first*    stream)
-                  (*extended-long-poll* (if (eq long-poll-first t)
-                                            :extend
-                                            long-poll-first)))
-             (write-string page stream)
-             (format stream "<script>clog['connection_id']='~A';Open_ws();</script>" id)
-             (write-post-data stream)
-             (if *break-on-error*
-                 (funcall *on-connect-handler* id)
-                 (handler-case
-                     (funcall *on-connect-handler* id)
-                   (t (c)
-                     (if *hide-connection-output*
-                         (format t "Condition caught in connection handler - ~A.~&" c)
-                         (format t "Condition caught connection ~A - ~A.~&" id c))
-                     (values 0 c))))
-             (when *long-poll-first*
-               (setf *long-poll-first* nil)
-               (handler-case
-                   (finish-output stream)
-                 (t (c)
-                   (if *hide-connection-output*
-                       (format t "Condition caught finish-output - ~A.~&" c)
-                       (format t "Condition caught finish-output ~A - ~A.~&" id c))
-                   (values 0 c))))
-             (unless *hide-connection-output*
-               (format t "HTML connection closed - ~A~%" id))
-             nil)))
-        (t
-         (with-output-to-string (stream)
-           (write-string page stream)
-           (write-post-data stream)))))))
-
-(defun serve-clog-websocket (request)
-  "Answer REQUEST, for /clog, by opening the websocket the boot page asks
-for and serving it until it closes."
-  (let ((websocket (websocket-upgrade request)))
-    (when websocket
-      (serve-websocket
-       websocket
-       (lambda (websocket)
-         (handler-case
-             (handle-new-connection websocket (hunchentoot:get-parameter "r" request))
-           (t (c)
-             (format t "Condition caught in clog-server :open - ~A.~&" c)
-             (values 0 c))))
-       (lambda (websocket message)
-         (handler-case
-             (handle-message websocket message)
-           (t (c)
-             (format t "Condition caught in clog-server :message - ~A.~&" c)
-             (values 0 c))))
-       (lambda (websocket)
-         (handler-case
-             (handle-close-connection websocket)
-           (t (c)
-             (format t "Condition caught in clog-server :close - ~A.~&" c)
-             (values 0 c))))))
-    nil))
+(defun serve-boot-page (request)
+  "Answer REQUEST with the boot page."
+  (setf (hunchentoot:content-type*) "text/html; charset=utf-8"
+        (hunchentoot:header-out :cache-control) "no-store")
+  (compiled-boot-html (let ((data (boot-post-data request)))
+                        (and data (keep-boot-data data)))))
 
 (defmethod hunchentoot:acceptor-dispatch-request ((acceptor clog-acceptor) request)
-  "Answer REQUEST as CLOG does: a CLOG path with its boot page, /js/boot.js
-with the compiled boot.js (unless STATIC-BOOT-JS), /clog with the websocket,
-and any other path with a static file: from the directory of the first plugin
-path whose regex matches it, if any, else from the static root or else CLOG's
-own static files.  404 when there is no such file."
-  (let* ((path (hunchentoot:script-name request))
-         (boot-file (clog-path-boot-file path (acceptor-extended-routing acceptor))))
-    (cond (boot-file
-           (serve-boot-page acceptor request path boot-file))
-          ((and (not (acceptor-static-boot-js acceptor))
-                (string= path "/js/boot.js"))
-           (setf (hunchentoot:content-type*) "text/javascript; charset=utf-8")
+  "Answer REQUEST as CLOG does: /clog with the websocket, the path of boot.js
+with it, a path with a route with its boot page, and any other path with a
+static file: from the directory of the first plugin path whose regex matches
+it, if any, else from the static root or else CLOG's own static files.
+Failing that, the boot page of the :DEFAULT route, as a 404, or a bare 404."
+  (let ((path (hunchentoot:script-name request)))
+    (cond ((string= path "/clog")
+           (serve-clog-websocket acceptor request))
+          ((string= path *boot-script-path*)
+           (setf (hunchentoot:content-type*) "text/javascript; charset=utf-8"
+                 (hunchentoot:header-out :cache-control) "public, max-age=31536000, immutable")
            *compiled-boot-js*)
-          ((string= path "/clog")
-           (serve-clog-websocket request))
+          ((find-route path :server acceptor)
+           (serve-boot-page request))
           (t
-           (let* ((plugin-root (plugin-path path))
+           (let* ((plugin-root (plugin-path acceptor path))
                   (file (if plugin-root
                             (static-file plugin-root path)
-                            (or (static-file *static-root* path)
+                            (or (static-file (acceptor-static-root acceptor) path)
                                 (static-file (static-files-directory) path)))))
              (cond (file
                     (serve-static-file acceptor file))
                    (t
                     (setf (hunchentoot:return-code*) hunchentoot:+http-not-found+)
-                    nil)))))))
+                    (when (gethash :default (acceptor-routes acceptor))
+                      (serve-boot-page request)))))))))
 
-;;;;;;;;;;;;;;;;
-;; initialize ;;
-;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; The pages' websockets ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun initialize (on-connect-handler
+(defun client-address (request)
+  "The address of REQUEST's client: the last address of X-Forwarded-For, which
+the reverse proxy adds, when the request comes from this host, else the
+peer's."
+  (let ((peer (hunchentoot:remote-addr request))
+        (forwarded (hunchentoot:header-in :x-forwarded-for request)))
+    (if (and forwarded (member peer '("127.0.0.1" "::1") :test #'equal))
+        (string-trim " " (car (last (ppcre:split "," forwarded))))
+        peer)))
+
+(defun same-origin-p (request)
+  "True unless REQUEST has an Origin whose host and port are not those its
+Host names: a page of another site may not open a websocket here."
+  (let ((origin (hunchentoot:header-in :origin request))
+        (host (hunchentoot:header-in :host request)))
+    (or (null origin)
+        (let ((authority (nth-value 1 (ppcre:scan-to-strings
+                                       "^[A-Za-z][A-Za-z0-9+.-]*://([^/?#]+)$" origin))))
+          (and authority host (string-equal (aref authority 0) host))))))
+
+(defun reserve-websocket (acceptor address)
+  "Count a websocket for ADDRESS, if the limits allow one more."
+  (bordeaux-threads:with-lock-held ((acceptor-websocket-lock acceptor))
+    (let ((addresses (acceptor-websocket-addresses acceptor)))
+      (when (and (< (acceptor-websocket-count acceptor) (acceptor-websocket-limit acceptor))
+                 (< (gethash address addresses 0) *max-websockets-per-address*))
+        (incf (acceptor-websocket-count acceptor))
+        (incf (gethash address addresses 0))
+        t))))
+
+(defun release-websocket (acceptor address)
+  (bordeaux-threads:with-lock-held ((acceptor-websocket-lock acceptor))
+    (let ((addresses (acceptor-websocket-addresses acceptor)))
+      (decf (acceptor-websocket-count acceptor))
+      (when (<= (decf (gethash address addresses 0)) 0)
+        (remhash address addresses)))))
+
+(defun call-with-thread-released (acceptor function)
+  "Call FUNCTION with this request's thread out of ACCEPTOR's taskmaster's
+count, so that it does not keep a thread from the HTTP requests while it
+serves a websocket."
+  (let ((taskmaster (hunchentoot::acceptor-taskmaster acceptor)))
+    (if (typep taskmaster 'hunchentoot:one-thread-per-connection-taskmaster)
+        (progn
+          ;; Hunchentoot counts the thread against both the threads and the
+          ;; requests accepted, and uncounts both when the request ends.
+          (hunchentoot:decrement-taskmaster-thread-count taskmaster)
+          (unwind-protect (funcall function)
+            (hunchentoot::increment-taskmaster-accept-count taskmaster)
+            (hunchentoot:increment-taskmaster-thread-count taskmaster)))
+        (funcall function))))
+
+(defun get-integer (request name)
+  (let ((value (hunchentoot:get-parameter name request)))
+    (and value (< (length value) 12)
+         (ignore-errors (parse-integer value)))))
+
+(defun page-request (request)
+  "What a new page tells of itself in REQUEST, the opening of its websocket:
+the plist CONNECTION-REQUEST describes."
+  (let ((path (hunchentoot:get-parameter "p" request))
+        (token (hunchentoot:get-parameter "b" request)))
+    (append (list :path (if (and path (plusp (length path)) (char= #\/ (char path 0)))
+                            path
+                            "/")
+                  :query-string (or (hunchentoot:get-parameter "q" request) "")
+                  :headers (loop for (name . value) in (hunchentoot:headers-in request)
+                                 collect (cons (string-downcase name) value))
+                  :cookies (hunchentoot:cookies-in request)
+                  :remote-address (client-address request)
+                  :timezone-offset (get-integer request "tz")
+                  :viewport-width (get-integer request "vw")
+                  :viewport-height (get-integer request "vh")
+                  :pixel-ratio (hunchentoot:get-parameter "dpr" request)
+                  :language (hunchentoot:get-parameter "lang" request))
+            (and token (take-boot-data token)))))
+
+(defun open-page (acceptor request websocket)
+  "The connection of the page whose websocket REQUEST opened: a new one, or
+the one it reconnects to, which sends it what it missed.  A page whose
+connection is gone, or cannot be brought up to date, is told to reload."
+  (let ((id (hunchentoot:get-parameter "r" request)))
+    (when (not (or (hunchentoot:get-parameter "p" request)
+                   (hunchentoot:get-parameter "s" request)))
+      ;; A boot.js from before this protocol, in a page left open across an
+      ;; upgrade, which runs each message as a script and would reconnect
+      ;; for good: have it reload.
+      (websocket-send websocket "location.reload()")
+      (websocket-close websocket 4000 "reload")
+      (return-from open-page nil))
+    (if (null id)
+        (let* ((connection (make-connection acceptor (page-request request)))
+               (path (getf (connection-request-plist connection) :path)))
+          (bordeaux-threads:with-lock-held ((connection-send-lock connection))
+            (setf (connection-websocket connection) websocket))
+          (send connection (list (format nil "clog['connection_id']='~A'"
+                                         (connection-id connection))))
+          (log-message :info "Connection ~D opened: ~A, from ~A"
+                       (connection-serial connection) path (client-address request))
+          (enqueue-function connection
+                            (let ((on-connect (acceptor-on-connect acceptor))
+                                  (handler (find-route path :server acceptor :default t)))
+                              (lambda ()
+                                (when on-connect
+                                  (funcall on-connect (connection-id connection) handler)))))
+          connection)
+        (let ((connection (get-connection id)))
+          (cond ((and connection (attach connection websocket (or (get-integer request "s") 0)))
+                 (log-message :info "Connection ~D reconnected" (connection-serial connection))
+                 connection)
+                (t
+                 (when connection
+                   (close-connection connection :code 4000 :reason "reload"))
+                 (websocket-close websocket 4000 "reload")
+                 nil))))))
+
+(defun serve-clog-websocket (acceptor request)
+  "Answer REQUEST, for /clog, by opening a page's websocket and serving it
+until it closes: 403 to a page of another origin, 503 past the limits."
+  (let ((address (client-address request)))
+    (cond ((not (same-origin-p request))
+           (setf (hunchentoot:return-code*) hunchentoot:+http-forbidden+)
+           nil)
+          ((not (reserve-websocket acceptor address))
+           (log-message :warning "Refused a websocket from ~A: too many open" address)
+           (setf (hunchentoot:return-code*) hunchentoot:+http-service-unavailable+)
+           nil)
+          (t
+           (unwind-protect
+                (let ((websocket (websocket-upgrade request))
+                      (connection nil))
+                  (when websocket
+                    (call-with-thread-released
+                     acceptor
+                     (lambda ()
+                       (serve-websocket
+                        websocket
+                        (lambda (websocket)
+                          (setf connection
+                                (call-logging-errors
+                                 (lambda () (open-page acceptor request websocket))
+                                 "Opening a page's connection"))
+                          ;; Unless it was told to reload.
+                          (unless connection
+                            (websocket-close websocket 1011 "server error")))
+                        (lambda (websocket message)
+                          (when connection
+                            (call-logging-errors
+                             (lambda () (receive connection websocket message))
+                             "Connection ~D, a message from the browser"
+                             (connection-serial connection))))
+                        (lambda (websocket)
+                          (when connection
+                            (call-logging-errors
+                             (lambda ()
+                               (websocket-ended connection websocket
+                                                (websocket-close-code websocket)))
+                             "Connection ~D, closing" (connection-serial connection)))))))))
+             (release-websocket acceptor address))
+           nil))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Starting and stopping    ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun initialize (on-connect
                    &key
                    (host                 "0.0.0.0")
                    (port                 8080)
                    (acceptor-class       'clog-acceptor)
                    (acceptor-initargs    nil)
                    (extended-routing     nil)
-                   (long-poll-first      nil)
-                   (boot-file            "/boot.html")
-                   (boot-function        nil)
-                   (static-boot-html     nil)
-                   (static-boot-js       nil)
-                   (static-root          #P"./static-files/"))
-  "Initialize CLOG on a socket using HOST and PORT to serve BOOT-FILE as the
-default route for '/' to establish web-socket connections and static files
-located at STATIC-ROOT. The server is an instance of ACCEPTOR-CLASS, a
-CLOG-ACCEPTOR, made with ACCEPTOR-INITARGS too, and returned; it is started
-before this returns.
-If LONG-POLLING-FIRST is t, the output is sent as HTML instead of
-websocket commands until the end of the on-new-window-handler, if
-LONG-POLLING-FIRST is a number will keep long polling till that number of
-queries to browser.  LONG-POLLING-FIRST is used in webserver applications to
-enable crawling of your website. If BOOT-FILE is nil no initial clog-path's will
-be setup, use clog-path to add. The on-connect-handler needs to indentify the
-path by querying the browser. See PATH-NAME (in CLOG-LOCATION). If
-EXTENDED-ROUTING is t routes will match even if extend with additional / and
-additional paths. If static-boot-js is nil then boot.js is served from the file
-/js/boot.js instead of the compiled version. If static-boot-html is t if
-boot.html is not present will use compiled version otherwise if set to nil (default)
-if a boot file not found returns returns a blank page, if it is set to :error will
-signal an error and if set to a string will display the string. boot-function if set is
-called with the url and the contents of boot-file and its return value replaces
-the contents sent to the brower.  STATIC-ROOT may be NIL, for no static root."
-  (set-on-connect on-connect-handler)
-  (when boot-file
-    (set-clog-path "/" boot-file))
-  (setf *static-root* static-root)
-  (setf *clog-port* port)
-  (setf *acceptor* (apply #'make-instance acceptor-class
-                          :address host
-                          :port port
-                          :extended-routing extended-routing
-                          :long-poll-first long-poll-first
-                          :boot-function boot-function
-                          :static-boot-html static-boot-html
-                          :static-boot-js static-boot-js
-                          acceptor-initargs))
-  (hunchentoot:start *acceptor*)
-  (format t "HTTP listening on    : ~A:~A~%" host port)
-  (format t "HTML root            : ~A~%"    static-root)
-  (format t "Long poll first      : ~A~%"    (if long-poll-first
-                                                 "yes"
-                                                 "no"))
-  (format t "Boot function added  : ~A~%"    (if boot-function
-                                                 "yes"
-                                                 "no"))
-  (format t "Boot html source use : ~A~%"    (if static-boot-html
-                                                 "static file"
-                                                 "compiled version, when no file"))
-  (format t "Boot js source use   : ~A~%"    (if static-boot-js
-                                                 "static file"
-                                                 "compiled version"))
-  (format t "Boot file for path / : ~A~%"    boot-file)
-  *acceptor*)
+                   (static-root          nil))
+  "Start a server, an instance of ACCEPTOR-CLASS (a CLOG-ACCEPTOR) made with
+ACCEPTOR-INITARGS too, on HOST and PORT, that sends the files of STATIC-ROOT
+(a directory, or NIL), and calls ON-CONNECT in each new connection's thread
+with its ID and its route's handler.  It becomes *SERVER*, and is returned.
+EXTENDED-ROUTING: see FIND-ROUTE."
+  (let ((server (apply #'make-instance acceptor-class
+                       :address host
+                       :port port
+                       :extended-routing extended-routing
+                       :static-root static-root
+                       :on-connect on-connect
+                       acceptor-initargs)))
+    (hunchentoot:start server)
+    (setf *server* server)
+    (log-message :info "HTTP listening on ~A:~A, static root ~A, at most ~D websockets"
+                 host port (or static-root "none") (acceptor-websocket-limit server))
+    server))
 
-(defun add-plugin-path (regex static-path)
-  "When a path to the webserver matches REGEX resolve the static file using
-STATIC-PATH"
-  (setf (gethash regex *plugin-paths*) static-path))
-
-(defun plugin-path (path)
-  (block ret-static-path
-      (maphash (lambda (k v)
-                 (when (ppcre:scan k path)
-                   (return-from ret-static-path v)))
-               *plugin-paths*)
-    nil))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;
-;; shutdown-connection ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun shutdown-connection ()
-  "Stop the server and start closing every websocket: a browser that does not
-answer is let go when its socket's read times out."
-  (when *acceptor*
-    (hunchentoot:stop *acceptor*)
-    (setf *acceptor* nil))
-  (loop for websocket being the hash-keys of *connections*
-        do (websocket-close websocket 1001 "Server shutting down")))
-
-;;;;;;;;;;;;
-;; cclose ;;
-;;;;;;;;;;;;
-
-(defun cclose (connection-id)
-  "Close connection to CONNECTION-ID. The boot file may try to reestablish
- connectivity."
-  (execute connection-id "ws.close()"))
-
-;;;;;;;;;;;;;
-;; execute ;;
-;;;;;;;;;;;;;
-
-(defun execute (connection-id message)
-  "Execute SCRIPT on CONNECTION-ID, disregard return value."
-  (if *long-poll-first*
-      (write-sequence (format nil "<script>~A</script>~%" message)
-                      *long-poll-first*)
-      (let ((con (get-connection connection-id)))
-        (when con
-          (websocket-send con message)))))
-
-;;;;;;;;;;;
-;; query ;;
-;;;;;;;;;;;
-
-(defun query (connection-id script &key (default-answer nil))
-  "Execute SCRIPT on CONNECTION-ID, return value. If times out answer
-DEFAULT-ANSWER."
-  ;; Provide delay if needed to establish websocket connection for
-  ;; response.
-  (when *long-poll-first*
-    (finish-output *long-poll-first*)
-    (loop
-      for n from 1 to 10 do
-      (let ((con (get-connection connection-id)))
-        (when con
-          (unless (or (eq *extended-long-poll* :extend)
-                      (> (decf *extended-long-poll*) 0))
-            (unless *hide-connection-output*
-              (format t "Closing long-poll for ~A~%" connection-id))
-            (setf *long-poll-first* nil))
-          (return))
-        (unless *hide-connection-output*
-          (format t "Awaiting websocket connection for ~A~%" connection-id))
-        (sleep .1))))
-  (let ((uid (generate-id)))
-    (prep-query uid (when default-answer (format nil "~A" default-answer)))
-    (execute connection-id
-             (format nil "ws.send (\"~A:\"+eval(\"~A\"));"
-                     uid
-                     (escape-string script)))
-    (wait-for-answer uid)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;
-;; compiled-boot-html ;;
-;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun compiled-boot-html (path content)
-  "Returns a compiled version version of boot.html.  It loads boot.js alone,
-where upstream's also loads jQuery from the jQuery CDN, and has no template
-slots in its <noscript> elements, which upstream's has for a BOOT-FUNCTION to
-fill."
-  (declare (ignore path content))
-  "<!doctype HTML>
-<HTML>
-   <HEAD>
-      <meta http-equiv='Cache-Control' content='no-cache, no-store, must-revalidate' />
-      <meta http-equiv='Pragma' content='no-cache' />
-      <meta http-equiv='Expires' content='0' />
-      <meta charset='utf-8'>
-      <meta name='viewport' content='width=device-width, initial-scale=1'>
-      <script src='/js/boot.js' type='text/javascript'></script>
-   </HEAD>
-<BODY>
-</BODY>
-<noscript>Your browser must support JavaScript and be HTML 5 compilant to see this site.</noscript>
-</HTML>")
+(defun shutdown-clog (&key (server *server*))
+  "Stop SERVER and close its connections: their pages reconnect, and reload
+when a server is there again."
+  (when server
+    (hunchentoot:stop server)
+    (when (eq server *server*)
+      (setf *server* nil))
+    (loop for connection in (alexandria:hash-table-values *connections*)
+          when (eq server (connection-server connection))
+            do (close-connection connection :code 1001 :reason "server shutting down"))))

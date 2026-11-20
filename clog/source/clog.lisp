@@ -21,8 +21,7 @@
 (defpackage #:clog
   (:documentation "CLOG - The Common List Omnificent GUI")
   (:import-from #:clog-connection
-                #:*clog-port*
-                #:*static-root*
+                #:cancel-timer
                 #:make-hash-table*
                 #:escape-string
                 #:generate-id
@@ -32,15 +31,11 @@
    ;;; CLOG System
    ;; CLOG Startup and Shutdown
    #:initialize
-   #:*static-root*
-   #:*clog-port*
    #:*clog-debug*
    #:set-on-new-window
    #:is-running-p
    #:shutdown
    #:debug-mode
-   #:open-file-with-os
-   #:open-browser
    ;;; CLOG Utilities
    ;; Concurrent Hash Tables
    #:make-hash-table*
@@ -55,6 +50,7 @@
    #:js-on-p
    #:p-on-js
    #:escape-for-html
+   #:escape-html-attribute
    #:escape-string
    #:lf-to-br
    #:js-to-integer
@@ -87,11 +83,24 @@
    #:remove-connection-data-item
    #:connection-body
    #:connection-path
-   #:connection-sync
    #:with-sync-event
    #:validp
    #:with-connection-cache
    #:flush-connection-cache
+   ;; This fork: a page's thread, and what it told on connecting
+   #:post
+   #:schedule
+   #:cancel-timer
+   #:add-close-hook
+   #:request-path
+   #:request-query-string
+   #:request-parameter
+   #:request-header
+   #:request-cookie
+   #:remote-address
+   #:client-timezone-offset
+   #:client-language
+   #:client-viewport
    ;; CLOG-Obj - Internals for Extensions and Plugins
    #:html-id
    #:script-id
@@ -378,6 +387,7 @@
    #:clog-meter
    #:create-meter
    #:value
+   #:mirror
    #:high
    #:low
    #:minimum
@@ -741,8 +751,6 @@
    ;; CLOG-Body - CLOG Body Objects
    #:clog-body
    ;; CLOG-Body - Properties
-   #:run
-   #:set-html-on-close
    #:window
    #:html-document
    #:location

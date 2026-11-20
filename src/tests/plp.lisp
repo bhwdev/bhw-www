@@ -734,11 +734,11 @@ Eb Bb Eb
 
 (deftest the-pages
   (testing "the room's code in an address"
-    (ok (equal "AB12CD" (screen:path-code "/plp-screen/ab12cd" "/plp-screen/")))
-    (ok (equal "AB12CD" (screen:path-code "/plp-console/AB12CD/" "/plp-console/")))
-    (ng (screen:path-code "/plp-screen/" "/plp-screen/"))
-    (ng (screen:path-code "/plp-screen/a/b" "/plp-screen/"))
-    (ng (screen:path-code "/bible/1-1-1" "/plp-screen/")))
+    (ok (equal "AB12CD" (screen:path-code "/plp/screen/ab12cd" "/plp/screen/")))
+    (ok (equal "AB12CD" (screen:path-code "/plp/console/AB12CD/" "/plp/console/")))
+    (ng (screen:path-code "/plp/screen/" "/plp/screen/"))
+    (ng (screen:path-code "/plp/screen/a/b" "/plp/screen/"))
+    (ng (screen:path-code "/bible/1-1-1" "/plp/screen/")))
   (testing "the type shrinks with the longest line and with the number of lines"
     (ok (equal "min(10.71vw, 28.00vh)" (screen:font-size '("Abide with me"))))
     (ok (equal "min(3.75vw, 14.00vh)"

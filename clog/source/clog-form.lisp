@@ -15,15 +15,15 @@
   (:documentation "Get the form data as an a-list sent by the get method"))
 
 (defmethod form-get-data ((obj clog-obj))
-  (let ((query (nth-value 1 (ppcre:scan-to-strings "\\?([^#]*)"
-                                                   (js-query obj "location.href")))))
-    (and query (url-decode-params (aref query 0)))))
+  (let ((query (request-query-string obj)))
+    (and (plusp (length query)) (url-decode-params query))))
 
 (defgeneric form-post-data (clog-obj)
   (:documentation "Get the form data as an a-list sent by post method"))
 
 (defmethod form-post-data ((obj clog-obj))
-  (url-decode-params (js-query obj "clog['post-data']")))
+  (let ((data (request-value obj :post-data)))
+    (and data (url-decode-params data))))
 
 (defgeneric form-multipart-data (clog-obj)
   (:documentation "Get the form data as an a-list sent with the multipart
@@ -32,15 +32,16 @@ never be GC'd. File upload items will be a four part list
 (name stream file-name content-type)."))
 
 (defmethod form-multipart-data ((obj clog-obj))
-  (clog-connection:get-connection-data
-   (caar (form-post-data obj))))
+  (request-value obj :multipart-data))
 
 (defgeneric delete-multipart-data (clog-obj)
   (:documentation "Delete the multipart data upload"))
 
 (defmethod delete-multipart-data ((obj clog-obj))
-  (let ((id (caar (form-post-data obj))))
-    (clog-connection:delete-connection-data id)))
+  (let ((request (clog-connection:connection-request (connection-id obj))))
+    (when request
+      (setf (clog-connection:connection-request (connection-id obj))
+            (alexandria:remove-from-plist request :multipart-data)))))
 
 (defun form-data-item (form-data item)
   "Return value for ITEM from FROM-DATA a-list"
@@ -410,21 +411,53 @@ have this set true ever. Autofocus on element when form loaded."))
    instead through the value property."))
 
 (defmethod value ((obj clog-form-element))
-  (property obj "value"))
+  (multiple-value-bind (value mirrored)
+      (clog-connection:mirrored-value (connection-id obj) (html-id obj))
+    (if mirrored
+        value
+        (property obj "value"))))
 
 (defgeneric (setf value) (value clog-form-element)
   (:documentation "Set value VALUE for CLOG-FORM-ELEMENT"))
 
 (defmethod (setf value) (value (obj clog-form-element))
-  (setf (property obj "value") value))
+  (multiple-value-bind (old mirrored)
+      (clog-connection:mirrored-value (connection-id obj) (html-id obj))
+    (declare (ignore old))
+    (cond (mirrored
+           ;; The browser may make it another value (a select without that
+           ;; option): it says which.
+           (setf (clog-connection:mirrored-value (connection-id obj) (html-id obj))
+                 (princ-to-string value))
+           (js-execute obj (format nil "~A.value='~A';clog_mirror_send(~A,'~A')"
+                                   (script-id obj) (escape-string value)
+                                   (script-id obj) (html-id obj)))
+           value)
+          (t
+           (setf (property obj "value") value)))))
 
 ;; overloading of text-value to equal value on forms
 
 (defmethod text-value ((obj clog-form-element))
-  (property obj "value"))
+  (value obj))
 
 (defmethod (setf text-value) (value (obj clog-form-element))
-  (setf (property obj "value") value))
+  (setf (value obj) value))
+
+;;;;;;;;;;;;
+;; mirror ;;
+;;;;;;;;;;;;
+
+(defgeneric mirror (clog-form-element &optional value)
+  (:documentation "Keep the value of CLOG-FORM-ELEMENT on the server: the
+browser sends it whenever it changes, so that VALUE and TEXT-VALUE read it
+without asking the browser.  VALUE is what it is now (\"\" by default, as
+for an element just created empty); the browser sends it too, at once.
+Returns CLOG-FORM-ELEMENT."))
+
+(defmethod mirror ((obj clog-form-element) &optional (value ""))
+  (clog-connection:mirror (connection-id obj) (html-id obj) value)
+  (js-execute obj (format nil "clog_mirror(~A,'~A')" (script-id obj) (html-id obj))))
 
 ;;;;;;;;;;;;;;;;;
 ;; radio-value ;;

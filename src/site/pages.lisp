@@ -7,7 +7,7 @@
                 #:add-style #:create-a #:create-child #:create-div
                 #:create-img #:create-list-item #:create-p #:create-section
                 #:create-style-block #:create-unordered-list #:head-element
-                #:html-document #:location #:path-name #:set-on-new-window #:title)
+                #:html-document #:request-path #:set-on-new-window #:title)
   (:import-from #:bhw/site/layout
                 #:escape-html #:link-global-stylesheet #:with-page-chrome)
   (:export #:on-index-handler
@@ -262,12 +262,12 @@ the spans share a few keyframes and differ in their delays."
 
 (defun on-404-handler (body)
   "Default handler for unmatched routes."
-  (let ((path (path-name (location body))))
+  (let ((path (request-path body)))
     (with-page-chrome body
       (lambda (main)
         (create-section main :h1 :content "404. That's an error." :class "title")
         (create-p main :content
-                  ;; PATH is whatever the browser reports, so it is escaped.
+                  ;; PATH is whatever the browser sent, so it is escaped.
                   (format nil "The requested URL <code>~A</code> was not found on this server. But that's not all we know..."
                           (escape-html (or path ""))))
         (create-p main :content

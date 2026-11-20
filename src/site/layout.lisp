@@ -6,7 +6,7 @@
   (:import-from #:cl-ppcre)
   (:import-from #:clog
                 #:attribute #:create-child #:create-div #:document-element
-                #:head-element #:html-document #:property)
+                #:head-element #:html-document)
   (:export #:with-page-chrome
            #:link-global-stylesheet
            #:escape-html
@@ -103,11 +103,12 @@ else \"/\": where /theme sends the reader back to."
 
 (defun theme-toggle-response (env)
   "The response to the toggle's POST /theme: set the theme after the one the
-request names and send the reader back to the page they were on.  Not
-HttpOnly: WITH-PAGE-CHROME reads it as document.cookie."
+request names and send the reader back to the page they were on.  HttpOnly:
+no script reads it; WITH-PAGE-CHROME has it from the request that opened the
+page's websocket."
   (list 303
         (list :location (local-target (request-header env "referer"))
-              :set-cookie (format nil "theme=~A; Path=/; Max-Age=31536000; SameSite=Lax"
+              :set-cookie (format nil "theme=~A; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly"
                                   (next-theme (theme-preference env)))
               :cache-control "no-store"
               :content-length 0)
@@ -155,7 +156,7 @@ so that it needs no script."
 theme the reader's cookie names.  CONTENT-FN is called with the main content
 div as argument."
   (let* ((document (html-document body))
-         (theme (cookie-theme (property document "cookie")))
+         (theme (cookie-theme (clog:request-header body "cookie")))
          (dark (dark-stylesheet theme)))
     (link-global-stylesheet document)
     (when dark

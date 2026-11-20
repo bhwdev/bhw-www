@@ -15,15 +15,6 @@
 
 (pushnew :clog *features*)
 
-(defvar *connection-cache* nil
-"Dynamic variable containing optional cache. Every thread has its
-own context and therefore its own copy of this variable when
-dynamically bound. As a result no thread protection is needed to
-access. To use dynamically bind the *connection-cache* and set it
-to (list :cache) turn on caching. By default this is off its main use
-is during initial setup of complex pages. (private)
-See macro with-connection-cache.")
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implementation - clog-obj
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -98,10 +89,9 @@ during attachment. (Private)"))
 ;;;;;;;;;;;;;;;;;;;
 
 (defun cached-execute (connection-id script)
-  "Excute SCRIPT on browser, if connection cache enabled use. (Private)"
-  (if *connection-cache*
-      (push script *connection-cache*)
-      (clog-connection:execute connection-id script)))
+  "Excute SCRIPT on browser.  In the connection's own thread it goes out with
+the rest of what the running handler sends.  (Private)"
+  (clog-connection:execute connection-id script))
 
 ;;;;;;;;;;;;;;;;
 ;; js-execute ;;
@@ -125,7 +115,6 @@ CLOG-OBJ. (Internal)"))
 CLOG-OBJ us used to obtain the connection the script should run on. (Internal)"))
 
 (defmethod js-query ((obj clog-obj) script &key (default-answer nil))
-  (flush-connection-cache obj)
   (clog-connection:query (connection-id obj) script
                          :default-answer default-answer))
 
@@ -134,29 +123,19 @@ CLOG-OBJ us used to obtain the connection the script should run on. (Internal)")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro with-connection-cache ((clog-obj) &body body)
-  "Caches writes to the connection-id of CLOG-OBJ until
-flushed with FLUSH-CONNECTION-CACHE or a query is made."
-  `(let ((*connection-cache* (list :cache)))
-     ,@body
-     (clog:flush-connection-cache ,clog-obj)))
+  "Run BODY, then send what it sent CLOG-OBJ's page.  In this fork a page's
+own thread batches what it sends anyway, until the running handler returns or
+makes a query: this only sends it sooner."
+  `(multiple-value-prog1 (progn ,@body)
+     (flush-connection-cache ,clog-obj)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; flush-connection-cache ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun flush-connection-cache (clog-obj)
-  "Flush connection cache if on CLOG-OBJ is located on."
-  (when *connection-cache*
-    (let ((big (make-string-output-stream)))
-      (write-string "(function(){" big)
-      (dolist (script (reverse *connection-cache*))
-        (unless (eq script :cache)
-          (write-string script big)
-          (write-char #\; big)))
-      (write-string "})()" big)
-      (clog-connection:execute (connection-id clog-obj)
-                               (get-output-stream-string big)))
-    (setf *connection-cache* (list :cache))))
+  "In CLOG-OBJ's page's thread, send what it has batched so far."
+  (clog-connection:flush (connection-id clog-obj)))
 
 ;;;;;;;;;;;;;
 ;; execute ;;
@@ -403,7 +382,7 @@ result or if time out DEFAULT-ANSWER. (Internal)"))
     (if cd
         (cond (handler
                 (bind-event-script
-                  obj event (format nil "~A~Aws.send('E:~A '~A)~A~@[~A~]~@[~A~]"
+                  obj event (format nil "~A~Aclog_send('E:~A '~A)~A~@[~A~]~@[~A~]"
                                     pre-eval
                                     eval-script
                                     hook
@@ -547,8 +526,7 @@ for internal use of clog.
 
 The following default keys are set:
 \"clog-body\"      clog-body of this connection, see CONNECTION-BODY
-\"clog-path\"      html path used, see CONNECTION-PATH
-\"clog-sync\"      mutex used for syncing events, see CONNECTION-SYNC"))
+\"clog-path\"      html path used, see CONNECTION-PATH"))
 
 (defmethod connection-data ((obj clog-obj))
   (clog-connection:get-connection-data (connection-id obj)))
@@ -598,30 +576,97 @@ The following default keys are set:
 ;;;;;;;;;;;;;;;;;;;;;
 
 (defgeneric connection-path (clog-obj)
-  (:documentation "Get the HTML passed used to make the connection."))
+  (:documentation "The path the page was opened at, see REQUEST-PATH."))
 
 (defmethod connection-path (clog-obj)
   (connection-data-item clog-obj "clog-path"))
-
-;;;;;;;;;;;;;;;;;;;;;
-;; connection-sync ;;
-;;;;;;;;;;;;;;;;;;;;;
-
-(defgeneric connection-sync (clog-obj)
-  (:documentation "Get connection's clog-sync for optional syncing events."))
-
-(defmethod connection-sync (clog-obj)
-  (connection-data-item clog-obj "clog-sync"))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; with-sync-event ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro with-sync-event ((clog-obj) &body body)
-  "Place at start of event to serialize access to the event. All events in
-an application share per connection the same queue of serialized events."
-  `(bordeaux-threads:with-lock-held (,`(connection-sync ,clog-obj))
-                                    ,@body))
+  "Run BODY.  Upstream serializes a page's events with it; in this fork a
+page's events run one at a time in its own thread anyway."
+  (declare (ignore clog-obj))
+  `(progn ,@body))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; The page's thread: posting, timers, closing
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun post (clog-obj function)
+  "Have FUNCTION called, with no arguments, in the thread of CLOG-OBJ's page,
+after the events and functions already waiting there and never at the same
+time as another: how another thread changes a page.  True if queued, NIL if
+the page is gone."
+  (clog-connection:post (connection-id clog-obj) function))
+
+(defun schedule (clog-obj seconds function &key repeat)
+  "Have FUNCTION called in the thread of CLOG-OBJ's page SECONDS from now,
+and with REPEAT every SECONDS after that, until CANCEL-TIMER or the page
+closes.  Returns the timer, or NIL if the page is gone."
+  (clog-connection:schedule (connection-id clog-obj) seconds function :repeat repeat))
+
+(defun add-close-hook (clog-obj function)
+  "Have FUNCTION called, with no arguments, in the thread of CLOG-OBJ's page
+once the page has gone: left, or not reconnected in time.  For the Lisp side
+of the page, such as a subscription to undo; the browser is gone."
+  (clog-connection:add-close-hook (connection-id clog-obj) function))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; What the page told on connecting
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun request-value (clog-obj key)
+  (getf (clog-connection:connection-request (connection-id clog-obj)) key))
+
+(defun request-path (clog-obj)
+  "The path of the address CLOG-OBJ's page was opened at, as the server
+received it, without asking the browser."
+  (or (request-value clog-obj :path) "/"))
+
+(defun request-query-string (clog-obj)
+  "The query of the address CLOG-OBJ's page was opened at, without the ?,
+still URL-encoded; \"\" for none."
+  (or (request-value clog-obj :query-string) ""))
+
+(defun request-parameter (clog-obj name)
+  "The value of the parameter NAME in the query of the address CLOG-OBJ's page
+was opened at, decoded, or NIL."
+  (cdr (assoc name (url-decode-params (request-query-string clog-obj)) :test #'string=)))
+
+(defun request-header (clog-obj name)
+  "The value of the header NAME (any case) of the request that opened
+CLOG-OBJ's page's websocket, or NIL."
+  (cdr (assoc name (request-value clog-obj :headers) :test #'string-equal)))
+
+(defun request-cookie (clog-obj name)
+  "The value of the cookie NAME the browser sent with CLOG-OBJ's page, or NIL:
+HttpOnly cookies too."
+  (cdr (assoc name (request-value clog-obj :cookies) :test #'string=)))
+
+(defun remote-address (clog-obj)
+  "The address of the client of CLOG-OBJ's page (behind a reverse proxy on
+this host, the one in its X-Forwarded-For)."
+  (request-value clog-obj :remote-address))
+
+(defun client-timezone-offset (clog-obj)
+  "How many minutes the clock of CLOG-OBJ's browser is behind UTC, as
+JavaScript's getTimezoneOffset; 0 when it did not say."
+  (or (request-value clog-obj :timezone-offset) 0))
+
+(defun client-language (clog-obj)
+  "The language of CLOG-OBJ's browser (navigator.language), or NIL."
+  (request-value clog-obj :language))
+
+(defun client-viewport (clog-obj)
+  "The width and height in CSS pixels of the window CLOG-OBJ's page opened
+in, and its device pixel ratio, as three values; NIL for what it did not say."
+  (values (request-value clog-obj :viewport-width)
+          (request-value clog-obj :viewport-height)
+          (let ((ratio (request-value clog-obj :pixel-ratio)))
+            (and ratio (parse-double ratio)))))
 
 ;;;;;;;;;;;;;;;;;;
 ;; set-on-event ;;

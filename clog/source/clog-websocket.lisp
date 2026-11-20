@@ -25,10 +25,11 @@ tab's timers to one a minute.  Checked when a read times out, so in steps of
 the acceptor's read timeout (Hunchentoot's default is 20 seconds); with no
 read timeout the socket waits for the browser indefinitely.")
 
-(defvar *websocket-max-message-octets* (* 16 1024 1024)
+(defvar *websocket-max-message-octets* (* 1024 1024)
   "The longest message, in octets, a websocket accepts from the browser: a
-longer one closes it with status 1009.  CLOG's are script results and event
-data, usually far shorter.")
+longer one closes it with status 1009.  CLOG's are script results, event data
+and the values of form elements; the application refuses HTTP bodies over a
+mebibyte too.")
 
 (defparameter +websocket-guid+ "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
   "The GUID RFC 6455 has the server append to Sec-WebSocket-Key.")
@@ -56,7 +57,10 @@ code to close the connection with.  (Private)"))
          :reader websocket-lock)
    (state :initform :open :accessor websocket-state
           :documentation ":OPEN, :CLOSING once this end has sent its close
-frame, :CLOSED."))
+frame, :CLOSED.")
+   (close-code :initform nil :accessor websocket-close-code
+               :documentation "The status of the browser's close frame (1005
+for none in it), once it has sent one."))
   (:documentation "The server's end of a browser's websocket connection."))
 
 (defmethod print-object ((websocket websocket) stream)
@@ -271,12 +275,14 @@ way."
              ;; frame may carry.
              (let ((code (if (>= (length payload) 2)
                              (logior (ash (aref payload 0) 8) (aref payload 1))
-                             1000)))
+                             1005)))
+               (setf (websocket-close-code websocket) code)
                (websocket-close websocket
-                                (if (and (<= 1000 code 4999)
-                                         (not (member code '(1004 1005 1006 1015))))
-                                    code
-                                    1002)
+                                (cond ((= code 1005) 1000)
+                                      ((and (<= 1000 code 4999)
+                                            (not (member code '(1004 1006 1015))))
+                                       code)
+                                      (t 1002))
                                 ""))
              (return :close))
             (9

@@ -18,7 +18,8 @@ Bible reader and a Slack bot that books vans, served by one process."
   :depends-on ("bhw/main")
   :in-order-to ((asdf:test-op (asdf:test-op "bhw/tests"))))
 
-(register-system-packages "clog" '(:clog-connection :clog-gui))
+(register-system-packages "clog" '(:clog-connection))
+(register-system-packages "clog/gui" '(:clog-gui))
 ;; The engine and its replication transport, without the HTTP API that the
 ;; full "graph-db" system adds (guix.scm builds only these two).
 (register-system-packages "graph-db/replication" '(:graph-db))
@@ -27,6 +28,11 @@ Bible reader and a Slack bot that books vans, served by one process."
   :class :package-inferred-system
   :pathname "src/tests"
   :depends-on ("rove"
+               ;; CLOG's parts the application does not load, so that the
+               ;; build compiles them.
+               "clog/media"
+               "clog/extensions"
+               "clog/gui"
                "bhw/tests/clog"
                "bhw/tests/http"
                "bhw/tests/main"
