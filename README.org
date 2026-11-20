@@ -97,8 +97,8 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
    #+begin_src bash
      HOME=/var/lib/bhw-www
      BHW_WWW_DATA=/var/lib/bhw-www/  # the bot's store, graph-db's system directory
-     SSL_CERT_DIR=/etc/ssl/certs                     # Guix's OpenSSL looks in its own store directory otherwise
-     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+     SSL_CERT_DIR=/etc/ssl/certs
+     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt  # the roots pure-tls trusts (else SSL_CERT_DIR's)
      # and SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, VAN_SCHEDULE_SECRET,
      # BHW_PLP_PASSPHRASE (without it the presenter saves nothing)
    #+end_src

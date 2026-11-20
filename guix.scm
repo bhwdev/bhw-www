@@ -1,8 +1,8 @@
 ;;; SPDX-FileCopyrightText: 2026  Ben H. W. <foss@bhw.name>
 ;;; SPDX-License-Identifier: AGPL-3.0-or-later
 
-;;; Guix package of bhw-www, and of the dependency Guix lacks
-;;; (graph-db).  This file evaluates to the package:
+;;; Guix package of bhw-www, and of the dependencies Guix lacks (graph-db,
+;;; pure-tls, cl-cancel, precise-time).  This file evaluates to the package:
 ;;;
 ;;;   guix build -f guix.scm       compiles, tests, and saves bin/bhw-www
 ;;;   guix shell -D -f guix.scm    development environment: SBCL and the inputs
@@ -70,12 +70,157 @@ Common Lisp, with user-defined indexes, map-reduce views, replication and a
 Prolog-like query language.")
     (license license:expat)))
 
+(define-public sbcl-precise-time
+  (let ((commit "93ea6aea74aa2ea8860e8581e67997636320e841")
+        (revision "0"))
+    (package
+      (name "sbcl-precise-time")
+      (version (git-version "1.0.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://codeberg.org/shinmera/precise-time")
+               (commit commit)))
+         (file-name (git-file-name "cl-precise-time" version))
+         (sha256
+          (base32 "0gj98hvmzvay27rbdjnz65izcs0dr0rq1g11aac04c0w12xp1rq5"))))
+      (build-system asdf-build-system/sbcl)
+      (arguments
+       ;; The test system needs Parachute.
+       (list #:tests? #f))
+      (inputs
+       (list sbcl-cffi
+             sbcl-documentation-utils
+             sbcl-trivial-features))
+      (home-page "https://shinmera.com/docs/precise-time/")
+      (synopsis "Precise time measurements for Common Lisp")
+      (description
+       "This library reads the system's monotonic and real-time clocks with
+the precision they offer, beyond @code{get-internal-real-time}.")
+      (license license:zlib))))
+
+(define-public sbcl-cl-cancel
+  ;; After 0.1.0: deadlines kept rational when given as a float, and the
+  ;; stream monitor's thread reaped.
+  (let ((commit "6e0db3c2fc5012661ef536f138164c1eb270dc52")
+        (revision "0"))
+    (package
+      (name "sbcl-cl-cancel")
+      (version (git-version "0.1.0" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/atgreen/cl-cancel")
+               (commit commit)))
+         (file-name (git-file-name "cl-cancel" version))
+         (sha256
+          (base32 "0njbkijjac7qj150wcjdwl9924rqffhd9a88vyhkgg5vapwlvxd3"))))
+      (build-system asdf-build-system/sbcl)
+      (arguments
+       ;; The test system needs FiveAM, and its TEST-OP does not fail when
+       ;; a test does.
+       (list #:asd-systems ''("cl-cancel")
+             #:tests? #f))
+      (inputs
+       (list sbcl-atomics
+             sbcl-bordeaux-threads
+             sbcl-precise-time))
+      (home-page "https://github.com/atgreen/cl-cancel")
+      (synopsis "Cancellation, deadlines and timeouts for Common Lisp")
+      (description
+       "cl-cancel propagates cancellation through a tree of contexts, with
+deadlines and timeouts, and closes streams whose context is cancelled.")
+      (license license:expat))))
+
+;; The TLS of bhw-www's HTTP client (Drakma): see WITH-DEPENDENCY-VARIANTS.
+;; It provides the system "cl+ssl" too, its compatibility layer, so that it
+;; replaces cl+ssl (and OpenSSL) for the programs that load that.  After
+;; 1.15.3: a SSL_CERT_DIR named without a trailing slash read, and short
+;; reads and writes on a socket fixed.
+(define-public sbcl-pure-tls
+  (let ((commit "401d59f088478ee4ee0a79df9059e059aaa44859")
+        (revision "0"))
+    (package
+      (name "sbcl-pure-tls")
+      (version (git-version "1.15.3" revision commit))
+      (source
+       (origin
+         (method git-fetch)
+         (uri (git-reference
+               (url "https://github.com/atgreen/pure-tls")
+               (commit commit)))
+         (file-name (git-file-name "cl-pure-tls" version))
+         (sha256
+          (base32 "1x5pz12l14m307lj7ca0dcqh4wps2x7pq7q04vpgcvca11b3yfwi"))))
+      (build-system asdf-build-system/sbcl)
+      (arguments
+       (list
+        #:asd-systems ''("pure-tls" "pure-tls/cl+ssl-compat" "cl+ssl")
+        ;; The test system needs iparse, which Guix lacks, and the network.
+        #:tests? #f
+        #:phases
+        #~(modify-phases %standard-phases
+            (add-after 'unpack 'add-cl+ssl-system
+              (lambda _
+                (call-with-output-file "cl+ssl.asd"
+                  (lambda (port)
+                    (display "(asdf:defsystem \"cl+ssl\"
+  :description \"cl+ssl's API, from pure-tls\"
+  :depends-on (\"pure-tls/cl+ssl-compat\"))
+" port))))))))
+      (inputs
+       (list sbcl-alexandria
+             sbcl-bordeaux-threads
+             sbcl-cl-base64
+             sbcl-cl-cancel
+             sbcl-flexi-streams
+             sbcl-idna
+             sbcl-ironclad
+             sbcl-trivial-features
+             sbcl-trivial-gray-streams
+             sbcl-usocket))
+      (home-page "https://github.com/atgreen/pure-tls")
+      (synopsis "TLS 1.3 in Common Lisp")
+      (description
+       "pure-tls implements TLS 1.3, client and server, in Common Lisp, on
+Ironclad's cryptography: Lisp streams over any stream, with certificate
+verification against the system's trust store, and a compatibility layer
+with cl+ssl's API.")
+      (license license:expat))))
+
+;; Hunchentoot without its SSL acceptor, and so without cl+ssl: in
+;; production Caddy terminates TLS.  Hunchentoot's system loads cl+ssl unless
+;; :HUNCHENTOOT-NO-SSL is a feature when ASDF reads it, in every image that
+;; loads it, so its .asd adds the feature.
+(define sbcl-hunchentoot/no-ssl
+  (package
+    (inherit sbcl-hunchentoot)
+    (arguments
+     (substitute-keyword-arguments (package-arguments sbcl-hunchentoot)
+       ((#:phases phases #~%standard-phases)
+        #~(modify-phases #$phases
+            (add-after 'unpack 'add-no-ssl-feature
+              (lambda _
+                (substitute* "hunchentoot.asd"
+                  (("^\\(defsystem :hunchentoot\n" defsystem)
+                   (string-append "(pushnew :hunchentoot-no-ssl *features*)\n\n"
+                                  defsystem)))
+                ;; SUBSTITUTE* is silent when its pattern matches nothing.
+                (invoke "grep" "-q" "^(pushnew :hunchentoot-no-ssl"
+                        "hunchentoot.asd")))))))
+    (inputs
+     (modify-inputs (package-inputs sbcl-hunchentoot)
+       (delete "sbcl-cl+ssl")))))
+
 ;; Guix's CFFI writes the build's GCC into toolchain/c-toolchain.lisp, for
 ;; groveling, which keeps all of GCC (about 260 MiB) in the closure of any
 ;; program that loads CFFI, though nothing in this one compiles C.  This
 ;; names the program instead, which CFFI then finds in PATH (`guix shell -D'
-;; has it).  Grafted (see WITH-CFFI/NO-GCC), which a replacement allows
-;; only if it has every file of the original: this one differs in one line.
+;; has it).  Grafted (see WITH-DEPENDENCY-VARIANTS), which a replacement
+;; allows only if it has every file of the original: this one differs in one
+;; line.
 (define sbcl-cffi/no-gcc
   (package
     (inherit sbcl-cffi)
@@ -94,22 +239,40 @@ Prolog-like query language.")
                   (when (zero? (system* "grep" "-rqF" gcc #$output))
                     (error "the output still refers to" gcc)))))))))))
 
-;; A package with its dependencies on SBCL-CFFI/NO-GCC, grafted.  The graft
-;; keeps the derivations, and so the substitutes, of the store items built on
-;; Guix's CFFI, and copies them with their references rewritten to SBCL-CFFI/
-;; NO-GCC; a build with `--no-grafts' brings Guix's CFFI, and GCC, back.
-(define with-cffi/no-gcc
+;; A package with its dependencies on these variants, through the whole
+;; graph:
+;;
+;; - SBCL-CFFI/NO-GCC, grafted.  The graft keeps the derivations, and so the
+;;   substitutes, of the store items built on Guix's CFFI, and copies them
+;;   with their references rewritten to SBCL-CFFI/NO-GCC; a build with
+;;   `--no-grafts' brings Guix's CFFI, and GCC, back.
+;;
+;; - SBCL-PURE-TLS for cl+ssl, rebuilt (Drakma, and what depends on it).  It
+;;   cannot be grafted, having none of cl+ssl's files, and it must replace
+;;   cl+ssl everywhere: each package's ASDF configuration includes those of
+;;   all its inputs, native ones too, so one left on cl+ssl would register
+;;   the real cl+ssl beside pure-tls's.
+;;
+;; - SBCL-HUNCHENTOOT/NO-SSL for Hunchentoot, rebuilt.
+;;
+;; One mapping: a second, over the first's result, would meet copies of
+;; Guix's packages, not the packages its EQ? tests name.
+(define with-dependency-variants
   (let ((cffi (package
                 (inherit sbcl-cffi)
                 (replacement sbcl-cffi/no-gcc))))
     (package-mapping (lambda (package)
-                       (if (eq? package sbcl-cffi) cffi package))
+                       (cond ((eq? package sbcl-cffi) cffi)
+                             ((eq? package sbcl-cl+ssl) sbcl-pure-tls)
+                             ((eq? package sbcl-hunchentoot)
+                              sbcl-hunchentoot/no-ssl)
+                             (else package)))
                      (lambda (package)
                        (eq? package sbcl-cffi))
                      #:deep? #t)))
 
 (define-public bhw-www
-  (with-cffi/no-gcc
+  (with-dependency-variants
    (package
      (name "bhw-www")
      (version "2.0.0")
@@ -141,10 +304,9 @@ Prolog-like query language.")
       ;; With those of the fork of CLOG in clog/ (clog.asd): cl-base64,
       ;; closer-mop, hunchentoot, trivial-gray-streams.  Drakma costs
       ;; nothing: Hunchentoot's tests need it, so its output refers to it.
+      ;; Its TLS is pure-tls's (see WITH-DEPENDENCY-VARIANTS).
       (list sbcl-alexandria
             sbcl-bordeaux-threads
-            sbcl-cffi
-            sbcl-cl+ssl
             sbcl-cl-base64
             sbcl-cl-ppcre
             sbcl-closer-mop

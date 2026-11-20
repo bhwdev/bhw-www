@@ -36,8 +36,9 @@ status is 400 or more, and when the reply has not ended within *DEADLINE*
 seconds."
   (multiple-value-bind (body status reply-headers)
       (handler-case
-          ;; cl+ssl waits for a TLS socket through WAIT-UNTIL-FD-USABLE,
-          ;; which honours the deadline; DEADLINE-TIMEOUT is no ERROR.
+          ;; pure-tls reads the socket's FD-STREAM, which waits for it
+          ;; through WAIT-UNTIL-FD-USABLE, which honours the deadline;
+          ;; DEADLINE-TIMEOUT is no ERROR.
           (sb-sys:with-deadline (:seconds *deadline*)
             (drakma:http-request url
                                  :method method

@@ -5,8 +5,6 @@
   (:use #:common-lisp)
   (:import-from #:alexandria)
   (:import-from #:bordeaux-threads)
-  (:import-from #:cffi)
-  (:import-from #:cl+ssl)
   (:import-from #:cl-ppcre)
   (:import-from #:clog #:initialize #:is-running-p #:shutdown)
   (:import-from #:flexi-streams)
@@ -322,22 +320,6 @@ Idempotent."
   (bot-db:close-database)
   (plp-db:close-database)
   t)
-
-(defun reset-network-state ()
-  "Drop the foreign state a saved image inherits from the process that built
-it: cl+ssl's foreign pointers (its Lisp BIO method, the SSL_CTX, the C string
-it hands to OpenSSL's error queue, which it allocates when it loads).  In the
-restarted image those addresses belong to nobody: OpenSSL faults on them
-(\"CORRUPTION WARNING ... Memory fault\" with the PC in libcrypto's
-BIO_new_ex).  Registered below as a UIOP image-restore hook, which runs when
-the saved image starts."
-  ;; forget the SSL_CTX and method so the first TLS use re-initialises cl+ssl,
-  ;; which also makes a fresh Lisp BIO method
-  (cl+ssl:reload)
-  (when (boundp 'cl+ssl::*file-name*)
-    (setf cl+ssl::*file-name* (cffi:foreign-string-alloc "cl+ssl/src/bio.lisp"))))
-
-(uiop:register-image-restore-hook 'reset-network-state nil)
 
 (defun application-toplevel ()
   "The executable's entry point: serve on $PORT (default 8080) until SIGINT.

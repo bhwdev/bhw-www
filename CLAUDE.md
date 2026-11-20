@@ -48,7 +48,9 @@ take a request plist and return `(status headers body)`; `request-env` and
 `reply` convert, so they are tested without a server. `http.lisp` is the
 client the bot's calls to Slack and to the Apps Script go through: Drakma,
 with certificates verified and a deadline on the whole exchange (Drakma has
-no read timeout on SBCL). `store.lisp` is the
+no read timeout on SBCL). Its TLS is pure-tls's, in Lisp, in place of cl+ssl
+and OpenSSL: TLS 1.3 only (a server without it fails the handshake), roots
+from `$SSL_CERT_FILE`, else `$SSL_CERT_DIR`. `store.lisp` is the
 graph-db plumbing the stores share (one system directory per process). A
 vertex is found by its key through a unique constraint, read with
 `graph-db:unique-lookup`: a `:unique` slot, or `def-unique` for a key of two
@@ -91,11 +93,15 @@ mirroring `src/`.
   file with the host's Guix (README.org, "Deployment").
 - `guix shell -D -f guix.scm`: the development environment. Its cache follows
   `guix.scm`'s mtime, so it is never stale.
-- `guix.scm` grafts a CFFI without GCC (`with-cffi/no-gcc`): `--no-grafts`
-  brings GCC back. Only a variant with every file of the original can be
-  grafted: ASDF configurations link into each other's, and a graft leaves
-  links to missing files dangling. The CLOG fork's dependencies are the
-  package's own inputs.
+- `guix.scm` swaps three dependencies through the whole graph
+  (`with-dependency-variants`): it grafts a CFFI without GCC (`--no-grafts`
+  brings GCC back), and rebuilds what loads cl+ssl on pure-tls (which
+  provides a system `cl+ssl`, its compatibility layer) and Hunchentoot
+  without SSL (its `.asd` pushes `:hunchentoot-no-ssl`). Only a variant with
+  every file of the original can be grafted: ASDF configurations link into
+  each other's, and a graft leaves links to missing files dangling; and a
+  package left on cl+ssl would register it beside pure-tls's. The CLOG
+  fork's dependencies are the package's own inputs.
 
 ## cl-mcp
 
