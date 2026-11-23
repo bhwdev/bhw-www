@@ -17,9 +17,13 @@
              (guix git-download)
              (guix utils)
              (guix build-system asdf)
+             (guix build-system gnu)
              ((guix licenses) #:prefix license:)
+             (gnu packages lisp)
              (gnu packages lisp-check)
-             (gnu packages lisp-xyz))
+             (gnu packages lisp-xyz)
+             (gnu packages base)
+             (gnu packages perl))
 
 (define vcs-file?
   ;; Only the files under version control, so that build products and
@@ -136,9 +140,7 @@ deadlines and timeouts, and closes streams whose context is cancelled.")
 
 ;; The TLS of bhw-www's HTTP client (Drakma): see WITH-DEPENDENCY-VARIANTS.
 ;; It provides the system "cl+ssl" too, its compatibility layer, so that it
-;; replaces cl+ssl (and OpenSSL) for the programs that load that.  After
-;; 1.15.3: a SSL_CERT_DIR named without a trailing slash read, and short
-;; reads and writes on a socket fixed.
+;; replaces cl+ssl (and OpenSSL) for the programs that load that.
 (define-public sbcl-pure-tls
   (let ((commit "401d59f088478ee4ee0a79df9059e059aaa44859")
         (revision "0"))
@@ -270,6 +272,121 @@ with cl+ssl's API.")
                      (lambda (package)
                        (eq? package sbcl-cffi))
                      #:deep? #t)))
+
+;;; ACL2, the theorem prover, from the commit that the formal/ books were
+;;; certified against.  Not in Guix.  The books the formal/ books include
+;;; (arithmetic-5) are certified here, in the build, since a store item is
+;;; read-only.  Build: `guix build -f guix.scm' does not build it (only the
+;;; last expression is the package); see formal/README.org.
+(define-public acl2
+  (package
+    (name "acl2")
+    (version "8.7")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/acl2/acl2")
+             (commit "c8f2e17b43501363bb3e9c2a954b53f3f4d37d83")))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "19h0rap14n3a23mg576wjfrxsl7gjsz2cb6yawndsxif3hwa7fjx"))))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (replace 'build
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; The checkout has no git metadata for the startup banner.
+              (setenv "ACL2_SNAPSHOT_INFO" "c8f2e17 (Guix checkout)")
+              (invoke "make" "LISP=sbcl"
+                      (string-append "SHELL=" (which "sh")))
+              ;; The launcher saved_acl2 is a shell script, #!/bin/sh.
+              (patch-shebang "saved_acl2")))
+          (replace 'check
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; The build's HOME is not writable; ACL2 writes there.
+              (setenv "HOME" (getcwd))
+              ;; build/cert.pl certifies one book and its dependencies.
+              (with-directory-excursion "books"
+                ;; cert.pl needs the generated certdep files first.
+                (invoke "make" "build/Makefile-features"
+                        (string-append "ACL2=" (getcwd) "/../saved_acl2"))
+                (invoke "perl" "build/cert.pl"
+                        "--acl2" (string-append (getcwd) "/../saved_acl2")
+                        "arithmetic-5/top.lisp"))))
+          (replace 'install
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let* ((out (assoc-ref outputs "out"))
+                     (share (string-append out "/share/acl2")))
+                (mkdir-p share)
+                (copy-recursively "." share)
+                ;; The launcher names the core by the build directory.
+                (invoke "sed" "-i"
+                        (string-append "s|" (getcwd) "|" share "|g")
+                        (string-append share "/saved_acl2"))
+                (mkdir-p (string-append out "/bin"))
+                (symlink (string-append share "/saved_acl2")
+                         (string-append out "/bin/acl2"))))))))
+    (native-inputs (list gnu-make perl which))
+    (inputs (list sbcl))
+    (home-page "https://www.cs.utexas.edu/~moore/acl2/")
+    (synopsis "ACL2 theorem prover")
+    (description
+     "ACL2 is a logic, programming language and theorem prover for
+applicative Common Lisp, with a mechanised-proof checker and certified books.")
+    (license license:bsd-3)))
+
+(define-public bhw-formal
+  (package
+    (name "bhw-formal")
+    (version "0.1")
+    (source (local-file "formal" "bhw-formal-checkout"
+                        #:recursive? #t
+                        #:select? vcs-file?))
+    (build-system gnu-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (delete 'configure)
+          (replace 'build
+            (lambda* (#:key inputs #:allow-other-keys)
+              ;; The build's HOME is not writable; ACL2 writes there.
+              (setenv "HOME" (getcwd))
+              ;; The system books of ACL2 are recorded in its image as the
+              ;; build directory, which is gone; name arithmetic-5 by its
+              ;; store path instead.
+              (let ((books (string-append (assoc-ref inputs "acl2")
+                                          "/share/acl2/books")))
+                (invoke "sed" "-i"
+                        (string-append
+                         "s|\"arithmetic-5/top\" :dir :system|\""
+                         books "/arithmetic-5/top\"|")
+                        "split-lines.lisp" "pitch.lisp" "reminder.lisp"))
+              ;; ACL2 exits 0 after a failed certify-book, so read its output.
+              (invoke "sh" "-c"
+                      (string-append (assoc-ref inputs "acl2")
+                                     "/bin/acl2 < certify.lsp > certify.out 2>&1"))
+              (when (zero? (system* "grep" "-q" "FAILED\\|ACL2 Error"
+                                    "certify.out"))
+                (error "a book failed to certify; see certify.out"))))
+          (replace 'check (lambda _ #t))
+          (replace 'install
+            (lambda* (#:key outputs #:allow-other-keys)
+              (let ((out (assoc-ref outputs "out")))
+                (mkdir-p out)
+                (copy-recursively "." out)))))))
+    (inputs (list acl2))
+    (home-page "https://www.bhw.name/blog/bhw-www-doc.html")
+    (synopsis "ACL2 models and proofs of bhw-www's pure functions")
+    (description
+     "Certified ACL2 books modelling pure functions of bhw-www.")
+    (license license:agpl3+)))
 
 (define-public bhw-www
   (with-dependency-variants

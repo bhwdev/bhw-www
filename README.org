@@ -105,8 +105,8 @@ static HTML file it sends, and links =assets/dark.css= when it applies.
 
    The presenter's songs are not in this repository. They are staged on a
    development machine from the chord book's PDF
-   (=(bhw/plp/import:import-book #p"...pdf")=, which needs poppler's
-   =pdftotext=), read and corrected in =<data root>/plp/staging/=, and copied
+   (=(bhw/plp/import:import-book #p"...pdf")=, which runs poppler's
+   =pdftotext= through =guix shell poppler=), read and corrected in =<data root>/plp/staging/=, and copied
    to the host with the waiting images (=<data root>/plp/images/=, with a
    =credits.txt= of =file<TAB>credit= lines). The store is not copied: its
    type ids belong to the host's graph-db system directory. On the host,

@@ -23,7 +23,8 @@ systems under `src/`:
   a song or a setlist needs `$BHW_PLP_PASSPHRASE`. The lyrics are not in the
   repository: store, staging files and waiting images are under
   `<data root>/plp/`, and the tests use a public-domain hymn. `import` runs
-  poppler's `pdftotext`, on a development machine only:
+  poppler's `pdftotext` through `guix shell poppler` (no profile has it), on
+  a development machine only:
   `(bhw/plp/import:import-book PDF)` stages the songs with a `REPORT.txt`,
   `(bhw/plp/import:load-staging)` stores them, as often as they are corrected.
   Chords are placed by the PDF's word coordinates (`pdftotext -tsv`);

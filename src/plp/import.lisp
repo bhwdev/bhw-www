@@ -23,8 +23,9 @@
    "The Companions of the Cross chord book, from its PDF into the store, in
 two steps with a person between them.
 
-IMPORT-BOOK runs poppler's pdftotext over the PDF (a development-time tool:
-it is not among the package's inputs, and production never imports), reads
+IMPORT-BOOK runs poppler's pdftotext over the PDF, through guix shell (a
+development-time tool: it is not among the package's inputs nor in any
+profile, and production never imports), reads
 the indices at the front for each song's tags and other titles, reads each
 song's pages for its words, and writes one file per song, in BHW/PLP/SONG's
 text format, into STAGING-DIRECTORY with a REPORT.txt of what looks wrong.
@@ -755,8 +756,11 @@ LINES between them, the page's line having been broken, share its chords."
   (uiop:subpathname (db:plp-directory) "staging/"))
 
 (defun pdftotext (pdf &rest options)
-  "The output of poppler's pdftotext on PDF with OPTIONS, as a string."
-  (uiop:run-program (append (list "pdftotext") options (list (namestring pdf) "-"))
+  "The output of poppler's pdftotext on PDF with OPTIONS, as a string.
+Poppler is in no profile (MuPDF is the PDF tool there), so guix shell
+fetches it for the run."
+  (uiop:run-program (append (list "guix" "shell" "poppler" "--" "pdftotext")
+                            options (list (namestring pdf) "-"))
                     :output :string
                     :external-format :utf-8
                     :error-output nil))

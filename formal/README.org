@@ -1,0 +1,33 @@
+#+title: Formal models of bhw-www (ACL2)
+
+Models of pure functions from the Common Lisp source, proved in ACL2 8.7
+(built from ~/acl2 with SBCL 2.6.4). Each book names the Lisp function it
+models; the model is hand-transcribed, so fidelity is by reading.
+
+* Certified books
+  - =split-lines.lisp= — =split-lines= (src/plp/song.lisp:705): slides are a
+    partition of the lines (appended back = input), and every slide is
+    non-empty, for every positive size.
+  - =windows.lisp= — =windows-overlap-p= and =trip-blocks-window-p=
+    (src/slack-bot/van-booking.lisp): overlap symmetric, touching windows do
+    not overlap, overlap iff one start lies in the other, unreadable trips block.
+  - =deck.lisp= — =deck-next= (src/plp/song.lisp:808): the result stands on the
+    slide, and is nil exactly when the slide is absent.
+  - =pitch.lisp= — note pitch class, spelling, transposition is a pitch-class
+    homomorphism, composition, period 12 (src/plp/song.lisp:264-290). Notes are
+    assumed valid (letter 0..6, integer accidental); the string parse is not modelled.
+  - =reminder.lisp= — =due-p= (src/slack-bot/bot.lisp:1137): bounds, unreadable
+    legs never due, liveness under 60 s sweeps.
+
+* Open obligations (not certified)
+  - =split-lines-open.lisp=: the slide-size bound (slides have at most
+    =max-lines= lines) and the non-empty slides from a positive size. They need
+    floor/ceiling reasoning that arithmetic-5 does not provide as a ready rule.
+  - Not modelled: the sent-reminders table (bot.lisp), the scheduler loop, the
+    string parsing of notes and chords (regexes), the bible UID tables (data).
+
+* Running
+  : cd formal && ~/acl2/saved_acl2 < certify.lsp
+
+  Needs ~/acl2/books/arithmetic-5/top.cert (built with the books' cert.pl, which
+  needs perl and make on PATH; both are in the Guix store, not on the default PATH).
