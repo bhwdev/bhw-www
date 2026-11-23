@@ -19,15 +19,22 @@ models; the model is hand-transcribed, so fidelity is by reading.
   - =reminder.lisp= — =due-p= (src/slack-bot/bot.lisp:1137): bounds, unreadable
     legs never due, liveness under 60 s sweeps.
 
-* Open obligations (not certified)
-  - =split-lines-open.lisp=: the slide-size bound (slides have at most
-    =max-lines= lines) and the non-empty slides from a positive size. They need
-    floor/ceiling reasoning that arithmetic-5 does not provide as a ready rule.
+* Open obligations
   - Not modelled: the sent-reminders table (bot.lisp), the scheduler loop, the
     string parsing of notes and chords (regexes), the bible UID tables (data).
+  - Domain assumptions, stated in the books: pitch classes use WRAP on -12..35
+    and transposition amounts 0..11 (the Lisp's MOD 12 reduces to these).
+
+* Dependencies
+  None beyond ACL2's built-in arithmetic: no books are included (the first
+  version used arithmetic-5; it was replaced by recursive CDIV and GRID-K).
+
+* Guix
+  =bhw-formal= (guix.scm) certifies each book in its own ACL2 process
+  (=acl2= package, same file) and fails on any FAILED or ACL2 Error.
+  Sources come from the git checkout, so =formal/= must be committed (or
+  added) before the build sees it.
 
 * Running
-  : cd formal && ~/acl2/saved_acl2 < certify.lsp
-
-  Needs ~/acl2/books/arithmetic-5/top.cert (built with the books' cert.pl, which
-  needs perl and make on PATH; both are in the Guix store, not on the default PATH).
+  : cd formal && ~/acl2/saved_acl2 < certify.lsp   (certify.lsp runs all five)
+  Better, one process per book, as the Guix build does: see guix.scm.

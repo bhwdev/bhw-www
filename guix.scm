@@ -274,10 +274,9 @@ with cl+ssl's API.")
                      #:deep? #t)))
 
 ;;; ACL2, the theorem prover, from the commit that the formal/ books were
-;;; certified against.  Not in Guix.  The books the formal/ books include
-;;; (arithmetic-5) are certified here, in the build, since a store item is
-;;; read-only.  Build: `guix build -f guix.scm' does not build it (only the
-;;; last expression is the package); see formal/README.org.
+;;; certified against.  Not in Guix.  The check phase certifies arithmetic-5,
+;;; as an installation check: the formal/ books use no books.  Build it with
+;;; `guix build -e` on this file, as bhw-formal below is built.
 (define-public acl2
   (package
     (name "acl2")
@@ -358,23 +357,21 @@ applicative Common Lisp, with a mechanised-proof checker and certified books.")
             (lambda* (#:key inputs #:allow-other-keys)
               ;; The build's HOME is not writable; ACL2 writes there.
               (setenv "HOME" (getcwd))
-              ;; The system books of ACL2 are recorded in its image as the
-              ;; build directory, which is gone; name arithmetic-5 by its
-              ;; store path instead.
-              (let ((books (string-append (assoc-ref inputs "acl2")
-                                          "/share/acl2/books")))
-                (invoke "sed" "-i"
-                        (string-append
-                         "s|\"arithmetic-5/top\" :dir :system|\""
-                         books "/arithmetic-5/top\"|")
-                        "split-lines.lisp" "pitch.lisp" "reminder.lisp"))
-              ;; ACL2 exits 0 after a failed certify-book, so read its output.
-              (invoke "sh" "-c"
-                      (string-append (assoc-ref inputs "acl2")
-                                     "/bin/acl2 < certify.lsp > certify.out 2>&1"))
-              (when (zero? (system* "grep" "-q" "FAILED\\|ACL2 Error"
-                                    "certify.out"))
-                (error "a book failed to certify; see certify.out"))))
+              ;; One ACL2 per book: a failed certify-book leaves the session
+              ;; in a state that breaks the next one.  ACL2 exits 0 even after
+              ;; a failure, so each output is read.
+              (for-each
+               (lambda (book)
+                 (let ((out (string-append book ".out")))
+                   (invoke "sh" "-c"
+                           (string-append
+                            "printf '(certify-book \"" book "\" ?)\\n' | "
+                            (assoc-ref inputs "acl2")
+                            "/bin/acl2 > " out " 2>&1"))
+                   (when (zero? (system* "grep" "-q"
+                                         "FAILED\\|ACL2 Error" out))
+                     (error "book failed to certify; see" out))))
+               '("split-lines" "pitch" "windows" "reminder" "deck"))))
           (replace 'check (lambda _ #t))
           (replace 'install
             (lambda* (#:key outputs #:allow-other-keys)
