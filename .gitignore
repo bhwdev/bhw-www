@@ -3,3 +3,10 @@
 
 # Ignore claude files.
 /.claude/
+
+# What ACL2 writes beside the books it certifies (formal/certify.sh).
+*.cert
+*.port
+/formal/*.out
+/src/acl2/*.out
+*@expansion.lsp

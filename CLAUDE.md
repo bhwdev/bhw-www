@@ -80,9 +80,26 @@ browser's time zone on connecting (`clog:request-path`, `request-cookie`,
 limits of their own. `clog/README.org` lists what was cut and changed from
 upstream's commit; its tests are `src/tests/clog.lisp`.
 
+`acl2/` is functions written in the part of Common Lisp that ACL2 reasons
+about (`bhw/acl2`, a system of its own in `bhw.asd`, not package-inferred):
+how lines go on slides, where a slide next stands, notes and their
+transposition, trip windows and their clashes, when a reminder is due. Each
+file is an ACL2 book and SBCL's source alike; `formal/` proves theorems about
+them (`formal/README.org`), so the theorems are about the code that runs.
+Their bodies name Common Lisp's symbols and their own functions only (ACL2's,
+`natp` or `len`, stand in guards, measures and `local` lemmas, which SBCL
+skips), and every function's guard is verified; `src/tests/acl2.lisp` checks
+the bodies and compares each caller with the Lisp it replaced. A caller keeps
+to the guards: it checks what a book would quietly take outside them.
+`plp/chords` is Coalton: a note is a letter and an accidental as types, read
+from and written to the names `song`'s chords use, so the notes it passes
+`bhw/acl2` meet their guard by construction.
+
 Packages `:use` only `common-lisp`; everything else comes in through
-`:import-from` or `:local-nicknames`. Tests are Rove, under `src/tests/`
-mirroring `src/`.
+`:import-from` or `:local-nicknames`. A Coalton package `:use`s `coalton` and
+`coalton-prelude` instead, and names no variable after a constructor (the
+reader folds case: a variable `note` hides the constructor `Note`). Tests are
+Rove, under `src/tests/` mirroring `src/`.
 
 ## Commands
 
@@ -94,6 +111,11 @@ mirroring `src/`.
   file with the host's Guix (README.org, "Deployment").
 - `guix shell -D -f guix.scm`: the development environment. Its cache follows
   `guix.scm`'s mtime, so it is never stale.
+- `formal/certify.sh`: certifies the ACL2 books, `src/acl2/` then `formal/`,
+  each in an ACL2 of its own (`$ACL2`, else `acl2`), output in `BOOK.out`.
+  `guix build -e "(begin (load \"$PWD/guix.scm\") bhw-formal)"` runs it with
+  `guix.scm`'s ACL2, from HEAD's files as above. Neither is part of
+  `guix build -f guix.scm`: production builds without ACL2.
 - `guix.scm` swaps three dependencies through the whole graph
   (`with-dependency-variants`): it grafts a CFFI without GCC (`--no-grafts`
   brings GCC back), and rebuilds what loads cl+ssl on pure-tls (which

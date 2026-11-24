@@ -1,40 +1,79 @@
-#+title: Formal models of bhw-www (ACL2)
+#+title: Proofs about bhw-www (ACL2)
 
-Models of pure functions from the Common Lisp source, proved in ACL2 8.7
-(built from ~/acl2 with SBCL 2.6.4). Each book names the Lisp function it
-models; the model is hand-transcribed, so fidelity is by reading.
+The books of =src/acl2/= are functions the application runs; the books here
+prove theorems about them, in ACL2 8.7 (=acl2= in =guix.scm=). There is no
+model in between: each file of =src/acl2/= is an ACL2 book and SBCL's source
+alike, so what is proved is proved of the code SBCL compiles, as far as the
+argument below goes.
 
-* Certified books
-  - =split-lines.lisp= — =split-lines= (src/plp/song.lisp:705): slides are a
-    partition of the lines (appended back = input), and every slide is
-    non-empty, for every positive size.
-  - =windows.lisp= — =windows-overlap-p= and =trip-blocks-window-p=
-    (src/slack-bot/van-booking.lisp): overlap symmetric, touching windows do
-    not overlap, overlap iff one start lies in the other, unreadable trips block.
-  - =deck.lisp= — =deck-next= (src/plp/song.lisp:808): the result stands on the
-    slide, and is nil exactly when the slide is absent.
-  - =pitch.lisp= — note pitch class, spelling, transposition is a pitch-class
-    homomorphism, composition, period 12 (src/plp/song.lisp:264-290). Notes are
-    assumed valid (letter 0..6, integer accidental); the string parse is not modelled.
-  - =reminder.lisp= — =due-p= (src/slack-bot/bot.lisp:1137): bounds, unreadable
-    legs never due, liveness under 60 s sweeps.
+* Why the theorems are about the code that runs
+  1. ACL2's logic is a subset of Common Lisp. Each book of =src/acl2/= sets
+     =(set-verify-guards-eagerness 2)=, so it does not certify unless every
+     function in it has its guard verified; and a guard-verified function,
+     called with arguments that satisfy its guard, returns in Common Lisp what
+     it does in the logic ([[https://www.cs.utexas.edu/~moore/acl2/v6-3/GUARDS-AND-EVALUATION.html][GUARDS-AND-EVALUATION]]).
+  2. SBCL compiles the same files (=bhw/acl2= in =bhw.asd=). Their function
+     bodies name Common Lisp's symbols, their own functions and their
+     variables only, which =src/tests/acl2.lisp= checks: ACL2's =NATP= or =LEN=
+     stand in guards, measures and =LOCAL= lemmas, which SBCL skips (=XARGS= is
+     a declaration it ignores, =LOCAL= and =SET-VERIFY-GUARDS-EAGERNESS= are
+     macros of nothing in =src/acl2/package.lisp=). Their package is ACL2's and
+     Common Lisp's symbols in ACL2 (=package.lsp=), Common Lisp's alone in
+     SBCL (=package.lisp=).
+  3. The callers keep to the guards. A caller whose book would quietly take a
+     value outside its guard checks it (=bhw/plp/song='s =SPLIT-LINES= its
+     =MAX-LINES=, =DECK-NEXT= its =INDEX=); the notes given =TRANSPOSE-NOTE= and
+     =PITCH-CLASS= come from Coalton types that make them =NOTE-P= by
+     construction (=bhw/plp/chords=); the others pass values outside which Common
+     Lisp itself signals an error (=<= of =NIL=), rather than return a wrong
+     answer.
+
+  Trusted, not proved: ACL2, SBCL and Coalton; the callers' conversions
+  (a chord's note names to notes, =SHEET-CLOCK='s reading of the sheet, a
+  slide to its identity), which the differential tests below cover; and that
+  =SPLIT-LINES= and =DECK-NEXT=, which never look into a line or a slide's
+  identity, behave on SBCL's strings as on ACL2's (whose characters are 256).
+
+* The books
+  | Runs (=src/acl2/=)                                 | Called by                                                                 | Proved (=formal/=)                                                                                                                                                                                                         |
+  |----------------------------------------------------+---------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | =slides=: =SPLIT-LINES=                            | =bhw/plp/song:split-lines=                                                | for every list and positive size: the slides appended are the lines, none is longer than the size, none is empty                                                                                                           |
+  | =deck=: =DECK-NEXT=                                | =bhw/plp/song:deck-next=, on the slides' (section . part)                 | the result stands on the slide; it is the first place after =INDEX= when there is one, else the first in the deck; =NIL= exactly when the slide is absent                                                                    |
+  | =pitch=: =MOD12=, =PITCH-CLASS=, =SPELL=, =TRANSPOSE-NOTE= | =bhw/plp/chords= (=song:transpose-chord=, =song:flat-key-p=)      | for every note (any letter, any integer accidental) and every integer amount: pitch classes are 0..11, both spellings are sound, transposition moves the pitch class modulo 12, composes, and is undone by its opposite |
+  | =windows=: =REQUEST-WINDOW=, =WINDOWS-OVERLAP-P=, =TRIP-BLOCKS-WINDOW-P= | =bhw/slack-bot/van-booking= | a window runs forwards; overlap is symmetric, half-open, and exactly "share a minute"; an unreadable booked trip blocks, a blank one never does, a disjoint one does not                                       |
+  | =reminder=: =DUE-P=                                | =bhw/slack-bot/bot='s reminder sweep                                      | a due leg leaves within the lead time and a minute; an unreadable one is never due; with sweeps every 60 s, some sweep finds it due                                                                                       |
+
+  Built-in arithmetic only: no books are included. Ceiling division and
+  =MOD 12= are recursive (=CDIV=, =MOD12=), whose proofs need no arithmetic
+  library; =MOD12= is linear in its argument, which is a transposition of
+  0..11 plus a pitch class (=bhw/plp/live= keeps transpositions so).
+
+* Differential tests
+  =src/tests/acl2.lisp= runs each function of the application that runs a book
+  against the Lisp it replaced (kept there as the =REFERENCE-= functions), on
+  every input of a small domain -- every block of up to 60 lines on slides of
+  1 to 15, every note name by -30 to 30 semitones in both spellings, every
+  chord of a note, a seventh or a bass note, every pair of the sheet's time
+  cells, every two windows of minutes 0 to 6, every second of 35 minutes
+  around a reminder -- and on 5000 random decks from a fixed seed. They show
+  that moving the code into the books changed nothing, and catch a change to
+  a book that keeps its theorems and still changes what it does (the theorems
+  do not fix, say, how long each slide is).
 
 * Open obligations
-  - Not modelled: the sent-reminders table (bot.lisp), the scheduler loop, the
-    string parsing of notes and chords (regexes), the bible UID tables (data).
-  - Domain assumptions, stated in the books: pitch classes use WRAP on -12..35
-    and transposition amounts 0..11 (the Lisp's MOD 12 reduces to these).
-
-* Dependencies
-  None beyond ACL2's built-in arithmetic: no books are included (the first
-  version used arithmetic-5; it was replaced by recursive CDIV and GRID-K).
-
-* Guix
-  =bhw-formal= (guix.scm) certifies each book in its own ACL2 process
-  (=acl2= package, same file) and fails on any FAILED or ACL2 Error.
-  Sources come from the git checkout, so =formal/= must be committed (or
-  added) before the build sees it.
+  - Not proved: the sent-reminders table and the scheduler's loop
+    (=bot.lisp=); reading chord and note names (=song.lisp='s regexes,
+    =chords.lisp='s parser: typed and tested only); =SHEET-CLOCK=; the bible's
+    UID tables.
+  - The certification is not part of =guix build -f guix.scm=: production
+    builds without ACL2, so a book changed and not certified again still
+    ships. =formal/certify.sh= or =bhw-formal= is the check.
 
 * Running
-  : cd formal && ~/acl2/saved_acl2 < certify.lsp   (certify.lsp runs all five)
-  Better, one process per book, as the Guix build does: see guix.scm.
+  : formal/certify.sh               every book, src/acl2/ first; ACL2 is $ACL2, else acl2
+  : formal/certify.sh formal/pitch  one book (the src/acl2/ book it includes certified)
+  Each book is certified in an ACL2 of its own, with its output in
+  =BOOK.out=. =bhw-formal= in =guix.scm= runs the same script with its ACL2:
+  : guix build -e "(begin (load \"$PWD/guix.scm\") bhw-formal)"
+  Its sources are those of HEAD's commit, as for =guix build -f guix.scm=, so
+  a new book must be committed before the build sees it.

@@ -1,5 +1,0 @@
-(certify-book "split-lines" ?)
-(certify-book "pitch" ?)
-(certify-book "windows" ?)
-(certify-book "reminder" ?)
-(certify-book "deck" ?)

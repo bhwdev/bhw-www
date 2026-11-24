@@ -273,10 +273,10 @@ with cl+ssl's API.")
                        (eq? package sbcl-cffi))
                      #:deep? #t)))
 
-;;; ACL2, the theorem prover, from the commit that the formal/ books were
-;;; certified against.  Not in Guix.  The check phase certifies arithmetic-5,
-;;; as an installation check: the formal/ books use no books.  Build it with
-;;; `guix build -e` on this file, as bhw-formal below is built.
+;;; ACL2, the theorem prover, from the commit that the books of src/acl2/ and
+;;; formal/ were certified against.  Not in Guix.  The check phase certifies
+;;; arithmetic-5, as an installation check: the books use no books.  Build it
+;;; with `guix build -e' on this file, as bhw-formal below is built.
 (define-public acl2
   (package
     (name "acl2")
@@ -339,13 +339,22 @@ with cl+ssl's API.")
 applicative Common Lisp, with a mechanised-proof checker and certified books.")
     (license license:bsd-3)))
 
+(define (book-file? file stat)
+  ;; The ACL2 books, under version control: src/acl2/ (the definitions the
+  ;; application runs) and formal/ (the proofs), and the directories on the
+  ;; way to them.
+  (and (vcs-file? file stat)
+       (or (eq? 'directory (stat:type stat))
+           (string-contains file "/src/acl2/")
+           (string-contains file "/formal/"))))
+
 (define-public bhw-formal
   (package
     (name "bhw-formal")
-    (version "0.1")
-    (source (local-file "formal" "bhw-formal-checkout"
+    (version "0.2")
+    (source (local-file "." "bhw-formal-checkout"
                         #:recursive? #t
-                        #:select? vcs-file?))
+                        #:select? book-file?))
     (build-system gnu-build-system)
     (arguments
      (list
@@ -357,21 +366,10 @@ applicative Common Lisp, with a mechanised-proof checker and certified books.")
             (lambda* (#:key inputs #:allow-other-keys)
               ;; The build's HOME is not writable; ACL2 writes there.
               (setenv "HOME" (getcwd))
-              ;; One ACL2 per book: a failed certify-book leaves the session
-              ;; in a state that breaks the next one.  ACL2 exits 0 even after
-              ;; a failure, so each output is read.
-              (for-each
-               (lambda (book)
-                 (let ((out (string-append book ".out")))
-                   (invoke "sh" "-c"
-                           (string-append
-                            "printf '(certify-book \"" book "\" ?)\\n' | "
-                            (assoc-ref inputs "acl2")
-                            "/bin/acl2 > " out " 2>&1"))
-                   (when (zero? (system* "grep" "-q"
-                                         "FAILED\\|ACL2 Error" out))
-                     (error "book failed to certify; see" out))))
-               '("split-lines" "pitch" "windows" "reminder" "deck"))))
+              ;; Each book in an ACL2 of its own, failing on the first that
+              ;; does not certify.
+              (setenv "ACL2" (search-input-file inputs "bin/acl2"))
+              (invoke "sh" "formal/certify.sh")))
           (replace 'check (lambda _ #t))
           (replace 'install
             (lambda* (#:key outputs #:allow-other-keys)
@@ -380,9 +378,11 @@ applicative Common Lisp, with a mechanised-proof checker and certified books.")
                 (copy-recursively "." out)))))))
     (inputs (list acl2))
     (home-page "https://www.bhw.name/blog/bhw-www-doc.html")
-    (synopsis "ACL2 models and proofs of bhw-www's pure functions")
+    (synopsis "ACL2 proofs about bhw-www's functions")
     (description
-     "Certified ACL2 books modelling pure functions of bhw-www.")
+     "The certified ACL2 books of bhw-www: the functions in src/acl2/, which
+the application compiles as they stand, and the proofs in formal/ of what they
+do.")
     (license license:agpl3+)))
 
 (define-public bhw-www
@@ -424,6 +424,7 @@ applicative Common Lisp, with a mechanised-proof checker and certified books.")
             sbcl-cl-base64
             sbcl-cl-ppcre
             sbcl-closer-mop
+            sbcl-coalton
             sbcl-drakma
             sbcl-flexi-streams
             sbcl-graph-db

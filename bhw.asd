@@ -18,11 +18,27 @@ Bible reader and a Slack bot that books vans, served by one process."
   :depends-on ("bhw/main")
   :in-order-to ((asdf:test-op (asdf:test-op "bhw/tests"))))
 
+;; The functions formal/ proves things of: ACL2 books that SBCL compiles as
+;; they stand (see src/acl2/package.lisp).  Not package-inferred, as a book
+;; cannot define its package: package.lisp does, for all of them.
+(asdf:defsystem "bhw/acl2"
+  :pathname "src/acl2"
+  :serial t
+  :components ((:file "package")
+               (:file "slides")
+               (:file "deck")
+               (:file "pitch")
+               (:file "windows")
+               (:file "reminder")))
+
 (register-system-packages "clog" '(:clog-connection))
 (register-system-packages "clog/gui" '(:clog-gui))
 ;; The engine and its replication transport, without the HTTP API that the
 ;; full "graph-db" system adds (guix.scm builds only these two).
 (register-system-packages "graph-db/replication" '(:graph-db))
+
+;; Coalton's prelude and library, which its system "coalton" loads.
+(register-system-packages "coalton" '(:coalton-prelude :coalton/string))
 
 (asdf:defsystem "bhw/tests"
   :class :package-inferred-system
@@ -35,6 +51,7 @@ Bible reader and a Slack bot that books vans, served by one process."
                "clog/gui"
                "bhw/tests/clog"
                "bhw/tests/http"
+               "bhw/tests/acl2"
                "bhw/tests/main"
                "bhw/tests/bible"
                "bhw/tests/plp"

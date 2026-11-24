@@ -13,6 +13,7 @@
   (:import-from #:hunchentoot #:url-decode)
   (:import-from #:ironclad)
   (:import-from #:bhw/http #:http-request)
+  (:import-from #:bhw/acl2 #:due-p)
   (:import-from #:bhw/slack-bot/booking-nlp
                 #:booking-incomplete
                 #:booking-incomplete-missing
@@ -1133,13 +1134,6 @@ leaves, or NIL when its time cannot be read."
   (if (eq leg :departure)
       (trip-departure-universal-time trip)
       (trip-return-universal-time trip)))
-
-(defun due-p (leaves now lead-minutes)
-  "True when a leg leaving at LEAVES is due, at NOW, for a DM LEAD-MINUTES
-ahead of it: from the lead time plus the 60s between sweeps until it leaves,
-so the DM goes out between the lead time and a minute more ahead of it, and a
-leg booked or a sweep run later than that still sends it, late."
-  (and leaves (<= 0 (- leaves now) (* 60 (1+ lead-minutes)))))
 
 (defun remind-leg (user-id initial trip leg now)
   "DM USER-ID, subscribed as INITIAL and on TRIP's LEG, the leg's reminder

@@ -17,6 +17,7 @@
                 #:booking-incomplete
                 #:today #:monday-index #:parse-day #:parse-clock #:month-number
                 #:format-time-12h #:format-booking-day #:*month-names*)
+  (:local-nicknames (#:acl2 #:bhw/acl2))
   (:export
    ;; struct
    #:trip #:make-trip #:copy-trip #:trip-p
@@ -74,7 +75,8 @@
     - a passenger is already on an overlapping trip that day, in any vehicle
     - the slot was booked by somebody else since the schedule was read
   Times are half-open, so a van due back at 11:00 can go out again at 11:00,
-  and a booked trip whose own times cannot be read blocks unconditionally
+  and a booked trip whose own times cannot be read blocks unconditionally;
+  the windows and their clashes are bhw/acl2's, which formal/ proves things of
   - book-natural — free-form English frontend to book (see bhw/slack-bot/booking-nlp).
     Signals BOOKING-INCOMPLETE, whose report asks the user to re-send the request
     with the missing pieces, when destination, day or passengers cannot be found.
@@ -330,32 +332,25 @@ its trip the clash window."
 DEP-TIME and back at RET-TIME, or NIL when either is blank, unreadable, or
 the two do not run forwards -- a return before its departure cannot be read
 as a window, and a trip carrying on past midnight is one such pair.  An
-unreadable time must not be taken for midnight, as DEPARTURE-MINUTES takes it."
-  (let ((start (sheet-clock dep-time))
-        (end (sheet-clock ret-time)))
-    (when (and start end (< start end))
-      (values start end))))
+unreadable time must not be taken for midnight, as DEPARTURE-MINUTES takes it.
+The window is bhw/acl2's REQUEST-WINDOW of the times SHEET-CLOCK reads."
+  (let ((window (acl2:request-window (sheet-clock dep-time) (sheet-clock ret-time))))
+    (when window
+      (values (first window) (second window)))))
 
 (defun trip-window (trip)
   "Return (values START END), minutes since midnight, for TRIP's departure and
 return times, or NIL when they cannot be read as a window (REQUEST-WINDOW)."
   (request-window (trip-departure trip) (trip-return-time trip)))
 
-(defun windows-overlap-p (start-a end-a start-b end-b)
-  "True when [START-A, END-A) and [START-B, END-B) share a minute.  The
-intervals are half-open on purpose: a van due back at 11:00 may be taken out
-again at 11:00."
-  (and (< start-a end-b) (< start-b end-a)))
-
 (defun trip-blocks-window-p (trip start end)
   "True when the booked TRIP stands in the way of a trip running START to END
-on the same day.  A booked trip whose own times cannot be read blocks
-unconditionally: nothing can show it is out of the way, and writing over a van
-that may already be on the road is the worse mistake."
-  (and (booked-trip-p trip)
-       (multiple-value-bind (trip-start trip-end) (trip-window trip)
-         (or (null trip-start)
-             (windows-overlap-p start end trip-start trip-end)))))
+on the same day: bhw/acl2's TRIP-BLOCKS-WINDOW-P, by which a booked trip whose
+own times cannot be read blocks unconditionally, and windows are half-open."
+  (multiple-value-bind (trip-start trip-end) (trip-window trip)
+    (acl2:trip-blocks-window-p (booked-trip-p trip)
+                               (and trip-start (list trip-start trip-end))
+                               start end)))
 
 (defun vehicle-conflicts (trips day vehicle start end &key exclude)
   "The booked TRIPS that already have VEHICLE out on DAY over a window

@@ -4,6 +4,8 @@
 (uiop:define-package #:bhw/plp/song
   (:use #:common-lisp)
   (:import-from #:cl-ppcre)
+  (:import-from #:bhw/plp/chords #:transpose-name #:flat-key-name-p)
+  (:local-nicknames (#:acl2 #:bhw/acl2))
   (:export #:song #:make-song #:copy-song
            #:song-id #:song-title #:song-alt-titles #:song-writers
            #:song-copyright #:song-ccli #:song-number #:song-page
@@ -68,7 +70,11 @@ the song of it.
 
 SONG-DECK lays the song out as the slides to show, in its order, and
 DECK-JUMP finds where a key press leads; DECK-CHART is each of its slides
-once, as a musician reads them."))
+once, as a musician reads them.
+
+SPLIT-LINES, DECK-NEXT and the transposition of notes run definitions of
+bhw/acl2, which formal/ proves things of; this package checks what it passes
+them (bhw/plp/chords types the notes)."))
 
 (in-package #:bhw/plp/song)
 
@@ -261,17 +267,6 @@ words is dropped, and so are a slide and a section left with no line."
                             for line-chords = (pop slide-chords)
                             collect (join-chords line line-chords))))))
 
-(defparameter *sharp-notes* #("C" "C#" "D" "D#" "E" "F" "F#" "G" "G#" "A" "A#" "B"))
-(defparameter *flat-notes* #("C" "Db" "D" "Eb" "E" "F" "Gb" "G" "Ab" "A" "Bb" "B"))
-
-(defun note-index (note)
-  "How many semitones the note NOTE, \"F#\" or \"Bb\", is above C."
-  (mod (+ (position (char note 0) "C D EF G A B")
-          (cond ((= (length note) 1) 0)
-                ((char= (char note 1) #\#) 1)
-                (t -1)))
-       12))
-
 (defun transpose-chord (chord semitones &key flats)
   "CHORD, \"G\", \"Bm7\" or \"D/F#\", SEMITONES higher: every note it names
 moved, and spelled with flats when FLATS and with sharps when not.  CHORD
@@ -280,9 +275,7 @@ itself when SEMITONES is no change, or CHORD names no note (N.C.)."
       chord
       (cl-ppcre:regex-replace-all
        "[A-G][#b]?" chord
-       (lambda (note)
-         (aref (if flats *flat-notes* *sharp-notes*)
-               (mod (+ (note-index note) semitones) 12)))
+       (lambda (note) (transpose-name note semitones (and flats t)))
        :simple-calls t)))
 
 (defun song-key (song)
@@ -300,12 +293,7 @@ else its first chord; NIL for a song without either."
   "True when the key KEY, \"F\" or \"Gm\", is written with flats."
   (let ((note (and key (cl-ppcre:scan-to-strings "^[A-G][#b]?" key))))
     (and note
-         (member (mod (+ (note-index note)
-                         ;; A minor key is written as the major a third above.
-                         (if (cl-ppcre:scan "^[A-G][#b]?m(?!aj)" key) 3 0))
-                      12)
-                 '(5 10 3 8 1))
-         t)))
+         (flat-key-name-p note (and (cl-ppcre:scan "^[A-G][#b]?m(?!aj)" key) t)))))
 
 (defun parse-tag (text)
   "The tag (category name note) that TEXT, as \"mass=Communion\" or
@@ -703,13 +691,12 @@ one hyphen: \"O Come, All Ye Faithful\" -> \"o-come-all-ye-faithful\"."
   "The most lines on one slide: a longer block of a section is split.")
 
 (defun split-lines (lines &optional (max-lines *max-lines*))
-  "LINES as a list of slides of at most MAX-LINES lines, as even as can be."
-  (let* ((count (length lines))
-         (parts (max 1 (ceiling count max-lines)))
-         (size (ceiling count parts)))
-    (loop for rest = lines then (nthcdr size rest)
-          while rest
-          collect (subseq rest 0 (min size (length rest))))))
+  "LINES as a list of slides of at most MAX-LINES lines, as even as can be
+(bhw/acl2's SPLIT-LINES, whose guard this checks: it would take a MAX-LINES
+of 0 for one slide of everything)."
+  (check-type max-lines (integer 1))
+  (assert (null (cdr (last lines))) (lines) "~S is not a list of lines." lines)
+  (acl2:split-lines lines max-lines))
 
 (defun slide-key (slide) (getf slide :key))
 (defun slide-label (slide) (getf slide :label))
@@ -807,7 +794,10 @@ musician reads it, the refrain written out once."
 
 (defun deck-next (deck index slide)
   "The index in DECK where SLIDE next stands after INDEX, round again from
-the start; NIL when DECK has no such slide."
-  (or (position slide deck :test #'same-slide-p
-                           :start (min (1+ (or index -1)) (length deck)))
-      (position slide deck :test #'same-slide-p)))
+the start; NIL when DECK has no such slide.  A slide stands where the same
+slide of the song does (SAME-SLIDE-P): bhw/acl2's DECK-NEXT on the slides'
+identities, (section . part)."
+  (check-type index (or null (integer 0)))
+  (flet ((identity-of (slide)
+           (cons (getf slide :section) (slide-part slide))))
+    (acl2:deck-next (mapcar #'identity-of deck) index (identity-of slide))))

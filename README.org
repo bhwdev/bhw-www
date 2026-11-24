@@ -37,8 +37,14 @@ package-inferred systems under =src/=:
   chords over the words, in the key asked for.
 
 =main.lisp= starts them all (=initialize-application=); =store.lisp= is the
-graph-db plumbing the databases share. The tests mirror this tree under
-=src/tests/= and use [[https://github.com/fukamachi/rove][Rove]].
+graph-db plumbing the databases share. =acl2/= holds the functions written in
+the part of Common Lisp that the [[https://www.cs.utexas.edu/~moore/acl2/][ACL2]] theorem prover reasons about -- how
+a song's lines go on slides, where a slide next stands, the transposition of
+notes, the clashes of the vans' trips, when a reminder is due -- which SBCL
+compiles as they stand and =formal/= proves theorems about
+(=formal/README.org=); the notes reach them through [[https://coalton-lang.github.io][Coalton]] types
+(=plp/chords=). The tests mirror this tree under =src/tests/= and use
+[[https://github.com/fukamachi/rove][Rove]].
 
 The pages are built by [[https://github.com/rabbibotton/clog][CLOG]] over its websocket (a browser without
 JavaScript sees nothing): a fork of it in =clog/=, its core and CLOG-GUI
