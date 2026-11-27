@@ -99,7 +99,10 @@ Packages `:use` only `common-lisp`; everything else comes in through
 `:import-from` or `:local-nicknames`. A Coalton package `:use`s `coalton` and
 `coalton-prelude` instead, and names no variable after a constructor (the
 reader folds case: a variable `note` hides the constructor `Note`). Tests are
-Rove, under `src/tests/` mirroring `src/`.
+Rove, under `src/tests/` mirroring `src/`; `src/tests/fuzz.lisp` checks
+properties of what reads outside input (request paths, Slack's requests,
+websocket frames and messages, bookings, song texts, a room's keys, the
+presenter's store) on random inputs from fixed seeds.
 
 ## Commands
 

@@ -53,6 +53,7 @@
    #:add-plugin-path
    #:serve-static-file
    #:file-content-type
+   #:path-segments-p
    #:static-files-directory
    #:boot-script-path
    #:compiled-boot-html

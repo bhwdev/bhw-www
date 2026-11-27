@@ -241,19 +241,22 @@ with a number after it if need be."
 
 (defun save-song (song)
   "Store SONG, in place of the song with its id if there is one, with its
-tags; a song without an id is given one.  Returns the id."
+tags; a song without an id is given one.  Returns the id.  Its text is
+stored as STORE:STORABLE has it."
   (bordeaux-threads:with-lock-held (*write-lock*)
-    (let ((id (or (song:song-id song) (unused-id (or (song:song-title song) ""))))
-          (slots (list :title (song:song-title song)
-                       :alt-titles (song:song-alt-titles song)
-                       :writers (song:song-writers song)
-                       :copyright (song:song-copyright song)
-                       :ccli (song:song-ccli song)
-                       :number (song:song-number song)
-                       :page (song:song-page song)
-                       :sections (song:song-sections song)
-                       :order (song:song-order song)
-                       :reviewed (song:song-reviewed song))))
+    (let ((id (store:storable (or (song:song-id song)
+                                  (unused-id (or (song:song-title song) "")))))
+          (slots (store:storable
+                  (list :title (song:song-title song)
+                        :alt-titles (song:song-alt-titles song)
+                        :writers (song:song-writers song)
+                        :copyright (song:song-copyright song)
+                        :ccli (song:song-ccli song)
+                        :number (song:song-number song)
+                        :page (song:song-page song)
+                        :sections (song:song-sections song)
+                        :order (song:song-order song)
+                        :reviewed (song:song-reviewed song)))))
       (store:with-transaction (*database* :context "save-song")
         (let* ((existing (song-vertex id))
                (vertex (cond (existing
@@ -269,7 +272,7 @@ tags; a song without an id is given one.  Returns the id."
           (dolist (edge (graph-db:outgoing-edges vertex :graph *database*
                                                         :edge-type 'tagged))
             (graph-db:mark-deleted edge))
-          (dolist (tag (remove-duplicates (song:song-tags song)
+          (dolist (tag (remove-duplicates (store:storable (song:song-tags song))
                                           :test #'string= :key #'tag-key))
             (make-tagged :from vertex :to (ensure-tag tag)))))
       (rebuild-catalog)
@@ -369,12 +372,16 @@ and not a song's id, which a setlist stored before it had them lacks."
   "Store the setlist NAME, in place of the one of that name if there is one:
 ITEMS is a list of (song-id . note), and TRANSPOSITIONS a list of (song-id .
 semitones) for the songs played in another key than they are written in.
-Returns its id, the name's slug."
+Returns its id, the name's slug.  What it holds is stored as STORE:STORABLE
+has it."
   (bordeaux-threads:with-lock-held (*write-lock*)
     (let ((id (song:slug name))
-          (items (append items
-                         (and transpositions
-                              (list (cons :transpositions transpositions))))))
+          (name (store:storable name))
+          (date (store:storable date))
+          (items (store:storable
+                  (append items
+                          (and transpositions
+                               (list (cons :transpositions transpositions)))))))
       (when (string= id "")
         (error "A setlist needs a name."))
       (store:with-transaction (*database* :context "save-setlist")

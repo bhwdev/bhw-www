@@ -53,10 +53,15 @@ entry point."))
 upload: Slack's requests are a few kilobytes, and the browser talks to CLOG
 over its websocket.")
 
+(defparameter *max-path-length* 2048
+  "The longest request path the site answers: its own are a few dozen
+characters, and a request line can be far longer.")
+
 (defun safe-path-p (path)
-  "True when PATH, a request's decoded path, is one the site may serve:
-'/'-separated segments of letters, digits and -_.~, none of them empty or
-beginning with a dot or a tilde.
+  "True when PATH, a request's decoded path, is one the site may serve: no
+longer than *MAX-PATH-LENGTH*, '/'-separated segments of letters, digits and
+-_.~, none of them empty or beginning with a dot or a tilde
+\(CLOG-CONNECTION:PATH-SEGMENTS-P, with a trailing slash allowed).
 
 Any other path is refused before CLOG or the bot sees it.  The fork of
 CLOG's file server applies the same rule to the files it sends
@@ -64,15 +69,21 @@ CLOG's file server applies the same rule to the files it sends
 file server, which merges it into the static root as an SBCL namestring, so
 that \"//etc/passwd\" (also \"/%2Fetc/passwd\") reads /etc/passwd, \"/~/x\"
 the server's home directory, and \"/SYS:SRC;...\" a logical pathname.
-Dot-segments are refused too, so a checkout's .git is not served."
+Dot-segments are refused too, so a checkout's .git is not served.
+
+The segments are read one at a time: one regex over the whole path, as
+this was, repeats a group for each segment, CL-PPCRE recurses for each
+repetition, and a path of 20,000 segments exhausted the stack of the
+request's thread, which ended the process."
   (and (stringp path)
-       (cl-ppcre:scan "^(?:/[A-Za-z0-9_-][A-Za-z0-9_.~-]*)*/?$" path)
-       t))
+       (<= (length path) *max-path-length*)
+       (conn:path-segments-p path :trailing-slash t)))
 
 (defun guard-response (env)
   "The response refusing the request plist ENV, or NIL to let it through:
-400 to a path that is not SAFE-PATH-P, 411 to a body without a
-Content-Length, and 413 to one longer than *MAX-REQUEST-OCTETS*.
+414 to a path longer than *MAX-PATH-LENGTH*, 400 to another that is not
+SAFE-PATH-P, 411 to a body without a Content-Length, and 413 to one longer
+than *MAX-REQUEST-OCTETS*.
 
 The body limits protect what sizes a buffer from Content-Length or reads
 the body whole before anything is authenticated: Hunchentoot reads a body it
@@ -80,8 +91,11 @@ has not been asked for into an array of Content-Length octets before it
 replies, as it does a form posted to one of CLOG's pages, so a single request
 declaring a huge length would exhaust the heap and kill the process; and the
 Slack endpoints read the body before checking its signature."
-  (let ((length (getf env :content-length)))
-    (cond ((not (safe-path-p (getf env :path-info)))
+  (let ((length (getf env :content-length))
+        (path (getf env :path-info)))
+    (cond ((and (stringp path) (> (length path) *max-path-length*))
+           '(414 (:content-type "text/plain") ("URI Too Long")))
+          ((not (safe-path-p path))
            '(400 (:content-type "text/plain") ("Bad Request")))
           ((layout:request-header env "transfer-encoding")
            '(411 (:content-type "text/plain") ("Length Required")))

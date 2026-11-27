@@ -11,7 +11,8 @@
            #:open-store
            #:close-store
            #:delete-views
-           #:with-transaction)
+           #:with-transaction
+           #:storable)
   (:documentation
    "The graph-db plumbing that every bhw-www database shares.
 
@@ -113,3 +114,34 @@ it, tagged with CONTEXT, before passing it on."
                                        ,context ,condition))))
          (graph-db:with-transaction ()
            ,@body)))))
+
+(defun storable (value)
+  "VALUE, a tree of conses and atoms, with every surrogate code point (U+D800
+to U+DFFF) in its strings replaced by U+FFFD: graph-db writes such a string,
+as UTF-8 cannot hold, and then fails to read it back, and from then on to
+save anything or to open the store.  No text that reaches the site holds
+one (its decoders refuse them), so this is the store's own guard."
+  (labels ((surrogate-p (char)
+             (<= #xD800 (char-code char) #xDFFF))
+           (walk (value)
+             (typecase value
+               (string (if (find-if #'surrogate-p value)
+                           (substitute-if (code-char #xFFFD) #'surrogate-p value)
+                           value))
+               ;; A list's spine is walked in a loop: the stack only goes
+               ;; as deep as lists are nested.
+               (cons (let ((items '()) (tail value) (changed nil))
+                       (loop while (consp tail)
+                             do (let ((item (walk (car tail))))
+                                  (unless (eq item (car tail))
+                                    (setf changed t))
+                                  (push item items)
+                                  (setf tail (cdr tail))))
+                       (let ((end (walk tail)))
+                         (if (or changed (not (eq end tail)))
+                             (let ((result end))
+                               (dolist (item items result)
+                                 (push item result)))
+                             value))))
+               (t value))))
+    (walk value)))

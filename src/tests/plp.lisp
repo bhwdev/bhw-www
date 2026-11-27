@@ -21,6 +21,12 @@ invented refrain: none of the book's text is in this repository."))
 
 (in-package #:bhw/tests/plp)
 
+(defun promptly (function &optional (seconds 5))
+  "True when FUNCTION returns within SECONDS without exhausting the stack.
+What it is given takes milliseconds; before, as long as hours."
+  (handler-case (progn (sb-ext:with-timeout seconds (funcall function)) t)
+    ((or sb-ext:timeout storage-condition) () nil)))
+
 (defparameter *abide*
   "Title: Abide With Me
 Alt: Eventide; Fast Falls The Eventide
@@ -176,6 +182,25 @@ CCLI Song #43192. CCLI License #0000."
                  (song:section-slides (first (song:song-sections song)))))
       (ok (equal '("1") (mapcar #'song:slide-key (song:song-deck song)))
           "a section of marks only is none")))
+  (testing "a label with its marks is a label, as OUTLINE reads it"
+    (let ((song (song:parse-song
+                 (format nil "Title: T~%~%1.~%Abide with me~%~%Chorus (x2)~%Help of the helpless~%"))))
+      (ok (equal '("1" "R") (mapcar #'song:section-key (song:song-sections song))))
+      (ok (equal '(("Help of the helpless"))
+                 (song:section-slides (second (song:song-sections song)))))
+      (ok (equalp (song:song-sections song)
+                  (song:song-sections (song:parse-song (song:print-song song))))
+          "and is written back as one")))
+  (testing "a line takes time and stack in proportion to its length"
+    ;; Twenty-two of these words took 4 s, and each two more four times
+    ;; that; ten thousand, or a long run of parentheses or spaces, exhausted
+    ;; the stack or took seconds.
+    (flet ((marks (n) (format nil "(V1, ~{~A~}x" (make-list n :initial-element "V2 "))))
+      (ok (promptly (lambda () (song:sung-line (marks 40)))))
+      (ok (promptly (lambda () (song:sung-line (marks 10000)))))
+      (ok (promptly (lambda () (song:sung-line (make-string 30000 :initial-element #\()))))
+      (ok (promptly (lambda () (song:sung-line (format nil "a~Ab" (make-string 30000 :initial-element #\Space))))))
+      (ok (promptly (lambda () (song:outline (marks 40)))))))
   (testing "a deck does not show the marks of a song stored with them"
     (let ((song (song:make-song
                  :title "T"
@@ -211,6 +236,12 @@ CCLI Song #43192. CCLI License #0000."
       (ok (equal '(0 1 2 1 3) places))
       (ok (equal '("1" "R" "2" "R" "B")
                  (song:song-order (song:outline-song parts places))))))
+  (testing "words of many parts take time in proportion to them"
+    ;; 3,000 parts: some 8 s to outline, and over a minute to parse, before.
+    (let ((text (format nil "~{~A~^~%~%~}"
+                        (loop for i below 3000 collect (format nil "line ~D a~%line ~D b" i i)))))
+      (ok (promptly (lambda () (song:outline text))))
+      (ok (promptly (lambda () (song:parse-words text))))))
   (testing "a song sung straight through needs no order"
     (multiple-value-bind (parts places) (song:outline (format nil "a~%~%b~%"))
       (ok (null (song:song-order (song:outline-song parts places))))))
@@ -230,7 +261,12 @@ CCLI Song #43192. CCLI License #0000."
   (ng (import:chord-line-p "A mighty fortress is our God"))
   (ng (import:chord-line-p "Am I a soldier of the cross"))
   (ng (import:chord-line-p " - "))
-  (ng (import:chord-line-p "")))
+  (ng (import:chord-line-p ""))
+  ;; A word longer than a run of chords is not one: CL-PPCRE recursed once
+  ;; for each chord of a run, and a long one exhausted the stack.
+  (ok (song:chord-line-p "G-D/F#-Em7-Cmaj7"))
+  (ok (promptly (lambda () (ng (song:chord-line-p (make-string 30000 :initial-element #\A))))))
+  (ok (promptly (lambda () (song:split-chords (format nil "[~A]" (make-string 30000 :initial-element #\A)))))))
 
 (deftest a-page-of-the-book
   (let ((page (import:parse-song-page *page*)))
@@ -447,6 +483,22 @@ CCLI Song #43192. CCLI License #0000."
 
 ;; A key is held by one vertex at most: the store refuses a transaction that
 ;; would make a second, and keeps the first as it was.
+;; graph-db writes a lone surrogate but cannot read it back, nor anything
+;; after it: the store does not take one.
+(deftest what-the-store-cannot-hold
+  (with-store
+    (let* ((replaced (format nil "a~Cb" (code-char #xFFFD)))
+           (id (db:save-song (song:parse-song (format nil "Title: T~C~%~%1.~%a~Cb~%"
+                                                      (code-char #xDFFF) (code-char #xD800)))))
+           (setlist (db:save-setlist (format nil "S~C" (code-char #xD800)) (list (cons id "x")))))
+      (ok (equal replaced (first (first (song:section-slides
+                                         (first (song:song-sections (db:find-song id))))))))
+      (ok (equal (format nil "S~C" (code-char #xFFFD)) (getf (db:find-setlist setlist) :name)))
+      (ok (db:save-song (song:parse-song (format nil "Title: U~%~%1.~%c~%"))) "the store takes more")
+      (db:close-database)
+      (db:open-database)
+      (ok (db:find-song id) "and opens again"))))
+
 (deftest keys-are-unique
   (with-store
     (let* ((abide (song:parse-song *abide*))
@@ -571,6 +623,16 @@ Eb Bb Eb
         (ok (= 5 (count #\h size)) "one term for each number of columns, up to five")
         (ok (= 25 width) "a column fits the longest line, of 46 letters"))
       (ok (uiop:string-prefix-p "clamp(" (console:chart-font-size '()))))))
+
+(deftest tags-written
+  (ok (equal '(:mass "Communion" nil) (song:parse-tag "mass=Communion")))
+  (ok (equal '(:liturgy "Christmas" "Dec 25") (song:parse-tag " liturgy = Christmas {Dec 25} ")))
+  (ok (equal '(:a "b" "c {d}") (song:parse-tag "a=b {c {d}}")) "from the first { to the last }")
+  (ok (equal '(:a "b {c" nil) (song:parse-tag "a=b {c")) "a note not closed is the name's")
+  (ng (song:parse-tag "a={x}") "no name")
+  (ng (song:parse-tag "no tag"))
+  ;; A run of { took time in the square of its length.
+  (ok (promptly (lambda () (song:parse-tag (format nil "a=~A" (make-string 30000 :initial-element #\{)))))))
 
 (deftest tags-by-name
   (let ((known '((:mass "Communion" nil) (:liturgy "Advent" "Dec") (:tempo "Slow" nil)

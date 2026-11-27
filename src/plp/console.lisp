@@ -103,6 +103,23 @@ words.")
 (defparameter *card-columns* 3
   "How many cards stand in a row of the middle pane.")
 
+(defparameter *max-song-text* 32768
+  "The most of a song's text the console reads from a field, six times the
+longest song of the book.  A field holds whatever its page sent, up to a
+websocket message (a mebibyte), and reading a song takes time that grows
+faster than its length (its sections' keys are compared with each other and
+with its order), so a longer text is cut.")
+
+(defparameter *max-query-text* 256
+  "The most of a search's or a tag's text the console reads from a field:
+SEARCH-SONGS looks for each word of a query in every song.")
+
+(defun bounded (text limit)
+  "TEXT, cut to LIMIT characters."
+  (if (> (length text) limit)
+      (subseq text 0 limit)
+      text))
+
 (defun row-step (index count columns direction)
   "The index of the card above (DIRECTION -1) or below (1) the INDEXth of
 COUNT cards in rows of COLUMNS: under a card that has none below it but a
@@ -565,10 +582,10 @@ cannot tell which is meant."
                    (add-class (nth index result-rows) "plp-current")
                    (scroll-into-view (nth index result-rows)))))
              (draw-results ()
-               (setf results (if (and (string= (string-trim " " (value search)) "")
+               (setf results (if (and (string= (string-trim " " (query-text search)) "")
                                       (string= (value tag-select) ""))
                                  '()
-                                 (db:search-songs (value search)
+                                 (db:search-songs (query-text search)
                                                   :tag (and (string/= (value tag-select) "")
                                                             (value tag-select))))
                      (inner-html results-area) ""
@@ -628,7 +645,7 @@ cannot tell which is meant."
                           (focus tag-input)))))))
              (add-tag ()
                ;; Give the song the tag the field names.
-               (multiple-value-bind (tag several) (read-tag (value tag-input) (db:all-tags))
+               (multiple-value-bind (tag several) (read-tag (query-text tag-input) (db:all-tags))
                  (cond (tag
                         (unless (member (tag-text tag) tags :key #'tag-text :test #'string=)
                           (setf tags (append tags (list tag))))
@@ -637,9 +654,14 @@ cannot tell which is meant."
                        (several
                         (say "Several tags have that name: write ~{~A~^ or ~}."
                              (mapcar #'tag-text several))))))
+             (song-text (field)
+               ;; The song text in FIELD, as much as is read (*MAX-SONG-TEXT*).
+               (bounded (text-value field) *max-song-text*))
+             (query-text (field)
+               (bounded (value field) *max-query-text*))
              (words-sections ()
                ;; What the form's words write, for a song being corrected.
-               (song:parse-words (text-value new-words)))
+               (song:parse-words (song-text new-words)))
              (order-keys ()
                (mapcar #'string-upcase
                        (remove "" (uiop:split-string (value new-order) :separator " ,")
@@ -946,7 +968,7 @@ cannot tell which is meant."
                       (declare (ignore object))
                       ;; The song showing, or else the one in the text field.
                       (let* ((showing (getf (live:snapshot room) :song))
-                             (written (song:parse-song (text-value editor)))
+                             (written (song:parse-song (song-text editor)))
                              (song (or showing
                                        (and (song:song-sections written) written))))
                         (if song
@@ -957,14 +979,14 @@ cannot tell which is meant."
                       (declare (ignore object))
                       (unless editing
                         (multiple-value-setq (parts places)
-                          (song:outline (text-value new-words))))
+                          (song:outline (song-text new-words))))
                       (draw-outline)))
       (set-on-change new-order (lambda (object) (declare (ignore object)) (draw-outline)))
       ;; A tag of those offered is taken as soon as the field holds it.
       (set-on-input tag-input
                     (lambda (object)
                       (declare (ignore object))
-                      (when (find (string-trim " " (value tag-input)) (db:all-tags)
+                      (when (find (string-trim " " (query-text tag-input)) (db:all-tags)
                                   :key #'tag-text :test #'string-equal)
                         (add-tag))))
       (set-on-key-down tag-input
@@ -1005,17 +1027,17 @@ cannot tell which is meant."
                      (say "No song is showing.")))))
       (click check-song
              (lambda ()
-               (let* ((parsed (song:parse-song (text-value editor)))
+               (let* ((parsed (song:parse-song (song-text editor)))
                       (problems (song:song-problems parsed)))
                  (if problems
                      (say "~{~A~^~%~}" problems)
                      (say "~D slides: ~{~A~^ ~}" (length (song:song-deck parsed))
                           (mapcar #'song:slide-key (song:song-deck parsed)))))))
-      (click save-song (lambda () (save-text (text-value editor))))
+      (click save-song (lambda () (save-text (song-text editor))))
       (click delete-song
              (lambda ()
                (when (authorized)
-                 (let* ((id (song:song-id (song:parse-song (text-value editor))))
+                 (let* ((id (song:song-id (song:parse-song (song-text editor))))
                         (song (and id (db:find-song id))))
                    (cond ((null id) (say "The text names no song: it has no Id: header."))
                          ((null song) (say "There is no song ~A." id))

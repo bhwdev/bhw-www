@@ -58,7 +58,8 @@ Bible reader and a Slack bot that books vans, served by one process."
                "bhw/tests/slack-bot/nlp"
                "bhw/tests/slack-bot/booking-nlp"
                "bhw/tests/slack-bot/van-booking"
-               "bhw/tests/slack-bot/bot")
+               "bhw/tests/slack-bot/bot"
+               "bhw/tests/fuzz")
   ;; Run the suite of each test package above by name: ROVE:RUN finds a
   ;; system's suites through the fasls it loaded, which it cannot map back to
   ;; their packages under Guix's output translations, and so runs none in the

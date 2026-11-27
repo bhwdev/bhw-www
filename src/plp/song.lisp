@@ -146,11 +146,22 @@ label line may use for it.")
 together (G-D, BE), a bass note alone (/F#), or one of the marks between
 them.")
 
+(defparameter *max-chord-length* 64
+  "The longest word CHORD-P reads as a chord: G-D/F#-Em7-Cmaj7, run
+together, is half that.  CL-PPCRE's matcher recurses once for each chord of
+a run, so a longer word could exhaust the stack.")
+
+(defun chord-p (word)
+  "True when WORD is a word of a chord line (*CHORD-TOKEN*)."
+  (and (<= (length word) *max-chord-length*)
+       (cl-ppcre:scan *chord-token* word)
+       t))
+
 (defun chord-line-p (line)
   "True when every word of LINE is a chord: G, Bm7, Asus4, A/C#, a dash."
   (let ((words (cl-ppcre:split "\\s+" (string-trim " " line))))
     (and words
-         (every (lambda (word) (cl-ppcre:scan *chord-token* word)) words)
+         (every #'chord-p words)
          ;; A dash alone is not a chord line.
          (some (lambda (word) (cl-ppcre:scan "[A-GN]" word)) words))))
 
@@ -164,7 +175,7 @@ as a list of (offset . chord): \"[G]Amazing [D]grace\" -> \"Amazing grace\",
              (incf length (length text))))
       (cl-ppcre:do-scans (start end starts ends "\\[([^\\]\\[\\s]+)\\]" line)
         (let ((chord (subseq line (aref starts 0) (aref ends 0))))
-          (when (cl-ppcre:scan *chord-token* chord)
+          (when (chord-p chord)
             (emit (subseq line last start))
             (push (cons length chord) chords)
             (setf last end))))
@@ -217,7 +228,7 @@ come back trimmed."
         for words-p = (and chords-p next
                            (string/= (trim next) "")
                            (not (chord-line-p next))
-                           (not (label-line (trim next))))
+                           (not (marked-label-line (trim next))))
         with skip = nil
         if skip
           do (setf skip nil)
@@ -295,13 +306,27 @@ else its first chord; NIL for a song without either."
     (and note
          (flat-key-name-p note (and (cl-ppcre:scan "^[A-G][#b]?m(?!aj)" key) t)))))
 
+(defparameter *whitespace* '(#\Space #\Tab #\Newline #\Return #\Page)
+  "The characters CL-PPCRE's \\s matches.")
+
 (defun parse-tag (text)
   "The tag (category name note) that TEXT, as \"mass=Communion\" or
-\"liturgy=Christmas {Dec 25}\", writes, or NIL."
-  (cl-ppcre:register-groups-bind (category name note)
-      ("^\\s*([A-Za-z-]+)\\s*=\\s*(.*?)\\s*(?:\\{(.*)\\})?\\s*$" text)
-    (when (plusp (length name))
-      (list (intern (string-upcase category) :keyword) name note))))
+\"liturgy=Christmas {Dec 25}\", writes, or NIL.  The note runs from the
+first { to the } that ends TEXT.  (Read by a regex, a name followed by a
+run of { or of spaces took time in the square of its length.)"
+  (cl-ppcre:register-groups-bind (category rest)
+      ("(?s)^\\s*([A-Za-z-]+)\\s*=(.*)$" text)
+    (let* ((rest (string-trim *whitespace* rest))
+           (open (and (plusp (length rest))
+                      (char= #\} (char rest (1- (length rest))))
+                      (position #\{ rest)))
+           (name (string-right-trim *whitespace* (subseq rest 0 open)))
+           (note (and open (subseq rest (1+ open) (1- (length rest))))))
+      ;; Spaces around them may be newlines, the name and the note not.
+      (when (and (plusp (length name))
+                 (not (find #\Newline name))
+                 (not (find #\Newline note)))
+        (list (intern (string-upcase category) :keyword) name note)))))
 
 (defun label-line (line)
   "When LINE is a section label, its kind, number (or NIL) and label; else
@@ -326,13 +351,22 @@ colon (\"Women:\")."
   (let ((strong "x\\s?\\d|\\d\\s?x\\b|v\\d*\\b|verse|ref|chorus|pre-?\\s?ch|bridge|build|tag\\b|instr|int\\b|intro|coda|outro|repeat")
         (word "x\\s?\\d+|\\d+\\s?x|\\d+|v\\d*|verse|ref|refr|refrain|chorus|pre-?\\s?ch(?:orus)?|bridge|build|tag|instr(?:umental)?|int(?:ro)?|coda|outro|ending|end|repeat|return|song|last|lines?|two|to|or|and|then"))
     (cl-ppcre:create-scanner
-     (format nil "\\s*\\((?=[^)]*\\b(?:~A))(?:\\s*(?:~A)\\b\\.?\\s*[,;&/+-]?)+\\s*(?:\\)|$)"
+     (format nil "\\s{0,20}\\((?=[^)]{0,80}?\\b(?:~A))(?>(?:\\s*(?:~A)\\b\\.?\\s*[,;&/+-]?){1,16})\\s*(?:\\)|$)"
              strong word)
      :case-insensitive-mode t))
   "Matches a mark for the musicians in a line of words: a parenthesis that
 holds nothing but repeats and names of sections, as (x2), (Ref. x2),
 (V1, V2, Ref.), (Pre-Chorus, Refrain 1), (Repeat last two lines).  Sung
-words in parentheses, (echo) or (You are), are not matched.")
+words in parentheses, (echo) or (You are), are not matched.
+
+Its time and stack grow with the line's length, whatever the line.  The
+mark's words are an atomic group, never gone back into: a space between two
+words can end the one or start the next, and a run of words that made no
+mark was otherwise tried every way, in time exponential in its length.  The
+spaces before a mark, the text its section name is looked for in and its
+words are bounded, as a mark is a few words: unbounded, a long line was
+scanned again from each of its spaces and parentheses, and CL-PPCRE's
+matcher, which recurses once for each word, exhausted the stack.")
 
 (defun replace-tracking (regex line replacement columns)
   "LINE with every match of REGEX replaced by the string REPLACEMENT, and
@@ -362,6 +396,12 @@ The chords written in LINE stay, each where it was."
       (multiple-value-bind (sung chords)
           (split-chords (join-chords sung (mapcar #'cons offsets (mapcar #'cdr chords))))
         (join-chords sung chords)))))
+
+(defun marked-label-line (line)
+  "LABEL-LINE of LINE without its marks for the musicians: \"Chorus (x2)\"
+labels the refrain, as OUTLINE reads it, rather than being a line that sings
+\"Chorus\"."
+  (label-line (sung-line line)))
 
 (defun sung-lines (lines)
   "LINES without their marks, and without the lines that were only marks."
@@ -393,18 +433,22 @@ with no line are dropped."
 (defun number-sections (sections)
   "SECTIONS with a number given to each that has none: the lowest its kind
 has not used yet."
-  (let ((used '()))
+  ;; Numbers are only ever taken, so the lowest one free for a kind never
+  ;; goes down: each kind's search starts where its last one ended.
+  (let ((used (make-hash-table :test #'equal))
+        (lowest (make-hash-table)))
     (dolist (section sections)
       (when (section-number section)
-        (push (cons (section-kind section) (section-number section)) used)))
+        (setf (gethash (cons (section-kind section) (section-number section)) used) t)))
     (mapcar (lambda (section)
               (if (section-number section)
                   section
-                  (let ((number (loop for n from 1
-                                      unless (member (cons (section-kind section) n)
-                                                     used :test #'equal)
-                                        return n)))
-                    (push (cons (section-kind section) number) used)
+                  (let* ((kind (section-kind section))
+                         (number (loop for n from (gethash kind lowest 1)
+                                       unless (gethash (cons kind n) used)
+                                         return n)))
+                    (setf (gethash (cons kind number) used) t
+                          (gethash kind lowest) (1+ number))
                     (list* :number number
                            (loop for (k v) on section by #'cddr
                                  unless (eq k :number) append (list k v))))))
@@ -429,7 +473,7 @@ has not used yet."
                                   :label (third label) :slides blocks)
                             sections))))))
       (dolist (line lines)
-        (let ((found (label-line line)))
+        (let ((found (marked-label-line line)))
           (cond (found (flush) (setf label found))
                 (t (push line pending)))))
       (flush))
@@ -549,28 +593,38 @@ again.  Of the parts under no label, those sung more than once are taken
 for the refrain, the bridge and the tag, as far as the text names none, and
 the rest for verses.  Marks for the musicians are left out (SUNG-LINE), and
 so is what stands under Intro or Instrumental."
-  (let ((parts '()) (places '()) (label nil) (pending '()))
-    (labels ((add (kind number name block)
-               (setf parts (append parts (list (list :kind kind :number number :label name
-                                                     :slides (list block)))))
-               (push (1- (length parts)) places))
+  ;; The parts are kept in a vector, found by their words through BY-WORDS,
+  ;; and their kinds in KINDS, so that each block costs about the same
+  ;; however many came before it.
+  (let ((parts (make-array 8 :adjustable t :fill-pointer 0))
+        (by-words (make-hash-table :test #'equal)) ; WORDS-KEY -> indices, ascending
+        (kinds (make-hash-table))
+        (places '()) (label nil) (pending '()))
+    (labels ((add (kind number name block key)
+               (let ((index (vector-push-extend (list :kind kind :number number :label name
+                                                      :slides (list block))
+                                                parts)))
+                 (setf (gethash key by-words) (append (gethash key by-words) (list index)))
+                 (when kind
+                   (setf (gethash kind kinds) t))
+                 (push index places)))
              (take (block label)
                (let* ((key (words-key block))
-                      (same (position-if
-                             (lambda (part)
-                               (and (string= key (words-key (first (section-slides part))))
-                                    (or (null label)
-                                        (null (section-kind part))
-                                        (eq (section-kind part) (first label)))))
-                             parts)))
+                      (same (find-if (lambda (index)
+                                       (let ((kind (section-kind (aref parts index))))
+                                         (or (null label)
+                                             (null kind)
+                                             (eq kind (first label)))))
+                                     (gethash key by-words))))
                  (cond ((null same)
-                        (add (first label) (second label) (third label) block))
+                        (add (first label) (second label) (third label) block key))
                        (t
                         ;; A label on words that came unlabelled names them.
-                        (when (and label (null (section-kind (nth same parts))))
-                          (setf (nth same parts)
+                        (when (and label (null (section-kind (aref parts same))))
+                          (setf (aref parts same)
                                 (list :kind (first label) :number (second label)
-                                      :label (third label) :slides (list block))))
+                                      :label (third label) :slides (list block))
+                                (gethash (first label) kinds) t))
                         (push same places)))))
              (flush ()
                (let* ((lines (nreverse pending))
@@ -582,7 +636,7 @@ so is what stands under Intro or Instrumental."
                        ((eq (first label) :wordless)
                         (dolist (block (if apart blocks (rest blocks))) (take block nil)))
                        ((or (null blocks)
-                            (and apart (find (first label) parts :key #'section-kind)))
+                            (and apart (gethash (first label) kinds)))
                         ;; A label alone: that part is sung again here.
                         ;; Which it is shows when every part has its kind.
                         (push label places)
@@ -600,25 +654,34 @@ so is what stands under Intro or Instrumental."
                 ;; and no break.
                 ((string/= (split-chords sung) "") (push sung pending)))))
       (flush))
-    (let ((free (remove-if (lambda (kind) (find kind parts :key #'section-kind))
-                           '(:refrain :bridge :tag))))
-      (setf parts (loop for part in parts
-                        for index from 0
-                        collect (cond ((section-kind part) part)
-                                      ((and free (> (count index places) 1))
-                                       (relabel part (pop free)))
-                                      (t (relabel part :verse)))))
-      (values parts
-              (loop for place in (nreverse places)
-                    for index = (if (integerp place)
-                                    place
-                                    (position-if
-                                     (lambda (part)
-                                       (and (eq (section-kind part) (first place))
-                                            (or (null (second place))
-                                                (eql (second place) (section-number part)))))
-                                     parts))
-                    when index collect index)))))
+    (let ((free (remove-if (lambda (kind) (gethash kind kinds)) '(:refrain :bridge :tag)))
+          (times (make-array (length parts) :initial-element 0))
+          ;; The first part of each kind, by (KIND) and by (KIND NUMBER).
+          (first-of (make-hash-table :test #'equal)))
+      (dolist (place places)
+        (when (integerp place)
+          (incf (aref times place))))
+      (let ((parts (loop for part across parts
+                         for index from 0
+                         collect (cond ((section-kind part) part)
+                                       ((and free (> (aref times index) 1))
+                                        (relabel part (pop free)))
+                                       (t (relabel part :verse))))))
+        (loop for part in parts
+              for index from 0
+              do (dolist (key (list (list (section-kind part))
+                                    (list (section-kind part) (section-number part))))
+                   (unless (gethash key first-of)
+                     (setf (gethash key first-of) index))))
+        (values parts
+                (loop for place in (nreverse places)
+                      for index = (if (integerp place)
+                                      place
+                                      (gethash (if (second place)
+                                                   (list (first place) (second place))
+                                                   (list (first place)))
+                                               first-of))
+                      when index collect index))))))
 
 (defun outline-song (parts places &key title writers copyright tags)
   "The song of PARTS sung in the order PLACES (see OUTLINE), with its

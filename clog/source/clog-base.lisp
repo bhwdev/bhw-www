@@ -653,7 +653,8 @@ this host, the one in its X-Forwarded-For)."
 
 (defun client-timezone-offset (clog-obj)
   "How many minutes the clock of CLOG-OBJ's browser is behind UTC, as
-JavaScript's getTimezoneOffset; 0 when it did not say."
+JavaScript's getTimezoneOffset; 0 when it did not say, or said a day or
+more."
   (or (request-value clog-obj :timezone-offset) 0))
 
 (defun client-language (clog-obj)

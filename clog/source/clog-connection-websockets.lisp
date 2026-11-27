@@ -132,7 +132,14 @@ INITIALIZE for its options).  Subclass it to serve more."))
           (flex:make-external-format :utf-8 :eol-style :lf))
         (hunchentoot:*default-content-type* "text/html; charset=utf-8")
         (flex:*substitution-char* (code-char #xFFFD)))
-    (call-next-method)))
+    ;; Hunchentoot answers an error with a 500, but a stack or heap
+    ;; exhausted is not an error: it would reach the thread's toplevel, and
+    ;; in a program whose debugger is disabled end the process.  It ends the
+    ;; connection instead.
+    (handler-case (call-next-method)
+      (storage-condition (condition)
+        (log-message :error "A connection's thread ran out of room and was ended: ~A"
+                     (or (ignore-errors (princ-to-string condition)) (type-of condition)))))))
 
 (defmethod hunchentoot:acceptor-output-chunking-p :around ((acceptor clog-acceptor))
   (and (not *websocket-handshake*) (call-next-method)))
@@ -219,6 +226,20 @@ FILE-CONTENT-TYPE names.")
   (:method ((acceptor clog-acceptor) pathname)
     (hunchentoot:handle-static-file pathname (file-content-type pathname))))
 
+(defun path-segments-p (path &key trailing-slash)
+  "True when PATH is '/'-separated segments of letters, digits and -_.~, none
+of them empty or beginning with a dot or a tilde, and ends with a segment,
+or with TRAILING-SLASH with a slash too.  Read a segment at a time: one
+regex for the whole path repeats a group for each segment, and CL-PPCRE's
+matcher recurses for each repetition, so tens of thousands of segments
+exhaust the stack."
+  (and (stringp path)
+       (plusp (length path))
+       (char= #\/ (char path 0))
+       (loop for (segment . more) on (rest (uiop:split-string path :separator "/"))
+             always (or (ppcre:scan "^[A-Za-z0-9_-][A-Za-z0-9_.~-]*\\z" segment)
+                        (and trailing-slash (null more) (string= segment ""))))))
+
 (defun static-file (root path)
   "The truename of the regular file under the directory ROOT that PATH, a
 request's decoded path, names, or NIL.  Only a path of '/'-separated segments
@@ -226,7 +247,7 @@ of letters, digits and -_.~, none of them empty or beginning with a dot or a
 tilde, names a file: no other directory, no hidden file, no wild or logical
 pathname.  (Lack's file server, which upstream uses, merges the path into
 ROOT as a namestring, which an absolute path, ~ or a host prefix escapes.)"
-  (when (and root (ppcre:scan "^(?:/[A-Za-z0-9_-][A-Za-z0-9_.~-]*)+$" path))
+  (when (and root (path-segments-p path))
     (let ((truename (probe-file (merge-pathnames (uiop:parse-unix-namestring (subseq path 1))
                                                  (uiop:ensure-directory-pathname root)))))
       ;; PROBE-FILE gives a directory as a directory pathname, without a name.
@@ -253,62 +274,88 @@ page.  TOKEN, if given, names what a form posted to it."
 </html>
 " token *boot-script-path*))
 
-(defvar *boot-data* (make-hash-table* :test #'equal)
-  "What forms posted to boot pages, until their pages connect: (TIME . PLIST)
-by token.")
+(defvar *boot-data* (make-hash-table :test #'equal)
+  "What forms posted to boot pages, until their pages connect: (TIME SIZE .
+PLIST) by token, SIZE as KEEP-BOOT-DATA has it.  Under *BOOT-DATA-LOCK*.")
+
+(defvar *boot-data-lock* (bordeaux-threads:make-lock "clog-boot-data"))
+
+(defvar *boot-data-size* 0
+  "The sizes of the entries of *BOOT-DATA*, added up.")
 
 (defparameter +boot-data-seconds+ 60
   "How long what a form posted to a boot page is kept for its page.")
 
-(defun keep-boot-data (plist)
-  "Keep PLIST for the page about to be sent; its token, or NIL if too many are
-kept already."
-  (let ((now (get-universal-time)))
-    (when (> (hash-table-count *boot-data*) 100)
-      (loop for (token . entry) in (alexandria:hash-table-alist *boot-data*)
-            when (> (- now (car entry)) +boot-data-seconds+)
-              do (remhash token *boot-data*)))
-    (when (< (hash-table-count *boot-data*) 10000)
-      (let ((token (random-hex-string)))
-        (setf (gethash token *boot-data*) (cons now plist))
-        token))))
+(defparameter *boot-data-limit* (* 8 1024 1024)
+  "The most that is kept of what forms posted, their texts in characters and
+their files in octets.  Whoever posts a form decides how much is kept, and
+for as long as +BOOT-DATA-SECONDS+ if no page connects to take it: 200
+posts of a mebibyte each held some 800 MB of strings.")
+
+(defun keep-boot-data (plist size)
+  "Keep PLIST, of SIZE characters and octets, for the page about to be sent;
+its token, or NIL if too much is kept already."
+  (bordeaux-threads:with-lock-held (*boot-data-lock*)
+    (flet ((room-p ()
+             (and (< (hash-table-count *boot-data*) 10000)
+                  (<= (+ *boot-data-size* size) *boot-data-limit*))))
+      (let ((now (get-universal-time)))
+        (unless (room-p)
+          (loop for token being the hash-keys of *boot-data* using (hash-value entry)
+                when (> (- now (first entry)) +boot-data-seconds+)
+                  do (remhash token *boot-data*)
+                     (decf *boot-data-size* (second entry))))
+        (when (room-p)
+          (let ((token (random-hex-string)))
+            (setf (gethash token *boot-data*) (list* now size plist))
+            (incf *boot-data-size* size)
+            token))))))
 
 (defun take-boot-data (token)
   "The plist kept for TOKEN, forgotten, if it is recent."
-  (let ((entry (gethash token *boot-data*)))
-    (when entry
-      (remhash token *boot-data*)
-      (and (<= (- (get-universal-time) (car entry)) +boot-data-seconds+)
-           (cdr entry)))))
+  (bordeaux-threads:with-lock-held (*boot-data-lock*)
+    (let ((entry (gethash token *boot-data*)))
+      (when entry
+        (remhash token *boot-data*)
+        (decf *boot-data-size* (second entry))
+        (and (<= (- (get-universal-time) (first entry)) +boot-data-seconds+)
+             (cddr entry))))))
 
 (defun boot-post-data (request)
   "What a form posted to the boot page in REQUEST, as a plist, or NIL:
 :POST-DATA, the raw body of an application/x-www-form-urlencoded form, or
 :MULTIPART-DATA, a multipart/form-data form's fields: (name . value), and for
 an uploaded file (name stream file-name content-type), its contents in a
-stream in memory, as Hunchentoot deletes the file when the request ends."
-  (let ((content-type (or (hunchentoot:header-in :content-type request) "")))
+stream in memory, as Hunchentoot deletes the file when the request ends.
+The second value is its size, its texts' characters and its files' octets."
+  (let ((content-type (or (hunchentoot:header-in :content-type request) ""))
+        (size 0))
     (cond ((search "multipart/form-data;" content-type)
-           (list :multipart-data
-                 (mapcar (lambda (parameter)
-                           (destructuring-bind (name . value) parameter
-                             (if (consp value)
-                                 (destructuring-bind (file file-name type) value
-                                   (list name
-                                         (flex:make-in-memory-input-stream
-                                          (alexandria:read-file-into-byte-vector file))
-                                         file-name type))
-                                 (cons name value))))
-                         (hunchentoot:post-parameters request))))
+           (values
+            (list :multipart-data
+                  (mapcar (lambda (parameter)
+                            (destructuring-bind (name . value) parameter
+                              (incf size (length name))
+                              (if (consp value)
+                                  (destructuring-bind (file file-name type) value
+                                    (let ((octets (alexandria:read-file-into-byte-vector file)))
+                                      (incf size (length octets))
+                                      (list name (flex:make-in-memory-input-stream octets)
+                                            file-name type)))
+                                  (progn (incf size (length value))
+                                         (cons name value)))))
+                          (hunchentoot:post-parameters request)))
+            size))
           ((ppcre:scan "^application/x-www-form-urlencoded\\s*(?:;|$)" content-type)
-           (list :post-data (hunchentoot:raw-post-data :request request :force-text t))))))
+           (let ((text (hunchentoot:raw-post-data :request request :force-text t)))
+             (values (list :post-data text) (length text)))))))
 
 (defun serve-boot-page (request)
   "Answer REQUEST with the boot page."
   (setf (hunchentoot:content-type*) "text/html; charset=utf-8"
         (hunchentoot:header-out :cache-control) "no-store")
-  (compiled-boot-html (let ((data (boot-post-data request)))
-                        (and data (keep-boot-data data)))))
+  (compiled-boot-html (multiple-value-bind (data size) (boot-post-data request)
+                        (and data (keep-boot-data data size)))))
 
 (defmethod hunchentoot:acceptor-dispatch-request ((acceptor clog-acceptor) request)
   "Answer REQUEST as CLOG does: /clog with the websocket, the path of boot.js
@@ -399,12 +446,21 @@ serves a websocket."
     (and value (< (length value) 12)
          (ignore-errors (parse-integer value)))))
 
+(defparameter *max-page-path* 2048
+  "The longest path a page may say it has: its route is looked for under
+each of the path's directories in turn (FIND-ROUTE), in time that grows as
+the square of the path's length.")
+
 (defun page-request (request)
   "What a new page tells of itself in REQUEST, the opening of its websocket:
-the plist CONNECTION-REQUEST describes."
+the plist CONNECTION-REQUEST describes.  A path that is not one, or is
+longer than *MAX-PAGE-PATH*, is /, and a time zone offset of a day or more
+none."
   (let ((path (hunchentoot:get-parameter "p" request))
-        (token (hunchentoot:get-parameter "b" request)))
-    (append (list :path (if (and path (plusp (length path)) (char= #\/ (char path 0)))
+        (token (hunchentoot:get-parameter "b" request))
+        (offset (get-integer request "tz")))
+    (append (list :path (if (and path (< 0 (length path) (1+ *max-page-path*))
+                                 (char= #\/ (char path 0)))
                             path
                             "/")
                   :query-string (or (hunchentoot:get-parameter "q" request) "")
@@ -412,7 +468,10 @@ the plist CONNECTION-REQUEST describes."
                                  collect (cons (string-downcase name) value))
                   :cookies (hunchentoot:cookies-in request)
                   :remote-address (client-address request)
-                  :timezone-offset (get-integer request "tz")
+                  ;; Clocks run from 12 hours behind UTC to 14 ahead.  The
+                  ;; page chooses what it sends: an offset of years would
+                  ;; make every time decoded with it fail.
+                  :timezone-offset (and offset (< -1440 offset 1440) offset)
                   :viewport-width (get-integer request "vw")
                   :viewport-height (get-integer request "vh")
                   :pixel-ratio (hunchentoot:get-parameter "dpr" request)

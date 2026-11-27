@@ -71,7 +71,14 @@ it."
                       "/assets/../src/main.lisp" "/.git/config" "/assets/.hidden"
                       "/SYS:SRC;CODE;TARGET-PATHNAME.LISP" "/a\\b" "/a b" "/a*"
                       (format nil "/caf~C" (code-char 233)) "relative" nil))
-    (ng (main::safe-path-p path) path)))
+    (ng (main::safe-path-p path) path))
+  ;; Up to *MAX-PATH-LENGTH*, however many segments, without exhausting
+  ;; the stack (a path of 20,000 segments did, and ended the process).
+  (let ((longest (format nil "~{/~A~}" (make-list (floor main::*max-path-length* 2)
+                                                  :initial-element "a"))))
+    (ok (main::safe-path-p longest))
+    (ng (main::safe-path-p (concatenate 'string longest "/a")))
+    (ng (main::safe-path-p (format nil "~{/~A~}" (make-list 100000 :initial-element "a"))))))
 
 ;; What a page quotes from the URL cannot open a tag or leave an attribute.
 (deftest html-escaping
@@ -84,6 +91,7 @@ it."
     (ok (= 200 (status :path-info "/about")))
     (ok (= 200 (status :path-info "/slack/events" :content-length 1024)))
     (ok (= 400 (status :path-info "//etc/passwd")))
+    (ok (= 414 (status :path-info (format nil "~{/~A~}" (make-list 20000 :initial-element "a")))))
     (ok (= 413 (status :path-info "/about" :content-length (1+ main::*max-request-octets*))))
     (ok (= 413 (status :path-info "/about" :content-length -1)))
     (let ((headers (make-hash-table :test #'equal)))

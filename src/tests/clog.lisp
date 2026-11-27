@@ -190,6 +190,14 @@ the server sends back."
                         "/.gitignore" "/~/x" "//etc/passwd" "/SYS:SRC;X.LISP" "/a*"
                         "/clog.asd/" "/nothing-here"))
       (ng (conn::static-file root path) path)))
+  ;; Read a segment at a time, a path of many does not exhaust the stack.
+  (let ((deep (format nil "~{/~A~}" (make-list 100000 :initial-element "a"))))
+    (ok (conn:path-segments-p deep))
+    (ng (conn::static-file (asdf:system-relative-pathname :bhw "") deep)))
+  (ok (conn:path-segments-p "/a/" :trailing-slash t))
+  (ng (conn:path-segments-p "/a/"))
+  (ng (conn:path-segments-p "/"))
+  (ng (conn:path-segments-p (format nil "/a~%")) "a newline ends no segment")
   (ok (equal "text/css; charset=utf-8" (conn:file-content-type #p"a.css")))
   (ok (equal "image/webp" (conn:file-content-type #p"a.webp")))
   (ok (equal "font/woff2" (conn:file-content-type #p"a.woff2")))
@@ -401,6 +409,22 @@ the server sends back."
     (ok (eq :default (conn:find-route "/other/x" :server server :default t)))
     (ok (eq :root (conn:find-route "/" :server server)))))
 
+;; What forms posted to boot pages is kept up to *BOOT-DATA-LIMIT* in all,
+;; and taking an entry frees its room.
+(deftest boot-data-limit
+  (let ((conn::*boot-data* (make-hash-table :test #'equal))
+        (conn::*boot-data-size* 0)
+        (conn::*boot-data-limit* 100))
+    (let ((first (conn::keep-boot-data '(:post-data "a=1") 60)))
+      (ok first)
+      (ng (conn::keep-boot-data '(:post-data "a=2") 60) "over the limit")
+      (ok (equal '(:post-data "a=1") (conn::take-boot-data first)))
+      (ok (= 0 conn::*boot-data-size*))
+      (ok (conn::keep-boot-data '(:post-data "a=2") 60) "room again"))
+    ;; Expired entries make room.
+    (let ((conn::+boot-data-seconds+ -1))
+      (ok (conn::keep-boot-data '(:post-data "a=3") 60)))))
+
 (deftest websocket-limit
   ;; By default, from the process's limit on open files.
   (ok (typep (conn::open-files-limit) '(integer 1)))
@@ -489,6 +513,18 @@ not a text message; NIL at end of file."
                               message))))
     (and groups (aref groups 0))))
 
+;; A server that runs out of stack answering /deep: a request's thread whose
+;; stack or heap is exhausted ends its connection, not the process.
+(defclass deep-acceptor (conn:clog-acceptor) ())
+
+(defun deep (n)
+  (if (zerop n) 0 (1+ (deep (1- n)))))
+
+(defmethod hunchentoot:acceptor-dispatch-request :around ((acceptor deep-acceptor) request)
+  (if (equal "/deep" (hunchentoot:script-name request))
+      (deep most-positive-fixnum)
+      (call-next-method)))
+
 (deftest clog-server
   ;; The server's threads see the global values.
   (let ((level conn:*log-level*)
@@ -501,6 +537,7 @@ not a text message; NIL at end of file."
           conn:*max-websockets-per-address* 6)
     (clog:initialize (lambda (body) (clog:create-div body :content "hello from the fork"))
                      :host "127.0.0.1" :port *port* :static-root nil
+                     :acceptor-class 'deep-acceptor
                      :acceptor-initargs
                      (list :read-timeout 1 :write-timeout 1
                            ;; Few threads, for the websockets to go past.
@@ -534,6 +571,30 @@ not a text message; NIL at end of file."
       (ng (search "Hunchentoot" body)))
     (ok (= 404 (http-get "/%2E%2E/clog.asd")))
     (ok (= 404 (http-get "//etc/passwd"))))
+  (testing "a request that exhausts its thread's stack ends its connection only"
+    (let ((socket (connect)))
+      (unwind-protect
+           (let ((stream (usocket:socket-stream socket)))
+             (send-request stream "GET /deep HTTP/1.0")
+             (ok (null (read-byte stream nil)) "no answer"))
+        (usocket:socket-close socket)))
+    (ok (= 200 (http-get "/")) "and the server goes on"))
+  (testing "what a page says of its path and time zone, taken within reason"
+    (flet ((request-of (query)
+             (multiple-value-bind (socket status) (open-websocket :query query)
+               (unwind-protect
+                    (progn
+                      (ok (= 101 status))
+                      (conn:connection-request
+                       (connection-id-of (next-text (usocket:socket-stream socket)))))
+                 (usocket:socket-close socket)))))
+      (let ((request (request-of "p=/a&tz=-300")))
+        (ok (equal "/a" (getf request :path)))
+        (ok (eql -300 (getf request :timezone-offset))))
+      (let ((request (request-of (format nil "p=/~A&tz=99999999999"
+                                         (make-string 3000 :initial-element #\a)))))
+        (ok (equal "/" (getf request :path)) "a path too long is /")
+        (ok (null (getf request :timezone-offset)) "an offset of years is none"))))
   (testing "handshakes refused"
     (ok (= 400 (http-get "/clog")))
     (multiple-value-bind (socket status headers) (open-websocket :version "8")

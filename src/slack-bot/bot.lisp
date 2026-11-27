@@ -239,13 +239,13 @@ a message is read as a request: a booking needs `/book`.")
 
 ;;; Signature Verification
 
-(defun verify-slack-signature (timestamp body-string signature)
+(defun verify-slack-signature (timestamp body signature)
   "Verify a Slack request signature.
 Returns T if valid, NIL otherwise.
 TIMESTAMP is the X-Slack-Request-Timestamp header value (string).
-BODY-STRING is the raw request body.
-SIGNATURE is the X-Slack-Signature header value (v0=hex...).
-Slack signs the body's UTF-8 octets, so BODY-STRING is encoded back to them."
+BODY is the raw request body: its octets, as received, or a string, which
+is taken as its UTF-8 octets, as Slack signs the body's.
+SIGNATURE is the X-Slack-Signature header value (v0=hex...)."
   (when (or (zerop (length *slack-signing-secret*)) (null signature) (null timestamp))
     (return-from verify-slack-signature nil))
   ;; Reject timestamps older than 5 minutes (replay protection)
@@ -257,9 +257,11 @@ Slack signs the body's UTF-8 octets, so BODY-STRING is encoded back to them."
       (return-from verify-slack-signature nil)))
   (flet ((octets (string)
            (flexi-streams:string-to-octets string :external-format :utf-8)))
-    (let* ((basestring (format nil "v0:~A:~A" timestamp body-string))
-           (hmac (ironclad:make-hmac (octets *slack-signing-secret*) :sha256)))
-      (ironclad:update-hmac hmac (octets basestring))
+    (let ((hmac (ironclad:make-hmac (octets *slack-signing-secret*) :sha256)))
+      (ironclad:update-hmac hmac (octets (format nil "v0:~A:" timestamp)))
+      (ironclad:update-hmac hmac (if (stringp body)
+                                     (octets body)
+                                     (coerce body '(simple-array (unsigned-byte 8) (*)))))
       (let* ((digest (ironclad:hmac-digest hmac))
              (computed (format nil "v0=~(~{~2,'0X~}~)" (coerce digest 'list))))
         (ironclad:constant-time-equal (octets computed) (octets signature))))))
@@ -755,13 +757,13 @@ synchronously or ignored."
 ;;; Hunchentoot's request and reply, and the tests make them directly.
 
 (defparameter *max-body-octets* (* 1024 1024)
-  "The longest request body READ-BODY-STRING reads; Slack's are a few
+  "The longest request body READ-BODY-OCTETS reads; Slack's are a few
 kilobytes.  The body is read before its signature can be checked, so this
 bounds what an unauthenticated POST can make the bot hold in memory.")
 
-(defun read-body-string (env)
-  "Read the raw request body from the request plist ENV into a UTF-8 string,
-or return NIL when there is none or it is longer than *MAX-BODY-OCTETS*."
+(defun read-body-octets (env)
+  "The raw request body of the request plist ENV, its octets, or NIL when
+there is none or it is longer than *MAX-BODY-OCTETS*."
   (let ((stream (getf env :raw-body)))
     (when stream
       (let* ((declared (getf env :content-length))
@@ -771,25 +773,33 @@ or return NIL when there is none or it is longer than *MAX-BODY-OCTETS*."
                                  :element-type '(unsigned-byte 8)))
              (end (read-sequence buffer stream)))
         (when (< end (length buffer))
-          (flexi-streams:octets-to-string buffer :end end :external-format :utf-8))))))
+          (subseq buffer 0 end))))))
 
 (defun verified-body (env)
   "The body of the request plist ENV as a string when it carries Slack's
 signature of it (VERIFY-SLACK-SIGNATURE), or else NIL and, as a second value,
-the response refusing the request: 400 without a readable body, 403 without
-a valid signature."
-  (let ((body-string (read-body-string env))
+the response refusing the request: 400 without a body that can be read, 403
+without a valid signature.  The signature is checked on the octets as they
+came, before they are decoded: a body whose last character was cut short
+signalled in the decoding, so that an unsigned request had a 500 and a
+backtrace in the log."
+  (let ((body (read-body-octets env))
         (headers (getf env :headers)))
     (flet ((header (name)
              (and headers (gethash name headers))))
-      (cond ((null body-string)
+      (cond ((null body)
              (values nil '(400 () ("bad request"))))
-            ((verify-slack-signature (header "x-slack-request-timestamp")
-                                     body-string
-                                     (header "x-slack-signature"))
-             body-string)
+            ((not (verify-slack-signature (header "x-slack-request-timestamp")
+                                          body
+                                          (header "x-slack-signature")))
+             (values nil '(403 () ("invalid signature"))))
             (t
-             (values nil '(403 () ("invalid signature"))))))))
+             (let ((text (let ((flexi-streams:*substitution-char* nil))
+                           (ignore-errors
+                            (flexi-streams:octets-to-string body :external-format :utf-8)))))
+               (if text
+                   text
+                   (values nil '(400 () ("bad request"))))))))))
 
 (defun json-response (status hash-table)
   "Return a response (STATUS HEADERS BODY) with JSON content."

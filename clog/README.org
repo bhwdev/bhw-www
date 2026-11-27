@@ -86,9 +86,11 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
   =request-query-string=, =request-parameter=, =request-header=,
   =request-cookie= (HttpOnly too), =remote-address=, =client-timezone-offset=,
   =client-language=, =client-viewport=, none of which asks the browser.
-  Upstream asks it for the path. What a form posted to a boot page comes
-  from the boot request, by a token in the page's =<meta name=clog-boot>=:
-  the page has no inline script.
+  Upstream asks it for the path. A path longer than =*max-page-path*= is
+  taken for =/=, and a time zone offset of a day or more for none. What a
+  form posted to a boot page comes from the boot request, by a token in the
+  page's =<meta name=clog-boot>=: the page has no inline script; what forms
+  posted is kept up to =*boot-data-limit*= in all.
 - *Mirrored fields*: =(mirror form-element)= has the browser send the
   element's value as it changes, so that =value= and =text-value= read it
   without asking.
@@ -110,6 +112,8 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
   default enters the debugger, which in an executable ends the process).
   The log goes through =log-message= (=*log-level*=, =*log-function*=), and
   names connections by serial number: their IDs let a page take them over.
+  A request's thread that runs out of stack or heap, which Hunchentoot does
+  not catch (it is not an error), ends its connection, not the process.
 - *Browser GC*: the ID a =gc= event sends is compared, not made into a
   regex (upstream: any client could hand =cl-ppcre= a pattern).
 
@@ -141,8 +145,9 @@ grouped as upstream's sections were; CLOG's manual is upstream's.
 - *Websockets*: =clog-websocket.lisp= implements the server side of RFC 6455
   on Hunchentoot, in the request's own thread, in place of websocket-driver.
 - *Static files*: a path names a file only if each segment is letters,
-  digits and =-_.~=, not starting with a dot or tilde; Lack's file server let
-  an absolute path, =~= or a logical host escape the root.
+  digits and =-_.~=, not starting with a dot or tilde (=path-segments-p=);
+  Lack's file server let an absolute path, =~= or a logical host escape the
+  root.
 - *Boot page*: there is one, compiled: it loads =boot.js= alone (upstream's
   also loads jQuery from the jQuery CDN). Uploaded files posted to it are
   kept in memory, as Hunchentoot deletes its temporary files when the

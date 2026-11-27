@@ -322,18 +322,21 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
     (ok (= 200 (first resp)))
     (ok (equal '(:content-type "application/json") (second resp)))
     (ok (string= "abc" (gethash "challenge" (com.inuoe.jzon:parse (first (third resp)))))))
-  ;; read-body-string decodes UTF-8 and tolerates a missing body
-  (ok (string= "héllo=wörld" (sb::read-body-string (body-env "héllo=wörld"))))
-  (ok (string= "" (sb::read-body-string (body-env ""))))
-  (ng (sb::read-body-string '(:path-info "/x")))
-  ;; ...and reads no more than *MAX-BODY-OCTETS*, whatever the length declared
-  (let ((sb::*max-body-octets* 4))
-    (ok (string= "abcd" (sb::read-body-string (body-env "abcd"))))
-    (ng (sb::read-body-string (body-env "abcde")))
-    (ng (sb::read-body-string (body-env "abcde" :content-length 1000)))
-    (ok (string= "ab" (sb::read-body-string (body-env "ab" :content-length 2))))
-    ;; a body longer than it declares is refused too
-    (ng (sb::read-body-string (body-env "abc" :content-length 2))))
+  ;; read-body-octets reads the body as it came and tolerates a missing one
+  (flet ((body (env)
+           (let ((octets (sb::read-body-octets env)))
+             (and octets (flexi-streams:octets-to-string octets :external-format :utf-8)))))
+    (ok (string= "héllo=wörld" (body (body-env "héllo=wörld"))))
+    (ok (string= "" (body (body-env ""))))
+    (ng (body '(:path-info "/x")))
+    ;; ...and reads no more than *MAX-BODY-OCTETS*, whatever the length declared
+    (let ((sb::*max-body-octets* 4))
+      (ok (string= "abcd" (body (body-env "abcd"))))
+      (ng (body (body-env "abcde")))
+      (ng (body (body-env "abcde" :content-length 1000)))
+      (ok (string= "ab" (body (body-env "ab" :content-length 2))))
+      ;; a body longer than it declares is refused too
+      (ng (body (body-env "abc" :content-length 2)))))
   ;; help text describes the free-form contract
   (dolist (needle '("destination" "day" "passengers" "times" "vehicle" "re-send"
                     "/view" "/subscribe" "/unsubscribe" "/help"))
@@ -361,6 +364,34 @@ literal SIGNATURE).  EXTRA-HEADERS is a plist of additional header values."
                            (first (third (sb:slack-response
                                           (signed-env "/slack/events"
                                                       "{\"type\":\"url_verification\",\"challenge\":\"abc\"}"))))))))))
+
+;; The signature is checked on the body's octets before they are decoded: a
+;; body that is not UTF-8 (here its last character cut short) is refused
+;; with 403 unsigned, where its decoding signalled, and with 400 signed.
+(deftest bodies-that-are-not-utf-8
+  (let* ((sb::*slack-signing-secret* "testsecret")
+         (octets (concatenate '(vector (unsigned-byte 8))
+                              (flexi-streams:string-to-octets "token=x&text=" :external-format :utf-8)
+                              #(#xE2 #x82)))
+         (ts (princ-to-string (unix-now))))
+    (flet ((env (signature)
+             (let ((headers (make-hash-table :test #'equal)))
+               (setf (gethash "x-slack-request-timestamp" headers) ts
+                     (gethash "x-slack-signature" headers) signature)
+               (list :request-method :post :path-info "/slack/commands"
+                     :content-length (length octets)
+                     :raw-body (flexi-streams:make-in-memory-input-stream octets)
+                     :headers headers))))
+      (let ((signature (let ((hmac (ironclad:make-hmac
+                                    (flexi-streams:string-to-octets "testsecret" :external-format :utf-8)
+                                    :sha256)))
+                         (ironclad:update-hmac hmac (flexi-streams:string-to-octets
+                                                     (format nil "v0:~A:" ts) :external-format :utf-8))
+                         (ironclad:update-hmac hmac octets)
+                         (format nil "v0=~(~{~2,'0X~}~)" (coerce (ironclad:hmac-digest hmac) 'list)))))
+        (ok (sb::verify-slack-signature ts octets signature))
+        (ok (= 403 (first (sb:slack-response (env "v0=00")))))
+        (ok (= 400 (first (sb:slack-response (env signature)))))))))
 
 (deftest events-endpoint
   (let ((sb::*slack-signing-secret* "testsecret"))

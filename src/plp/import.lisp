@@ -261,8 +261,7 @@ BUILD-SONG.  The chords are not among them: PAGE-CHORDS reads those."
                              (format nil "~A ~A" (first out) (string-trim " " mark)))))
                     (t
                      (let ((lyric (clean-lyric words)))
-                       (when (>= (count-if (lambda (word) (cl-ppcre:scan song::*chord-token* word))
-                                           (words lyric))
+                       (when (>= (count-if #'song::chord-p (words lyric))
                                  (max 2 (ceiling (length (words lyric)) 2)))
                          (push lyric residue))
                        (push (if mark
